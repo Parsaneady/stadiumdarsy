@@ -15,7 +15,7 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
   { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
-  { path: '/analytics', icon: BarChart3, label: 'آنالیتیکس' },
+  { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
 ];
 
 export const Sidebar = () => {

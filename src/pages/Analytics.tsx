@@ -80,7 +80,7 @@ const Analytics = () => {
           <BarChart3 className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold gradient-text">آنالیتیکس</h1>
+          <h1 className="text-3xl font-bold gradient-text">تحلیل‌ها</h1>
           <p className="text-muted-foreground mt-1">تحلیل جامع عملکرد مطالعه</p>
         </div>
       </motion.div>
@@ -91,7 +91,7 @@ const Analytics = () => {
           { icon: Clock, label: 'کل ساعات', value: stats.totalHours.toFixed(1), unit: 'ساعت', color: '#06b6d4' },
           { icon: FileText, label: 'کل تست‌ها', value: stats.totalTests, unit: 'تست', color: '#8b5cf6' },
           { icon: Target, label: 'میانگین تکمیل', value: `${stats.avgCompletion.toFixed(0)}%`, unit: '', color: '#10b981' },
-          { icon: BookOpen, label: 'تعداد دروس', value: Object.keys(stats.subjectStats).length, unit: 'درس', color: '#f59e0b' },
+          { icon: BookOpen, label: 'تعداد درس‌ها', value: Object.keys(stats.subjectStats).length, unit: '', color: '#f59e0b' },
         ].map((stat, index) => (
           <GlassCard key={stat.label} delay={index * 0.1} className="text-center">
             <stat.icon className="w-8 h-8 mx-auto mb-2" style={{ color: stat.color }} />
