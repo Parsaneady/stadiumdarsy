@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion';
 import { Clock, FileText, CheckCircle2, Circle, Trash2, Edit2 } from 'lucide-react';
 import { StudySession } from '@/stores/studyStore';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { formatHoursShort } from '@/lib/timeUtils';
 import { cn } from '@/lib/utils';
 
 interface SessionCardProps {
@@ -24,14 +24,9 @@ export const SessionCard = ({ session, onToggleComplete, onDelete, onEdit }: Ses
   };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ y: -2 }}
+    <div
       className={cn(
-        'glass-card rounded-xl p-4 border transition-all duration-300',
+        'glass-card rounded-xl p-4 border transition-all duration-200 hover:-translate-y-0.5',
         session.completed ? 'border-success/30 bg-success/5' : 'border-white/10'
       )}
     >
@@ -84,7 +79,7 @@ export const SessionCard = ({ session, onToggleComplete, onDelete, onEdit }: Ses
         <div className="flex items-center gap-2 text-sm">
           <Clock className="w-4 h-4 text-secondary" />
           <span className="text-muted-foreground">
-            {session.actualHours.toFixed(1)} / {session.targetHours.toFixed(1)} ساعت
+            {formatHoursShort(session.actualHours)} / {formatHoursShort(session.targetHours)}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm">
@@ -122,6 +117,6 @@ export const SessionCard = ({ session, onToggleComplete, onDelete, onEdit }: Ses
           {session.notes}
         </p>
       )}
-    </motion.div>
+    </div>
   );
 };

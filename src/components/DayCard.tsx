@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, ChevronDown } from 'lucide-react';
 import { DayPlan, StudySession, useStudyStore } from '@/stores/studyStore';
 import { SessionCard } from './SessionCard';
 import { AddSessionModal } from './AddSessionModal';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from './GlassCard';
+import { formatHoursShort } from '@/lib/timeUtils';
 
 interface DayCardProps {
   day: DayPlan;
@@ -54,7 +54,7 @@ export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
             <div>
               <h3 className="text-xl font-bold">{day.dayName}</h3>
               <p className="text-sm text-muted-foreground">
-                {day.sessions.length} جلسه • {totalHours.toFixed(1)} ساعت
+                {day.sessions.length} جلسه • {formatHoursShort(totalHours)}
               </p>
             </div>
           </div>
@@ -69,52 +69,41 @@ export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
               {completedCount}/{day.sessions.length}
             </div>
             
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-            </motion.div>
+            <ChevronDown 
+              className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${
+                isExpanded ? 'rotate-180' : ''
+              }`} 
+            />
           </div>
         </div>
 
         {/* Sessions */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-4 space-y-3">
-                {day.sessions.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    onToggleComplete={() => toggleSessionComplete(day.id, session.id)}
-                    onDelete={() => deleteSession(day.id, session.id)}
-                    onEdit={() => handleEdit(session)}
-                  />
-                ))}
+        {isExpanded && (
+          <div className="mt-4 space-y-3">
+            {day.sessions.map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                onToggleComplete={() => toggleSessionComplete(day.id, session.id)}
+                onDelete={() => deleteSession(day.id, session.id)}
+                onEdit={() => handleEdit(session)}
+              />
+            ))}
 
-                {/* Add Session Button */}
-                <Button
-                  variant="outline"
-                  className="w-full border-dashed border-white/20 hover:border-primary/50 hover:bg-primary/5"
-                  onClick={() => {
-                    setEditingSession(null);
-                    setIsModalOpen(true);
-                  }}
-                >
-                  <Plus className="w-4 h-4 ml-2" />
-                  افزودن جلسه جدید
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {/* Add Session Button */}
+            <Button
+              variant="outline"
+              className="w-full border-dashed border-white/20 hover:border-primary/50 hover:bg-primary/5"
+              onClick={() => {
+                setEditingSession(null);
+                setIsModalOpen(true);
+              }}
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              افزودن جلسه جدید
+            </Button>
+          </div>
+        )}
       </GlassCard>
 
       <AddSessionModal

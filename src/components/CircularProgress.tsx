@@ -1,5 +1,3 @@
-import { motion } from 'framer-motion';
-
 interface CircularProgressProps {
   value: number;
   size?: number;
@@ -32,7 +30,7 @@ export const CircularProgress = ({
           stroke="hsl(var(--muted))"
           strokeWidth={strokeWidth}
         />
-        <motion.circle
+        <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -41,10 +39,8 @@ export const CircularProgress = ({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-          className="drop-shadow-lg"
+          strokeDashoffset={offset}
+          className="drop-shadow-lg transition-all duration-500 ease-out"
           style={{
             filter: `drop-shadow(0 0 10px ${color})`,
           }}
@@ -52,14 +48,9 @@ export const CircularProgress = ({
       </svg>
       <div className="absolute flex flex-col items-center justify-center">
         {showValue && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-2xl font-bold text-foreground"
-          >
+          <span className="text-2xl font-bold text-foreground">
             {Math.round(value)}%
-          </motion.span>
+          </span>
         )}
         {label && (
           <span className="text-xs text-muted-foreground mt-1">{label}</span>
