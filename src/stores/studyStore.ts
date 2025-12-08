@@ -32,18 +32,35 @@ export interface DailyLog {
   feedback: string;
 }
 
+export interface PomodoroSettings {
+  studyDuration: number;
+  shortBreak: number;
+  longBreak: number;
+  cycles: number;
+}
+
 interface StudyStore {
   weeklyPlan: DayPlan[];
   dailyLogs: DailyLog[];
   currentWeekStart: Date;
+  streak: number;
+  lastStudyDate: string | null;
+  pomodoroSettings: PomodoroSettings;
+  totalPomodoroMinutesToday: number;
+  lastPomodoroDate: string | null;
   
   // Actions
   initializeWeek: () => void;
+  resetWeek: () => void;
   addSession: (dayId: string, session: Omit<StudySession, 'id'>) => void;
   updateSession: (dayId: string, sessionId: string, updates: Partial<StudySession>) => void;
   deleteSession: (dayId: string, sessionId: string) => void;
   toggleSessionComplete: (dayId: string, sessionId: string) => void;
   logDaily: (dayId: string) => void;
+  updateStreak: () => void;
+  setPomodoroSettings: (settings: PomodoroSettings) => void;
+  addPomodoroTime: (minutes: number) => void;
+  getTodayIndex: () => number;
   getStats: () => { 
     totalHours: number; 
     totalTests: number; 
@@ -63,27 +80,18 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const getPerformanceFeedback = (score: number): string => {
   if (score >= 90) return '🌟 عالی! عملکرد فوق‌العاده‌ای داشتی!';
   if (score >= 75) return '✨ خیلی خوب! به هدفت نزدیک شدی!';
-  if (score >= 60) return '💪 خوب بود! با کمی تلاش بیشتر میتونی بهتر بشی!';
+  if (score >= 60) return '💪 خوب بود! با کمی تلاش بیشتر می‌تونی بهتر بشی!';
   if (score >= 40) return '📚 نیاز به تمرکز بیشتر داری. فردا قوی‌تر برگرد!';
   return '🎯 امروز سخت بود، اما فردا روز جدیدی است!';
 };
 
-const createDefaultSessions = (dayIndex: number): StudySession[] => {
-  const subjects = ['ریاضی', 'فیزیک', 'شیمی', 'زبان انگلیسی', 'ادبیات'];
-  const sessionCount = dayIndex === 6 ? 2 : 3; // جمعه کمتر
-  
-  return subjects.slice(0, sessionCount).map((subject, index) => ({
-    id: generateId(),
-    subject,
-    targetHours: 1.5 + Math.random() * 1,
-    targetTests: Math.floor(5 + Math.random() * 10),
-    actualHours: 0,
-    actualTests: 0,
-    completed: false,
-    completionPercent: 0,
-    notes: '',
-    color: SUBJECT_COLORS[index % SUBJECT_COLORS.length],
-  }));
+const createEmptySessions = (): StudySession[] => {
+  return [];
+};
+
+const formatNumber = (num: number): number => {
+  // Keep user input exactly as entered - no floating point issues
+  return Math.round(num * 100) / 100;
 };
 
 export const useStudyStore = create<StudyStore>()(
@@ -92,22 +100,68 @@ export const useStudyStore = create<StudyStore>()(
       weeklyPlan: [],
       dailyLogs: [],
       currentWeekStart: new Date(),
+      streak: 0,
+      lastStudyDate: null,
+      pomodoroSettings: {
+        studyDuration: 25,
+        shortBreak: 5,
+        longBreak: 15,
+        cycles: 4,
+      },
+      totalPomodoroMinutesToday: 0,
+      lastPomodoroDate: null,
+
+      getTodayIndex: () => {
+        const today = new Date().getDay();
+        // Convert JS day (0=Sunday) to Persian day (0=Saturday)
+        return today === 6 ? 0 : today + 1;
+      },
 
       initializeWeek: () => {
+        const state = get();
+        // Only initialize if empty
+        if (state.weeklyPlan.length > 0) return;
+        
         const weeklyPlan: DayPlan[] = PERSIAN_DAYS.map((dayName, dayIndex) => ({
           id: generateId(),
           dayName,
           dayIndex,
-          sessions: createDefaultSessions(dayIndex),
+          sessions: createEmptySessions(),
         }));
         set({ weeklyPlan, currentWeekStart: new Date() });
+      },
+
+      resetWeek: () => {
+        set((state) => ({
+          weeklyPlan: state.weeklyPlan.map(day => ({
+            ...day,
+            sessions: day.sessions.map(session => ({
+              ...session,
+              actualHours: 0,
+              actualTests: 0,
+              completed: false,
+              completionPercent: 0,
+              notes: '',
+            })),
+          })),
+          totalPomodoroMinutesToday: 0,
+          lastPomodoroDate: null,
+        }));
       },
 
       addSession: (dayId, session) => {
         set((state) => ({
           weeklyPlan: state.weeklyPlan.map((day) =>
             day.id === dayId
-              ? { ...day, sessions: [...day.sessions, { ...session, id: generateId() }] }
+              ? { 
+                  ...day, 
+                  sessions: [...day.sessions, { 
+                    ...session, 
+                    id: generateId(),
+                    targetHours: formatNumber(session.targetHours),
+                    targetTests: Math.round(session.targetTests),
+                  }] 
+                }
               : day
           ),
         }));
@@ -120,7 +174,16 @@ export const useStudyStore = create<StudyStore>()(
               ? {
                   ...day,
                   sessions: day.sessions.map((s) =>
-                    s.id === sessionId ? { ...s, ...updates } : s
+                    s.id === sessionId 
+                      ? { 
+                          ...s, 
+                          ...updates,
+                          actualHours: updates.actualHours !== undefined ? formatNumber(updates.actualHours) : s.actualHours,
+                          targetHours: updates.targetHours !== undefined ? formatNumber(updates.targetHours) : s.targetHours,
+                          actualTests: updates.actualTests !== undefined ? Math.round(updates.actualTests) : s.actualTests,
+                          targetTests: updates.targetTests !== undefined ? Math.round(updates.targetTests) : s.targetTests,
+                        } 
+                      : s
                   ),
                 }
               : day
@@ -157,6 +220,30 @@ export const useStudyStore = create<StudyStore>()(
               : day
           ),
         }));
+        // Update streak when completing a session
+        get().updateStreak();
+      },
+
+      updateStreak: () => {
+        const today = new Date().toDateString();
+        const state = get();
+        
+        if (state.lastStudyDate === today) {
+          // Already counted today
+          return;
+        }
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayString = yesterday.toDateString();
+        
+        if (state.lastStudyDate === yesterdayString) {
+          // Consecutive day
+          set({ streak: state.streak + 1, lastStudyDate: today });
+        } else if (state.lastStudyDate === null || state.lastStudyDate !== today) {
+          // First day or missed a day
+          set({ streak: 1, lastStudyDate: today });
+        }
       },
 
       logDaily: (dayId) => {
@@ -164,7 +251,7 @@ export const useStudyStore = create<StudyStore>()(
         const day = state.weeklyPlan.find((d) => d.id === dayId);
         if (!day) return;
 
-        const totalStudyHours = day.sessions.reduce((sum, s) => sum + s.actualHours, 0);
+        const totalStudyHours = formatNumber(day.sessions.reduce((sum, s) => sum + s.actualHours, 0));
         const totalTests = day.sessions.reduce((sum, s) => sum + s.actualTests, 0);
         const completedSessions = day.sessions.filter((s) => s.completed).length;
         const totalSessions = day.sessions.length;
@@ -193,6 +280,38 @@ export const useStudyStore = create<StudyStore>()(
         set((state) => ({
           dailyLogs: [...state.dailyLogs, newLog],
         }));
+        
+        // Update streak
+        get().updateStreak();
+      },
+
+      setPomodoroSettings: (settings) => {
+        set({ pomodoroSettings: settings });
+      },
+
+      addPomodoroTime: (minutes) => {
+        const today = new Date().toDateString();
+        const state = get();
+        
+        // Reset if new day
+        if (state.lastPomodoroDate !== today) {
+          set({ totalPomodoroMinutesToday: minutes, lastPomodoroDate: today });
+        } else {
+          set({ totalPomodoroMinutesToday: state.totalPomodoroMinutesToday + minutes });
+        }
+        
+        // Add to today's study time for the first session
+        const todayIndex = get().getTodayIndex();
+        const todayPlan = state.weeklyPlan[todayIndex];
+        if (todayPlan && todayPlan.sessions.length > 0) {
+          const firstSession = todayPlan.sessions[0];
+          get().updateSession(todayPlan.id, firstSession.id, {
+            actualHours: formatNumber(firstSession.actualHours + (minutes / 60)),
+          });
+        }
+        
+        // Update streak
+        get().updateStreak();
       },
 
       getStats: () => {
@@ -221,9 +340,9 @@ export const useStudyStore = create<StudyStore>()(
         });
 
         return {
-          totalHours,
+          totalHours: formatNumber(totalHours),
           totalTests,
-          avgCompletion: sessionCount > 0 ? totalCompletion / sessionCount : 0,
+          avgCompletion: sessionCount > 0 ? formatNumber(totalCompletion / sessionCount) : 0,
           subjectStats,
         };
       },

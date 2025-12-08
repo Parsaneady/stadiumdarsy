@@ -5,7 +5,7 @@ import {
   Calendar, 
   ClipboardList, 
   BarChart3, 
-  Settings,
+  Timer,
   BookOpen,
   Sparkles
 } from 'lucide-react';
@@ -15,6 +15,7 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
   { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
+  { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
 ];
 
@@ -77,6 +78,13 @@ export const Sidebar = () => {
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
           هر قدم کوچک، مسیر بزرگ رو می‌سازه. امروز بهترین روز برای شروعه!
+        </p>
+      </div>
+
+      {/* Footer Credit */}
+      <div className="p-4 border-t border-white/10 text-center">
+        <p className="text-xs text-muted-foreground">
+          طراح سایت: پارسا عیدی‌دهنه
         </p>
       </div>
     </motion.aside>
