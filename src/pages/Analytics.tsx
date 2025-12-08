@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { BarChart3, TrendingUp, Award, Target, BookOpen, Clock, FileText } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
+import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -71,11 +71,7 @@ const Analytics = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-4"
-      >
+      <div className="flex items-center gap-4 animate-fade-in">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-primary flex items-center justify-center">
           <BarChart3 className="w-6 h-6 text-white" />
         </div>
@@ -83,12 +79,12 @@ const Analytics = () => {
           <h1 className="text-3xl font-bold gradient-text">تحلیل‌ها</h1>
           <p className="text-muted-foreground mt-1">تحلیل جامع عملکرد مطالعه</p>
         </div>
-      </motion.div>
+      </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: Clock, label: 'کل ساعات', value: Math.floor(stats.totalHours), unit: 'ساعت', color: '#06b6d4' },
+          { icon: Clock, label: 'کل ساعات', value: formatHoursShort(stats.totalHours), unit: '', color: '#06b6d4' },
           { icon: FileText, label: 'کل تست‌ها', value: stats.totalTests, unit: 'تست', color: '#8b5cf6' },
           { icon: Target, label: 'میانگین تکمیل', value: `${stats.avgCompletion.toFixed(0)}%`, unit: '', color: '#10b981' },
           { icon: BookOpen, label: 'تعداد درس‌ها', value: Object.keys(stats.subjectStats).length, unit: '', color: '#f59e0b' },
@@ -239,11 +235,8 @@ const Analytics = () => {
         </h3>
         <div className="space-y-3">
           {subjectRankings.map((subject, index) => (
-            <motion.div
+            <div
               key={subject.name}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 + index * 0.1 }}
               className="flex items-center gap-4 p-4 rounded-xl bg-muted/30"
             >
               <div
@@ -255,7 +248,7 @@ const Analytics = () => {
               <div className="flex-1">
                 <h4 className="font-semibold">{subject.name}</h4>
                 <p className="text-sm text-muted-foreground">
-                  {Math.floor(subject.hours)} ساعت • {subject.tests} تست
+                  {formatHoursDisplay(subject.hours)} • {subject.tests} تست
                 </p>
               </div>
               <CircularProgress
@@ -265,7 +258,7 @@ const Analytics = () => {
                 color={subject.color}
                 showValue={false}
               />
-            </motion.div>
+            </div>
           ))}
         </div>
       </GlassCard>
@@ -276,11 +269,8 @@ const Analytics = () => {
           <h3 className="text-lg font-semibold mb-4">تاریخچه عملکرد</h3>
           <div className="space-y-3">
             {dailyLogs.slice(-7).reverse().map((log, index) => (
-              <motion.div
+              <div
                 key={log.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9 + index * 0.1 }}
                 className="flex items-center justify-between p-4 rounded-xl bg-muted/30"
               >
                 <div>
@@ -301,10 +291,10 @@ const Analytics = () => {
                     {log.overallScore.toFixed(0)}%
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {Math.floor(log.totalStudyHours)} ساعت
+                    {formatHoursDisplay(log.totalStudyHours)}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </GlassCard>
