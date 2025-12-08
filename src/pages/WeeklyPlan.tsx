@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Calendar, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { DayCard } from '@/components/DayCard';
 import { Button } from '@/components/ui/button';
+import { formatHoursShort } from '@/lib/timeUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,11 +43,7 @@ const WeeklyPlan = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between animate-fade-in">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
             <Calendar className="w-6 h-6 text-white" />
@@ -67,46 +63,27 @@ const WeeklyPlan = () => {
           <RefreshCw className="w-4 h-4 ml-2" />
           بازنشانی هفته
         </Button>
-      </motion.div>
+      </div>
 
       {/* Week Summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass-card rounded-2xl p-4 flex items-center justify-around"
-      >
-        {[
-          { 
-            label: 'کل جلسات', 
-            value: totalSessions
-          },
-          { 
-            label: 'تکمیل شده', 
-            value: completedSessions
-          },
-          { 
-            label: 'ساعت هدف', 
-            value: totalTargetHours
-          },
-          { 
-            label: 'تست هدف', 
-            value: totalTargetTests
-          },
-        ].map((stat, index) => (
-          <div key={stat.label} className="text-center">
-            <motion.p
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2 + index * 0.1, type: 'spring' }}
-              className="text-2xl font-bold text-primary"
-            >
-              {stat.value}
-            </motion.p>
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-          </div>
-        ))}
-      </motion.div>
+      <div className="glass-card rounded-2xl p-4 flex items-center justify-around">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-primary">{totalSessions}</p>
+          <p className="text-sm text-muted-foreground">کل جلسات</p>
+        </div>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-primary">{completedSessions}</p>
+          <p className="text-sm text-muted-foreground">تکمیل شده</p>
+        </div>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-primary">{formatHoursShort(totalTargetHours)}</p>
+          <p className="text-sm text-muted-foreground">ساعت هدف</p>
+        </div>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-primary">{totalTargetTests}</p>
+          <p className="text-sm text-muted-foreground">تست هدف</p>
+        </div>
+      </div>
 
       {/* Days */}
       <div className="space-y-4">
