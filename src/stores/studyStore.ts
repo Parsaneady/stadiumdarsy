@@ -47,6 +47,7 @@ interface StudyStore {
   lastStudyDate: string | null;
   pomodoroSettings: PomodoroSettings;
   totalPomodoroMinutesToday: number;
+  pomodoroSubject: string | null;
   lastPomodoroDate: string | null;
   
   // Actions
@@ -59,7 +60,8 @@ interface StudyStore {
   logDaily: (dayId: string) => void;
   updateStreak: () => void;
   setPomodoroSettings: (settings: PomodoroSettings) => void;
-  addPomodoroTime: (minutes: number) => void;
+  addPomodoroTime: (minutes: number, subject: string) => void;
+  setPomodoroSubject: (subject: string | null) => void;
   getTodayIndex: () => number;
   getStats: () => { 
     totalHours: number; 
@@ -110,6 +112,7 @@ export const useStudyStore = create<StudyStore>()(
       },
       totalPomodoroMinutesToday: 0,
       lastPomodoroDate: null,
+      pomodoroSubject: null,
 
       getTodayIndex: () => {
         const today = new Date().getDay();
@@ -289,7 +292,11 @@ export const useStudyStore = create<StudyStore>()(
         set({ pomodoroSettings: settings });
       },
 
-      addPomodoroTime: (minutes) => {
+      setPomodoroSubject: (subject) => {
+        set({ pomodoroSubject: subject });
+      },
+
+      addPomodoroTime: (minutes, subject) => {
         const today = new Date().toDateString();
         const state = get();
         
@@ -300,14 +307,16 @@ export const useStudyStore = create<StudyStore>()(
           set({ totalPomodoroMinutesToday: state.totalPomodoroMinutesToday + minutes });
         }
         
-        // Add to today's study time for the first session
+        // Add to the specific subject session
         const todayIndex = get().getTodayIndex();
         const todayPlan = state.weeklyPlan[todayIndex];
-        if (todayPlan && todayPlan.sessions.length > 0) {
-          const firstSession = todayPlan.sessions[0];
-          get().updateSession(todayPlan.id, firstSession.id, {
-            actualHours: formatNumber(firstSession.actualHours + (minutes / 60)),
-          });
+        if (todayPlan) {
+          const targetSession = todayPlan.sessions.find(s => s.subject === subject);
+          if (targetSession) {
+            get().updateSession(todayPlan.id, targetSession.id, {
+              actualHours: targetSession.actualHours + (minutes / 60),
+            });
+          }
         }
         
         // Update streak

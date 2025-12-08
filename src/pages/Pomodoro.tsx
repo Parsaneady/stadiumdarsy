@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Timer, Play, Pause, RotateCcw, Coffee, Brain, Settings, Volume2, VolumeX } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { GlassCard } from '@/components/GlassCard';
@@ -14,11 +14,28 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type TimerMode = 'study' | 'shortBreak' | 'longBreak';
 
 const Pomodoro = () => {
-  const { pomodoroSettings, setPomodoroSettings, addPomodoroTime, totalPomodoroMinutesToday } = useStudyStore();
+  const { 
+    pomodoroSettings, 
+    setPomodoroSettings, 
+    addPomodoroTime, 
+    totalPomodoroMinutesToday,
+    weeklyPlan,
+    getTodayIndex,
+    pomodoroSubject,
+    setPomodoroSubject,
+    initializeWeek,
+  } = useStudyStore();
   
   const [mode, setMode] = useState<TimerMode>('study');
   const [timeLeft, setTimeLeft] = useState(pomodoroSettings.studyDuration * 60);
@@ -27,9 +44,21 @@ const Pomodoro = () => {
   const [completedPomodoros, setCompletedPomodoros] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [subjectSelectOpen, setSubjectSelectOpen] = useState(false);
   
   const [tempSettings, setTempSettings] = useState(pomodoroSettings);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Get available subjects from today's plan
+  const todayIndex = getTodayIndex();
+  const todayPlan = weeklyPlan[todayIndex];
+  const availableSubjects = todayPlan?.sessions.map(s => s.subject) || [];
+
+  useEffect(() => {
+    if (weeklyPlan.length === 0) {
+      initializeWeek();
+    }
+  }, [weeklyPlan.length, initializeWeek]);
 
   // Initialize audio
   useEffect(() => {
@@ -58,17 +87,17 @@ const Pomodoro = () => {
       interval = setInterval(() => {
         setTimeLeft((time) => time - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && isRunning) {
       playSound();
       
-      if (mode === 'study') {
+      if (mode === 'study' && pomodoroSubject) {
         // Completed a study session
-        addPomodoroTime(pomodoroSettings.studyDuration);
+        addPomodoroTime(pomodoroSettings.studyDuration, pomodoroSubject);
         setCompletedPomodoros((prev) => prev + 1);
         
         toast({
           title: "🎉 تبریک!",
-          description: `یک پومودورو تکمیل شد! ${pomodoroSettings.studyDuration} دقیقه به زمان مطالعه اضافه شد.`,
+          description: `یک پومودورو برای ${pomodoroSubject} تکمیل شد!`,
         });
         
         // Determine next break type
@@ -96,7 +125,7 @@ const Pomodoro = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, timeLeft, mode, currentCycle, pomodoroSettings, addPomodoroTime, playSound]);
+  }, [isRunning, timeLeft, mode, currentCycle, pomodoroSettings, addPomodoroTime, playSound, pomodoroSubject]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -104,17 +133,40 @@ const Pomodoro = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const toggleTimer = () => setIsRunning(!isRunning);
+  const handleStartClick = () => {
+    if (mode === 'study' && !pomodoroSubject && availableSubjects.length > 0) {
+      // Show subject selection dialog
+      setSubjectSelectOpen(true);
+    } else if (mode === 'study' && availableSubjects.length === 0) {
+      toast({
+        title: "⚠️ هیچ درسی تعریف نشده",
+        description: "ابتدا در برنامه هفتگی درس اضافه کنید.",
+        variant: "destructive",
+      });
+    } else {
+      setIsRunning(!isRunning);
+    }
+  };
+
+  const startWithSubject = (subject: string) => {
+    setPomodoroSubject(subject);
+    setSubjectSelectOpen(false);
+    setIsRunning(true);
+  };
 
   const resetTimer = () => {
     setIsRunning(false);
     setTimeLeft(getDuration(mode));
+    setPomodoroSubject(null);
   };
 
   const switchMode = (newMode: TimerMode) => {
     setMode(newMode);
     setTimeLeft(getDuration(newMode));
     setIsRunning(false);
+    if (newMode !== 'study') {
+      setPomodoroSubject(null);
+    }
   };
 
   const saveSettings = () => {
@@ -133,15 +185,15 @@ const Pomodoro = () => {
 
   const getModeColor = () => {
     switch (mode) {
-      case 'study': return 'from-primary to-accent';
-      case 'shortBreak': return 'from-success to-secondary';
-      case 'longBreak': return 'from-warning to-accent';
+      case 'study': return 'text-primary';
+      case 'shortBreak': return 'text-success';
+      case 'longBreak': return 'text-warning';
     }
   };
 
   const getModeLabel = () => {
     switch (mode) {
-      case 'study': return 'زمان مطالعه';
+      case 'study': return pomodoroSubject ? `مطالعه: ${pomodoroSubject}` : 'زمان مطالعه';
       case 'shortBreak': return 'استراحت کوتاه';
       case 'longBreak': return 'استراحت بلند';
     }
@@ -244,7 +296,7 @@ const Pomodoro = () => {
           <p className="text-sm text-muted-foreground">پومودورو امروز</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-success">{Math.round(totalPomodoroMinutesToday)}</p>
+          <p className="text-2xl font-bold text-success">{Math.floor(totalPomodoroMinutesToday)}</p>
           <p className="text-sm text-muted-foreground">دقیقه مطالعه</p>
         </div>
         <div className="text-center">
@@ -288,56 +340,37 @@ const Pomodoro = () => {
 
       {/* Timer Display */}
       <GlassCard delay={0.3} className="flex flex-col items-center py-12">
-        <motion.div
-          key={mode}
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="relative"
-        >
-          {/* Circular Progress */}
-          <div className="relative w-64 h-64">
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="128"
-                cy="128"
-                r="120"
-                className="stroke-muted/20 fill-none"
-                strokeWidth="8"
-              />
-              <motion.circle
-                cx="128"
-                cy="128"
-                r="120"
-                className={`fill-none stroke-current ${
-                  mode === 'study' ? 'text-primary' :
-                  mode === 'shortBreak' ? 'text-success' : 'text-warning'
-                }`}
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 120}
-                initial={{ strokeDashoffset: 2 * Math.PI * 120 }}
-                animate={{ strokeDashoffset: 2 * Math.PI * 120 * (1 - progress / 100) }}
-                transition={{ duration: 0.5 }}
-              />
-            </svg>
-            
-            {/* Timer Text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={timeLeft}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="text-5xl font-bold tabular-nums"
-                >
-                  {formatTime(timeLeft)}
-                </motion.span>
-              </AnimatePresence>
-              <span className="text-sm text-muted-foreground mt-2">{getModeLabel()}</span>
-            </div>
+        <div className="relative w-64 h-64">
+          {/* Simple circular progress */}
+          <svg className="w-full h-full transform -rotate-90">
+            <circle
+              cx="128"
+              cy="128"
+              r="120"
+              className="stroke-muted/20 fill-none"
+              strokeWidth="8"
+            />
+            <circle
+              cx="128"
+              cy="128"
+              r="120"
+              className={`fill-none stroke-current ${getModeColor()}`}
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 120}
+              strokeDashoffset={2 * Math.PI * 120 * (1 - progress / 100)}
+              style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+            />
+          </svg>
+          
+          {/* Timer Text */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-5xl font-bold tabular-nums">
+              {formatTime(timeLeft)}
+            </span>
+            <span className="text-sm text-muted-foreground mt-2">{getModeLabel()}</span>
           </div>
-        </motion.div>
+        </div>
 
         {/* Controls */}
         <div className="flex items-center gap-4 mt-8">
@@ -350,19 +383,44 @@ const Pomodoro = () => {
             <RotateCcw className="w-6 h-6" />
           </Button>
           
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="lg"
-              onClick={toggleTimer}
-              className={`w-20 h-20 rounded-full bg-gradient-to-r ${getModeColor()} hover:opacity-90 shadow-lg`}
-            >
-              {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 mr-1" />}
-            </Button>
-          </motion.div>
+          <Button
+            size="lg"
+            onClick={isRunning ? () => setIsRunning(false) : handleStartClick}
+            className={`w-20 h-20 rounded-full bg-gradient-to-r ${
+              mode === 'study' ? 'from-primary to-accent' :
+              mode === 'shortBreak' ? 'from-success to-secondary' : 'from-warning to-accent'
+            } hover:opacity-90 shadow-lg`}
+          >
+            {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 mr-1" />}
+          </Button>
           
           <div className="w-14 h-14" /> {/* Spacer for symmetry */}
         </div>
       </GlassCard>
+
+      {/* Subject Selection Dialog */}
+      <Dialog open={subjectSelectOpen} onOpenChange={setSubjectSelectOpen}>
+        <DialogContent className="glass-card border-white/20">
+          <DialogHeader>
+            <DialogTitle className="text-xl">انتخاب درس</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-muted-foreground">برای کدام درس می‌خواهید مطالعه کنید؟</p>
+            <div className="space-y-2">
+              {availableSubjects.map((subject) => (
+                <Button
+                  key={subject}
+                  variant="outline"
+                  className="w-full justify-start glass-button"
+                  onClick={() => startWithSubject(subject)}
+                >
+                  {subject}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Tips */}
       <GlassCard delay={0.4}>
