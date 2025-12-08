@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2 } from 'lucide-react';
+import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2, Sparkles } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { StatCard } from '@/components/StatCard';
 import { GlassCard } from '@/components/GlassCard';
@@ -10,9 +10,45 @@ import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
+// Daily motivational quotes
+const DAILY_QUOTES = [
+  { quote: "هر روز یک قدم کوچک، در انتها یک مسیر بزرگ می‌سازد.", author: "موفقیت" },
+  { quote: "سخت‌کوشی امروز، آسایش فرداست.", author: "تلاش" },
+  { quote: "رویاهایت را بزرگ ببین، اما از قدم‌های کوچک شروع کن.", author: "پشتکار" },
+  { quote: "هر استاد بزرگی، روزی دانش‌آموزی مبتدی بوده است.", author: "صبر" },
+  { quote: "موفقیت مجموعه تلاش‌های کوچک روزانه است.", author: "استمرار" },
+  { quote: "امروز سخت‌تر تلاش کن تا فردا راحت‌تر زندگی کنی.", author: "انگیزه" },
+  { quote: "هر صفحه‌ای که می‌خوانی، پلی به سوی آینده‌ات می‌سازد.", author: "مطالعه" },
+  { quote: "باور داشته باش که می‌توانی، نیمی از راه را رفته‌ای.", author: "اعتماد" },
+  { quote: "زمانی که برای مطالعه می‌گذاری، سرمایه‌گذاری برای آینده‌ات است.", author: "آینده" },
+  { quote: "هر تست که حل می‌کنی، یک قدم به هدفت نزدیک‌تری.", author: "پیشرفت" },
+  { quote: "استراحت کن، اما هرگز تسلیم نشو.", author: "استقامت" },
+  { quote: "کسی که هر روز ۱٪ بهتر شود، در سال ۳۷ برابر بهتر می‌شود.", author: "رشد" },
+  { quote: "موفقیت یک شبه نمی‌آید، اما مطمئناً می‌آید.", author: "صبوری" },
+  { quote: "ذهن تو مثل یک چتر است، فقط وقتی باز باشد کار می‌کند.", author: "یادگیری" },
+];
+
+// Get today's quote based on day of year
+const getTodayQuote = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+};
+
+// Custom tooltip formatter for charts
+const formatChartTooltip = (value: number, name: string) => {
+  if (name === 'ساعت' || name === 'هدف') {
+    return [formatHoursShort(value), name];
+  }
+  return [value, name];
+};
+
 const Dashboard = () => {
   const { weeklyPlan, initializeWeek, getStats, dailyLogs, streak, getTodayIndex, toggleSessionComplete, updateSession } = useStudyStore();
   const navigate = useNavigate();
+  const todayQuote = getTodayQuote();
 
   useEffect(() => {
     if (weeklyPlan.length === 0) {
@@ -85,6 +121,20 @@ const Dashboard = () => {
           <span className="font-medium">{streak} روز متوالی</span>
         </div>
       </div>
+
+      {/* Daily Motivation */}
+      <GlassCard className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20" delay={0.1}>
+        <div className="flex items-start gap-4">
+          <div className="p-3 rounded-xl bg-primary/20">
+            <Sparkles className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold mb-2 text-primary">انگیزه امروز</h3>
+            <p className="text-lg leading-relaxed">«{todayQuote.quote}»</p>
+            <p className="text-sm text-muted-foreground mt-2">— {todayQuote.author}</p>
+          </div>
+        </div>
+      </GlassCard>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -272,6 +322,7 @@ const Dashboard = () => {
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                   }}
+                  formatter={formatChartTooltip}
                 />
                 <Area
                   type="monotone"
