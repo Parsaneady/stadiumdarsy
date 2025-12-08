@@ -1,14 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, FileText, Target, TrendingUp, Flame, Award } from 'lucide-react';
+import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2 } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { StatCard } from '@/components/StatCard';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { weeklyPlan, initializeWeek, getStats, dailyLogs } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getStats, dailyLogs, streak, getTodayIndex, toggleSessionComplete, updateSession } = useStudyStore();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (weeklyPlan.length === 0) {
@@ -17,17 +21,26 @@ const Dashboard = () => {
   }, [weeklyPlan.length, initializeWeek]);
 
   const stats = getStats();
+  const todayIndex = getTodayIndex();
+  const todayPlan = weeklyPlan[todayIndex];
 
   // Calculate today's progress
-  const today = new Date().getDay();
-  const todayPlan = weeklyPlan[today === 6 ? 0 : today + 1]; // Adjust for Persian week
   const todayCompleted = todayPlan?.sessions.filter(s => s.completed).length || 0;
   const todayTotal = todayPlan?.sessions.length || 0;
   const todayPercent = todayTotal > 0 ? (todayCompleted / todayTotal) * 100 : 0;
 
-  // Prepare chart data
+  // Calculate today's actual hours
+  const todayActualHours = useMemo(() => {
+    return todayPlan?.sessions.reduce((sum, s) => sum + s.actualHours, 0) || 0;
+  }, [todayPlan]);
+
+  const todayTargetHours = useMemo(() => {
+    return todayPlan?.sessions.reduce((sum, s) => sum + s.targetHours, 0) || 0;
+  }, [todayPlan]);
+
+  // Prepare chart data with full Persian day names
   const weeklyChartData = weeklyPlan.map(day => ({
-    name: day.dayName.slice(0, 3),
+    name: day.dayName,
     ساعت: day.sessions.reduce((sum, s) => sum + s.actualHours, 0),
     تست: day.sessions.reduce((sum, s) => sum + s.actualTests, 0),
     هدف: day.sessions.reduce((sum, s) => sum + s.targetHours, 0),
@@ -39,6 +52,25 @@ const Dashboard = () => {
     ساعت: data.hours,
     تست: data.tests,
   }));
+
+  // Get performance status
+  const getPerformanceStatus = (actual: number, target: number) => {
+    if (target === 0) return { color: 'text-muted-foreground', bg: 'bg-muted/30', label: 'بدون هدف' };
+    const percent = (actual / target) * 100;
+    if (percent >= 100) return { color: 'text-success', bg: 'status-excellent', label: '✓ عالی' };
+    if (percent >= 70) return { color: 'text-warning', bg: 'status-good', label: 'خوب' };
+    return { color: 'text-destructive', bg: 'status-needs-work', label: 'نیاز به تلاش بیشتر' };
+  };
+
+  // Calculate weekly score
+  const getWeeklyScore = () => {
+    if (stats.avgCompletion >= 90) return 'A+';
+    if (stats.avgCompletion >= 80) return 'A';
+    if (stats.avgCompletion >= 70) return 'B+';
+    if (stats.avgCompletion >= 60) return 'B';
+    if (stats.avgCompletion >= 50) return 'C';
+    return 'D';
+  };
 
   return (
     <div className="space-y-6">
@@ -54,7 +86,7 @@ const Dashboard = () => {
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 border border-white/10">
           <Flame className="w-5 h-5 text-warning" />
-          <span className="font-medium">۷ روز متوالی</span>
+          <span className="font-medium">{streak} روز متوالی</span>
         </div>
       </motion.div>
 
@@ -62,7 +94,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="کل ساعت مطالعه"
-          value={`${stats.totalHours.toFixed(1)}`}
+          value={`${stats.totalHours}`}
           subtitle="ساعت این هفته"
           icon={Clock}
           color="hsl(200, 80%, 55%)"
@@ -78,7 +110,7 @@ const Dashboard = () => {
         />
         <StatCard
           title="میانگین تکمیل"
-          value={`${stats.avgCompletion.toFixed(0)}%`}
+          value={`${Math.round(stats.avgCompletion)}%`}
           subtitle="پیشرفت کلی"
           icon={Target}
           color="hsl(150, 70%, 45%)"
@@ -86,13 +118,126 @@ const Dashboard = () => {
         />
         <StatCard
           title="امتیاز هفته"
-          value="A+"
-          subtitle="رتبه عالی"
+          value={getWeeklyScore()}
+          subtitle={stats.avgCompletion >= 70 ? 'عالی' : 'قابل بهبود'}
           icon={Award}
           color="hsl(45, 90%, 55%)"
           delay={0.3}
         />
       </div>
+
+      {/* Today's Plan Section */}
+      <GlassCard delay={0.35}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            برنامه امروز ({todayPlan?.dayName})
+          </h3>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="glass-button"
+            onClick={() => navigate('/weekly-plan')}
+          >
+            <Plus className="w-4 h-4 ml-1" />
+            ویرایش برنامه
+          </Button>
+        </div>
+
+        {todayPlan?.sessions.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">هنوز برنامه‌ای برای امروز ثبت نکرده‌اید</p>
+            <Button onClick={() => navigate('/weekly-plan')} className="bg-gradient-to-r from-primary to-accent">
+              افزودن جلسه مطالعه
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {todayPlan?.sessions.map((session, index) => {
+              const hoursPercent = session.targetHours > 0 
+                ? Math.min(100, (session.actualHours / session.targetHours) * 100) 
+                : 0;
+              const performance = getPerformanceStatus(session.actualHours, session.targetHours);
+
+              return (
+                <motion.div
+                  key={session.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
+                  className={`p-4 rounded-xl border transition-all ${
+                    session.completed 
+                      ? 'bg-success/10 border-success/30' 
+                      : 'bg-muted/20 border-white/5 hover:border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleSessionComplete(todayPlan.id, session.id)}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          session.completed 
+                            ? 'bg-success border-success text-white' 
+                            : 'border-muted-foreground hover:border-primary'
+                        }`}
+                      >
+                        {session.completed && <CheckCircle2 className="w-4 h-4" />}
+                      </button>
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: session.color }}
+                      />
+                      <span className={`font-medium ${session.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {session.subject}
+                      </span>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs ${performance.bg}`}>
+                      {performance.label}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">ساعت</span>
+                        <span>{session.actualHours} / {session.targetHours}</span>
+                      </div>
+                      <Progress value={hoursPercent} className="h-1.5" indicatorClassName="bg-secondary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">تست</span>
+                        <span>{session.actualTests} / {session.targetTests}</span>
+                      </div>
+                      <Progress 
+                        value={session.targetTests > 0 ? Math.min(100, (session.actualTests / session.targetTests) * 100) : 0} 
+                        className="h-1.5" 
+                        indicatorClassName="bg-accent" 
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Today Summary */}
+        {todayPlan && todayPlan.sessions.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              مجموع امروز: {todayActualHours} از {todayTargetHours} ساعت
+            </span>
+            <Button 
+              size="sm" 
+              onClick={() => navigate('/daily-log')}
+              className="bg-gradient-to-r from-primary to-accent"
+            >
+              ثبت عملکرد
+            </Button>
+          </div>
+        )}
+      </GlassCard>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -125,7 +270,7 @@ const Dashboard = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" fontSize={12} />
                 <YAxis stroke="rgba(255,255,255,0.5)" />
                 <Tooltip
                   contentStyle={{
@@ -172,7 +317,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                 <span className="text-sm text-muted-foreground">ساعت مطالعه</span>
                 <span className="font-semibold">
-                  {todayPlan?.sessions.reduce((sum, s) => sum + s.actualHours, 0).toFixed(1) || 0} ساعت
+                  {todayActualHours} ساعت
                 </span>
               </div>
             </div>
@@ -181,29 +326,31 @@ const Dashboard = () => {
       </div>
 
       {/* Subject Performance */}
-      <GlassCard delay={0.6}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">عملکرد به تفکیک درس</h3>
-          <TrendingUp className="w-5 h-5 text-success" />
-        </div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={subjectData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
-              <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.5)" width={80} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(230, 20%, 12%)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                }}
-              />
-              <Bar dataKey="ساعت" fill="hsl(250, 85%, 65%)" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </GlassCard>
+      {subjectData.length > 0 && (
+        <GlassCard delay={0.6}>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold">عملکرد به تفکیک درس</h3>
+            <TrendingUp className="w-5 h-5 text-success" />
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={subjectData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
+                <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.5)" width={80} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(230, 20%, 12%)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '12px',
+                  }}
+                />
+                <Bar dataKey="ساعت" fill="hsl(250, 85%, 65%)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassCard>
+      )}
 
       {/* Recent Feedback */}
       {dailyLogs.length > 0 && (
@@ -222,7 +369,7 @@ const Dashboard = () => {
                     log.overallScore >= 80 ? 'status-excellent' :
                     log.overallScore >= 60 ? 'status-good' : 'status-needs-work'
                   }`}>
-                    {log.overallScore.toFixed(0)}%
+                    {Math.round(log.overallScore)}%
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(log.date).toLocaleDateString('fa-IR')}

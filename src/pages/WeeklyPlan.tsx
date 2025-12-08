@@ -1,18 +1,44 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, RefreshCw } from 'lucide-react';
+import { Calendar, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { DayCard } from '@/components/DayCard';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 const WeeklyPlan = () => {
-  const { weeklyPlan, initializeWeek } = useStudyStore();
+  const { weeklyPlan, initializeWeek, resetWeek } = useStudyStore();
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   useEffect(() => {
     if (weeklyPlan.length === 0) {
       initializeWeek();
     }
   }, [weeklyPlan.length, initializeWeek]);
+
+  const handleResetWeek = () => {
+    resetWeek();
+    setShowResetDialog(false);
+    toast({
+      title: "✅ هفته بازنشانی شد",
+      description: "تمام نتایج و گزارش‌ها پاک شدند. برنامه هفتگی حفظ شده است.",
+    });
+  };
+
+  const totalSessions = weeklyPlan.reduce((sum, day) => sum + day.sessions.length, 0);
+  const completedSessions = weeklyPlan.reduce((sum, day) => sum + day.sessions.filter(s => s.completed).length, 0);
+  const totalTargetHours = weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetHours, 0), 0);
+  const totalTargetTests = weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetTests, 0), 0);
 
   return (
     <div className="space-y-6">
@@ -35,8 +61,8 @@ const WeeklyPlan = () => {
         </div>
         <Button
           variant="outline"
-          onClick={initializeWeek}
-          className="glass-button"
+          onClick={() => setShowResetDialog(true)}
+          className="glass-button text-warning hover:text-warning"
         >
           <RefreshCw className="w-4 h-4 ml-2" />
           بازنشانی هفته
@@ -53,19 +79,19 @@ const WeeklyPlan = () => {
         {[
           { 
             label: 'کل جلسات', 
-            value: weeklyPlan.reduce((sum, day) => sum + day.sessions.length, 0) 
+            value: totalSessions
           },
           { 
             label: 'تکمیل شده', 
-            value: weeklyPlan.reduce((sum, day) => sum + day.sessions.filter(s => s.completed).length, 0) 
+            value: completedSessions
           },
           { 
             label: 'ساعت هدف', 
-            value: `${weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetHours, 0), 0).toFixed(1)}` 
+            value: totalTargetHours
           },
           { 
             label: 'تست هدف', 
-            value: weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetTests, 0), 0) 
+            value: totalTargetTests
           },
         ].map((stat, index) => (
           <div key={stat.label} className="text-center">
@@ -88,6 +114,34 @@ const WeeklyPlan = () => {
           <DayCard key={day.id} day={day} delay={0.2 + index * 0.05} />
         ))}
       </div>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent className="glass-card border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-xl">
+              <AlertTriangle className="w-6 h-6 text-warning" />
+              بازنشانی هفته
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-muted-foreground">
+              آیا مطمئنی می‌خوای همه اطلاعات این هفته پاک بشه؟
+              <br />
+              <span className="text-sm mt-2 block">
+                برنامه هفتگی و جلسات حفظ می‌شوند، فقط ساعات و تست‌های ثبت شده صفر می‌شوند.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="glass-button">انصراف</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetWeek}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              بله، پاک کن
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

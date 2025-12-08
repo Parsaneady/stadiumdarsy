@@ -19,11 +19,18 @@ export const Layout = ({ children }: LayoutProps) => {
       <Sidebar />
 
       {/* Main Content */}
-      <main className="mr-72 min-h-screen p-8">
+      <main className="mr-72 min-h-screen p-8 pb-20">
         <div className="max-w-6xl mx-auto">
           {children}
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="mr-72 py-4 text-center border-t border-white/10 bg-background/50 backdrop-blur-sm">
+        <p className="text-sm text-muted-foreground">
+          طراح سایت: پارسا عیدی‌دهنه
+        </p>
+      </footer>
     </div>
   );
 };
