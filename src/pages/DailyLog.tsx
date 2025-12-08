@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ClipboardList, Save, Clock, FileText, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
 import { useStudyStore, StudySession } from '@/stores/studyStore';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { LogSessionModal } from '@/components/LogSessionModal';
 import { Progress } from '@/components/ui/progress';
+import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { toast } from '@/hooks/use-toast';
 
 const DailyLog = () => {
@@ -57,7 +57,6 @@ const DailyLog = () => {
   const totalTargetTests = todayPlan.sessions.reduce((sum, s) => sum + s.targetTests, 0);
   const totalActualTests = todayPlan.sessions.reduce((sum, s) => sum + s.actualTests, 0);
 
-  // Get performance feedback
   const getPerformanceFeedback = () => {
     if (overallPercent >= 100) return { icon: TrendingUp, text: 'عالی! به هدف رسیدی! 🎉', color: 'text-success' };
     if (overallPercent >= 70) return { icon: TrendingUp, text: 'خوب پیش می‌ری! ادامه بده! 💪', color: 'text-warning' };
@@ -69,11 +68,7 @@ const DailyLog = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between animate-fade-in">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center">
             <ClipboardList className="w-6 h-6 text-white" />
@@ -92,10 +87,10 @@ const DailyLog = () => {
           <Save className="w-4 h-4 ml-2" />
           ثبت نهایی روز
         </Button>
-      </motion.div>
+      </div>
 
       {/* Today's Overview */}
-      <GlassCard delay={0.1}>
+      <GlassCard delay={0}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">خلاصه امروز</h3>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -123,8 +118,8 @@ const DailyLog = () => {
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-3 rounded-xl bg-muted/30">
             <Clock className="w-5 h-5 mx-auto mb-2 text-secondary" />
-            <p className="text-2xl font-bold">{totalActual}</p>
-            <p className="text-xs text-muted-foreground">از {totalTarget} ساعت</p>
+            <p className="text-2xl font-bold">{formatHoursShort(totalActual)}</p>
+            <p className="text-xs text-muted-foreground">از {formatHoursShort(totalTarget)}</p>
           </div>
           <div className="text-center p-3 rounded-xl bg-muted/30">
             <FileText className="w-5 h-5 mx-auto mb-2 text-accent" />
@@ -161,8 +156,8 @@ const DailyLog = () => {
             </div>
           </GlassCard>
         ) : (
-          <AnimatePresence>
-            {todayPlan.sessions.map((session, index) => {
+          <div className="space-y-3">
+            {todayPlan.sessions.map((session) => {
               const hoursPercent = session.targetHours > 0 
                 ? (session.actualHours / session.targetHours) * 100 
                 : 0;
@@ -170,17 +165,13 @@ const DailyLog = () => {
                 ? (session.actualTests / session.targetTests) * 100 
                 : 0;
 
-              // Determine status
               const isExcellent = hoursPercent >= 100 && testsPercent >= 100;
               const isGood = hoursPercent >= 70 || testsPercent >= 70;
 
               return (
-                <motion.div
+                <div
                   key={session.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + index * 0.1 }}
-                  className={`glass-card rounded-xl p-5 cursor-pointer transition-all ${
+                  className={`glass-card rounded-xl p-5 cursor-pointer transition-all hover:scale-[1.01] ${
                     session.completed 
                       ? 'border-success/30 bg-success/5' 
                       : 'hover:border-primary/30'
@@ -231,7 +222,7 @@ const DailyLog = () => {
                       <div className="flex items-center justify-between text-sm mb-1">
                         <span className="text-muted-foreground">ساعت مطالعه</span>
                         <span className={hoursPercent >= 100 ? 'text-success font-medium' : ''}>
-                          {session.actualHours} / {session.targetHours}
+                          {formatHoursShort(session.actualHours)} / {formatHoursShort(session.targetHours)}
                         </span>
                       </div>
                       <Progress
@@ -260,10 +251,10 @@ const DailyLog = () => {
                       {session.notes}
                     </p>
                   )}
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
+          </div>
         )}
       </div>
 

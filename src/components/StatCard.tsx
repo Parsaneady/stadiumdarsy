@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 
@@ -17,15 +16,12 @@ export const StatCard = ({ title, value, subtitle, icon: Icon, color, delay = 0 
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground mb-1">{title}</p>
-          <motion.h3
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: delay + 0.2, type: 'spring' }}
+          <h3
             className="text-3xl font-bold"
             style={{ color }}
           >
             {value}
-          </motion.h3>
+          </h3>
           {subtitle && (
             <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
           )}
