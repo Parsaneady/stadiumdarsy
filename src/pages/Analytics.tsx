@@ -51,7 +51,7 @@ const Analytics = () => {
     const completed = day.sessions.filter(s => s.completed).length;
     const total = day.sessions.length;
     return {
-      name: day.dayName.slice(0, 3),
+      name: day.dayName,
       تکمیل: completed,
       باقیمانده: total - completed,
     };
@@ -88,7 +88,7 @@ const Analytics = () => {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: Clock, label: 'کل ساعات', value: stats.totalHours.toFixed(1), unit: 'ساعت', color: '#06b6d4' },
+          { icon: Clock, label: 'کل ساعات', value: Math.floor(stats.totalHours), unit: 'ساعت', color: '#06b6d4' },
           { icon: FileText, label: 'کل تست‌ها', value: stats.totalTests, unit: 'تست', color: '#8b5cf6' },
           { icon: Target, label: 'میانگین تکمیل', value: `${stats.avgCompletion.toFixed(0)}%`, unit: '', color: '#10b981' },
           { icon: BookOpen, label: 'تعداد درس‌ها', value: Object.keys(stats.subjectStats).length, unit: '', color: '#f59e0b' },
@@ -166,7 +166,7 @@ const Analytics = () => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
                     }}
-                    formatter={(value: number) => [`${value.toFixed(1)} ساعت`, '']}
+                    formatter={(value: number) => [`${Math.floor(value)} ساعت`, '']}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -255,7 +255,7 @@ const Analytics = () => {
               <div className="flex-1">
                 <h4 className="font-semibold">{subject.name}</h4>
                 <p className="text-sm text-muted-foreground">
-                  {subject.hours.toFixed(1)} ساعت • {subject.tests} تست
+                  {Math.floor(subject.hours)} ساعت • {subject.tests} تست
                 </p>
               </div>
               <CircularProgress
@@ -301,7 +301,7 @@ const Analytics = () => {
                     {log.overallScore.toFixed(0)}%
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {log.totalStudyHours.toFixed(1)} ساعت
+                    {Math.floor(log.totalStudyHours)} ساعت
                   </p>
                 </div>
               </motion.div>
