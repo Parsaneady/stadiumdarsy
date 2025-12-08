@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2 } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { StatCard } from '@/components/StatCard';
@@ -7,6 +6,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
@@ -75,11 +75,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold gradient-text">داشبورد</h1>
           <p className="text-muted-foreground mt-1">خلاصه عملکرد این هفته</p>
@@ -88,14 +84,14 @@ const Dashboard = () => {
           <Flame className="w-5 h-5 text-warning" />
           <span className="font-medium">{streak} روز متوالی</span>
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="کل ساعت مطالعه"
-          value={`${stats.totalHours}`}
-          subtitle="ساعت این هفته"
+          value={formatHoursShort(stats.totalHours)}
+          subtitle="این هفته"
           icon={Clock}
           color="hsl(200, 80%, 55%)"
           delay={0}
@@ -160,16 +156,14 @@ const Dashboard = () => {
               const performance = getPerformanceStatus(session.actualHours, session.targetHours);
 
               return (
-                <motion.div
+                <div
                   key={session.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + index * 0.05 }}
                   className={`p-4 rounded-xl border transition-all ${
                     session.completed 
                       ? 'bg-success/10 border-success/30' 
                       : 'bg-muted/20 border-white/5 hover:border-white/10'
                   }`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
@@ -200,7 +194,7 @@ const Dashboard = () => {
                     <div>
                       <div className="flex items-center justify-between text-sm mb-1">
                         <span className="text-muted-foreground">ساعت</span>
-                        <span>{session.actualHours} / {session.targetHours}</span>
+                        <span>{formatHoursShort(session.actualHours)} / {formatHoursShort(session.targetHours)}</span>
                       </div>
                       <Progress value={hoursPercent} className="h-1.5" indicatorClassName="bg-secondary" />
                     </div>
@@ -216,7 +210,7 @@ const Dashboard = () => {
                       />
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
@@ -226,7 +220,7 @@ const Dashboard = () => {
         {todayPlan && todayPlan.sessions.length > 0 && (
           <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              مجموع امروز: {todayActualHours} از {todayTargetHours} ساعت
+              مجموع امروز: {formatHoursDisplay(todayActualHours)} از {formatHoursDisplay(todayTargetHours)}
             </span>
             <Button 
               size="sm" 
@@ -317,7 +311,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                 <span className="text-sm text-muted-foreground">ساعت مطالعه</span>
                 <span className="font-semibold">
-                  {todayActualHours} ساعت
+                  {formatHoursDisplay(todayActualHours)}
                 </span>
               </div>
             </div>
@@ -358,10 +352,8 @@ const Dashboard = () => {
           <h3 className="text-lg font-semibold mb-4">آخرین بازخوردها</h3>
           <div className="space-y-3">
             {dailyLogs.slice(-3).reverse().map((log) => (
-              <motion.div
+              <div
                 key={log.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
                 className="p-4 rounded-xl bg-muted/30 border border-white/5"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -376,7 +368,7 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <p className="text-sm">{log.feedback}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </GlassCard>
