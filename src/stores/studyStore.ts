@@ -74,7 +74,9 @@ interface StudyStore {
 const PERSIAN_DAYS = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
 
 const SUBJECT_COLORS = [
-  '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'
+  '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1',
+  '#14b8a6', '#f97316', '#a855f7', '#3b82f6', '#84cc16', '#f43f5e', '#22d3d8',
+  '#facc15', '#fb7185', '#34d399', '#818cf8', '#fbbf24', '#c084fc'
 ];
 
 const generateId = () => Math.random().toString(36).substr(2, 9);

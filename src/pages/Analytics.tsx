@@ -10,7 +10,11 @@ import {
   BarChart, Bar, Legend
 } from 'recharts';
 
-const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
+const COLORS = [
+  '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1',
+  '#14b8a6', '#f97316', '#a855f7', '#3b82f6', '#84cc16', '#f43f5e', '#22d3d8',
+  '#facc15', '#fb7185', '#34d399', '#818cf8', '#fbbf24', '#c084fc'
+];
 
 const Analytics = () => {
   const { weeklyPlan, dailyLogs, initializeWeek, getStats } = useStudyStore();
@@ -162,6 +166,11 @@ const Analytics = () => {
                       backgroundColor: 'hsl(230, 20%, 12%)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
+                    }}
+                    itemStyle={{
+                      color: 'hsl(210, 40%, 98%)',
+                    }}
+                    labelStyle={{
                       color: 'hsl(210, 40%, 98%)',
                     }}
                     formatter={(value: number) => [formatHoursShort(value), '']}

@@ -45,7 +45,7 @@ const TestExam = () => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [initialTime, setInitialTime] = useState<number>(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [showFile, setShowFile] = useState(true);
+  const [examViewMode, setExamViewMode] = useState<'exam' | 'answer'>('exam');
   const [examResults, setExamResults] = useState<ExamResult[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -481,15 +481,26 @@ const TestExam = () => {
 
           {!isExamFinished && (
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowFile(!showFile)}
-                className="gap-2"
-              >
-                {showFile ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                {showFile ? 'مخفی' : 'نمایش'}
-              </Button>
+              <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+                <Button
+                  variant={examViewMode === 'exam' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setExamViewMode('exam')}
+                  className="gap-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  آزمون
+                </Button>
+                <Button
+                  variant={examViewMode === 'answer' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setExamViewMode('answer')}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  پاسخنامه
+                </Button>
+              </div>
 
               <Button
                 onClick={finishExam}
@@ -514,9 +525,9 @@ const TestExam = () => {
 
       {/* Main Content Area */}
       <div className="absolute top-16 bottom-0 left-0 right-0 flex">
-        {/* PDF/File Viewer - Left Side */}
-        {showFile && fileUrl && !isExamFinished && (
-          <div className="w-1/2 h-full border-l border-white/10 bg-card/30">
+        {/* PDF/File Viewer - Full Screen when in exam mode */}
+        {examViewMode === 'exam' && fileUrl && !isExamFinished && (
+          <div className="w-full h-full bg-card/30">
             <div className="h-full p-4">
               <div className="h-full rounded-xl overflow-hidden bg-muted/20 border border-white/10">
                 {file?.type === 'application/pdf' ? (
@@ -537,11 +548,9 @@ const TestExam = () => {
           </div>
         )}
 
-        {/* Answer Sheet - Right Side */}
-        <div className={cn(
-          "h-full overflow-hidden flex flex-col",
-          showFile && fileUrl && !isExamFinished ? "w-1/2" : "w-full"
-        )}>
+        {/* Answer Sheet - Full Screen when in answer mode */}
+        {(examViewMode === 'answer' || isExamFinished) && (
+        <div className="w-full h-full overflow-hidden flex flex-col">
           {showAnswerKey && (
             <div className="p-4 border-b border-white/10 bg-warning/10">
               <p className="text-center text-warning font-medium">
@@ -557,7 +566,7 @@ const TestExam = () => {
           </div>
           
           <div className="flex-1 overflow-auto p-4">
-            <div className="grid grid-cols-1 gap-4 max-w-md mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
               {answers.map((answer, index) => (
                 <div
                   key={answer.questionNumber}
@@ -671,6 +680,7 @@ const TestExam = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
