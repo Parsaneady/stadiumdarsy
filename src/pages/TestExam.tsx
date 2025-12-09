@@ -28,6 +28,7 @@ interface ExamResult {
   percentage: number;
   duration: number;
   timeSpent: number;
+  answers?: Answer[];
 }
 
 const STORAGE_KEY = 'exam_results';
@@ -47,6 +48,7 @@ const TestExam = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [examViewMode, setExamViewMode] = useState<'exam' | 'answer'>('exam');
   const [examResults, setExamResults] = useState<ExamResult[]>([]);
+  const [viewingResult, setViewingResult] = useState<ExamResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -198,6 +200,7 @@ const TestExam = () => {
       percentage: Math.max(0, percentage),
       duration,
       timeSpent,
+      answers: updatedAnswers,
     };
 
     const newResults = [result, ...examResults];
@@ -371,14 +374,27 @@ const TestExam = () => {
                         })}
                       </span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteResult(result.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {result.answers && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setViewingResult(result)}
+                          className="text-primary hover:text-primary"
+                        >
+                          <Eye className="w-4 h-4 ml-1" />
+                          جزییات
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteResult(result.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-center">
                     <div>
@@ -408,6 +424,97 @@ const TestExam = () => {
               ))}
             </div>
           </GlassCard>
+        )}
+
+        {/* View Result Details Modal */}
+        {viewingResult && viewingResult.answers && (
+          <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-xl overflow-auto">
+            <div className="p-6 max-w-6xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold">{viewingResult.name}</h2>
+                  <p className="text-muted-foreground">
+                    {new Date(viewingResult.date).toLocaleDateString('fa-IR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => setViewingResult(null)}>
+                  <X className="w-4 h-4 ml-2" />
+                  بستن
+                </Button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="p-4 rounded-xl bg-success/10 border border-success/20 text-center">
+                  <p className="text-2xl font-bold text-success">{viewingResult.correctCount}</p>
+                  <p className="text-sm text-muted-foreground">صحیح</p>
+                </div>
+                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-center">
+                  <p className="text-2xl font-bold text-destructive">{viewingResult.wrongCount}</p>
+                  <p className="text-sm text-muted-foreground">غلط</p>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-muted-foreground">{viewingResult.blankCount}</p>
+                  <p className="text-sm text-muted-foreground">نزده</p>
+                </div>
+                <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
+                  <p className={cn(
+                    "text-2xl font-bold",
+                    viewingResult.percentage >= 70 ? "text-success" :
+                    viewingResult.percentage >= 50 ? "text-warning" : "text-destructive"
+                  )}>
+                    {viewingResult.percentage.toFixed(1)}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">درصد کنکور</p>
+                </div>
+              </div>
+
+              {/* Answer Sheet */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {viewingResult.answers.map((answer) => (
+                  <div
+                    key={answer.questionNumber}
+                    className={cn(
+                      "p-3 rounded-xl border",
+                      answer.isCorrect === true && "bg-success/20 border-success/50",
+                      answer.isCorrect === false && "bg-destructive/20 border-destructive/50",
+                      answer.selectedOption === null && "bg-muted/30 border-white/10"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold">سوال {answer.questionNumber}</span>
+                      {answer.isCorrect === true && <CheckCircle className="w-4 h-4 text-success" />}
+                      {answer.isCorrect === false && <XCircle className="w-4 h-4 text-destructive" />}
+                      {answer.selectedOption === null && <MinusCircle className="w-4 h-4 text-muted-foreground" />}
+                    </div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[1, 2, 3, 4].map((option) => (
+                        <div
+                          key={option}
+                          className={cn(
+                            "w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold",
+                            answer.selectedOption === option
+                              ? answer.correctOption === option
+                                ? "bg-success text-white"
+                                : "bg-destructive text-white"
+                              : answer.correctOption === option
+                                ? "bg-success/50 text-white ring-2 ring-success"
+                                : "bg-muted/30"
+                          )}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Tips */}
@@ -566,7 +673,7 @@ const TestExam = () => {
           </div>
           
           <div className="flex-1 overflow-auto p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-w-6xl mx-auto">
               {answers.map((answer, index) => (
                 <div
                   key={answer.questionNumber}
