@@ -1,16 +1,35 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { FileText, Upload, Clock, CheckCircle, X, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { FileText, Upload, Clock, CheckCircle, X, Eye, EyeOff, ArrowRight, Trophy, Target, XCircle, MinusCircle, History, Trash2 } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Answer {
   questionNumber: number;
   selectedOption: number | null;
+  correctOption: number | null;
+  isCorrect: boolean | null;
 }
+
+interface ExamResult {
+  id: string;
+  date: string;
+  questionCount: number;
+  correctCount: number;
+  wrongCount: number;
+  blankCount: number;
+  rawScore: number;
+  konkourScore: number;
+  percentage: number;
+  duration: number;
+  timeSpent: number;
+}
+
+const STORAGE_KEY = 'exam_results';
 
 const TestExam = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -18,12 +37,24 @@ const TestExam = () => {
   const [questionCount, setQuestionCount] = useState<number>(60);
   const [duration, setDuration] = useState<number>(60);
   const [isExamStarted, setIsExamStarted] = useState(false);
+  const [isExamFinished, setIsExamFinished] = useState(false);
+  const [showAnswerKey, setShowAnswerKey] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [initialTime, setInitialTime] = useState<number>(0);
   const [isRunning, setIsRunning] = useState(false);
   const [showFile, setShowFile] = useState(true);
+  const [examResults, setExamResults] = useState<ExamResult[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load saved results
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      setExamResults(JSON.parse(saved));
+    }
+  }, []);
 
   // Create stable URL for file
   useEffect(() => {
@@ -68,10 +99,15 @@ const TestExam = () => {
     const initialAnswers: Answer[] = Array.from({ length: questionCount }, (_, i) => ({
       questionNumber: i + 1,
       selectedOption: null,
+      correctOption: null,
+      isCorrect: null,
     }));
     setAnswers(initialAnswers);
     setTimeLeft(duration * 60);
+    setInitialTime(duration * 60);
     setIsExamStarted(true);
+    setIsExamFinished(false);
+    setShowAnswerKey(false);
     setIsRunning(true);
     
     timerRef.current = setInterval(() => {
@@ -91,6 +127,7 @@ const TestExam = () => {
   };
 
   const selectAnswer = (questionIndex: number, option: number) => {
+    if (isExamFinished) return;
     setAnswers((prev) =>
       prev.map((a, i) =>
         i === questionIndex
@@ -100,9 +137,92 @@ const TestExam = () => {
     );
   };
 
+  const setCorrectAnswer = (questionIndex: number, option: number) => {
+    setAnswers((prev) =>
+      prev.map((a, i) =>
+        i === questionIndex
+          ? { 
+              ...a, 
+              correctOption: a.correctOption === option ? null : option,
+              isCorrect: a.selectedOption !== null ? (a.selectedOption === (a.correctOption === option ? null : option)) : null
+            }
+          : a
+      )
+    );
+  };
+
+  const finishExam = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsRunning(false);
+    setIsExamFinished(true);
+    setShowAnswerKey(true);
+    toast({
+      title: "📝 آزمون به پایان رسید",
+      description: "حالا پاسخ‌های صحیح را مشخص کنید.",
+    });
+  };
+
+  const calculateResults = () => {
+    // Update isCorrect for all answers
+    const updatedAnswers = answers.map(a => ({
+      ...a,
+      isCorrect: a.selectedOption !== null && a.correctOption !== null 
+        ? a.selectedOption === a.correctOption 
+        : null
+    }));
+    setAnswers(updatedAnswers);
+
+    const correctCount = updatedAnswers.filter(a => a.isCorrect === true).length;
+    const wrongCount = updatedAnswers.filter(a => a.selectedOption !== null && a.correctOption !== null && a.isCorrect === false).length;
+    const blankCount = updatedAnswers.filter(a => a.selectedOption === null).length;
+    
+    // Konkour formula: correct - (wrong / 3)
+    const rawScore = correctCount;
+    const konkourScore = correctCount - (wrongCount / 3);
+    const percentage = (konkourScore / questionCount) * 100;
+    
+    const timeSpent = initialTime - timeLeft;
+
+    const result: ExamResult = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      questionCount,
+      correctCount,
+      wrongCount,
+      blankCount,
+      rawScore,
+      konkourScore: Math.max(0, konkourScore),
+      percentage: Math.max(0, percentage),
+      duration,
+      timeSpent,
+    };
+
+    const newResults = [result, ...examResults];
+    setExamResults(newResults);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newResults));
+
+    toast({
+      title: "✅ کارنامه ذخیره شد",
+      description: `درصد: ${percentage.toFixed(1)}%`,
+    });
+
+    return result;
+  };
+
+  const deleteResult = (id: string) => {
+    const newResults = examResults.filter(r => r.id !== id);
+    setExamResults(newResults);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newResults));
+    toast({
+      title: "🗑️ نتیجه حذف شد",
+    });
+  };
+
   const resetExam = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setIsExamStarted(false);
+    setIsExamFinished(false);
+    setShowAnswerKey(false);
     setAnswers([]);
     setTimeLeft(0);
     setIsRunning(false);
@@ -116,6 +236,11 @@ const TestExam = () => {
 
   const answeredCount = answers.filter((a) => a.selectedOption !== null).length;
   const progress = questionCount > 0 ? (answeredCount / questionCount) * 100 : 0;
+
+  // Calculate current stats
+  const correctCount = answers.filter(a => a.isCorrect === true).length;
+  const wrongCount = answers.filter(a => a.selectedOption !== null && a.correctOption !== null && a.isCorrect === false).length;
+  const markedCorrectCount = answers.filter(a => a.correctOption !== null).length;
 
   // Setup screen (before exam starts)
   if (!isExamStarted) {
@@ -205,15 +330,78 @@ const TestExam = () => {
           </div>
         </GlassCard>
 
+        {/* Exam History */}
+        {examResults.length > 0 && (
+          <GlassCard delay={0.2}>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              بایگانی نتایج
+            </h3>
+            <div className="space-y-3 max-h-96 overflow-auto">
+              {examResults.map((result) => (
+                <div
+                  key={result.id}
+                  className="p-4 rounded-xl bg-muted/30 border border-white/10"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(result.date).toLocaleDateString('fa-IR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteResult(result.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-success">{result.correctCount}</p>
+                      <p className="text-xs text-muted-foreground">صحیح</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-destructive">{result.wrongCount}</p>
+                      <p className="text-xs text-muted-foreground">غلط</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-muted-foreground">{result.blankCount}</p>
+                      <p className="text-xs text-muted-foreground">نزده</p>
+                    </div>
+                    <div>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        result.percentage >= 70 ? "text-success" :
+                        result.percentage >= 50 ? "text-warning" : "text-destructive"
+                      )}>
+                        {result.percentage.toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">درصد کنکور</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        )}
+
         {/* Tips */}
-        <GlassCard delay={0.2}>
+        <GlassCard delay={0.3}>
           <h3 className="text-lg font-semibold mb-4">💡 راهنما</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>• فایل آزمون می‌تواند PDF یا تصویر باشد</li>
             <li>• تعداد سوالات را وارد کنید تا پاسخنامه ساخته شود</li>
             <li>• برای هر سوال ۴ گزینه خواهید داشت</li>
             <li>• با کلیک روی گزینه می‌توانید پاسخ را انتخاب یا لغو کنید</li>
-            <li>• زمان آزمون به صورت معکوس شمارش می‌شود</li>
+            <li>• بعد از پایان آزمون، پاسخ صحیح را مشخص کنید</li>
+            <li>• درصد بر اساس فرمول کنکور محاسبه می‌شود (هر ۳ غلط = ۱ منفی)</li>
           </ul>
         </GlassCard>
       </div>
@@ -243,7 +431,9 @@ const TestExam = () => {
           <div className="h-6 w-px bg-white/20" />
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            <span className="font-semibold">آزمون در حال برگزاری</span>
+            <span className="font-semibold">
+              {isExamFinished ? 'کارنامه آزمون' : 'آزمون در حال برگزاری'}
+            </span>
           </div>
         </div>
 
@@ -271,22 +461,43 @@ const TestExam = () => {
             <span className="font-bold text-xl tabular-nums">{formatTime(timeLeft)}</span>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowFile(!showFile)}
-            className="gap-2"
-          >
-            {showFile ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {showFile ? 'مخفی' : 'نمایش'}
-          </Button>
+          {!isExamFinished && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFile(!showFile)}
+                className="gap-2"
+              >
+                {showFile ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showFile ? 'مخفی' : 'نمایش'}
+              </Button>
+
+              <Button
+                onClick={finishExam}
+                className="bg-warning hover:bg-warning/90 text-warning-foreground"
+              >
+                پایان آزمون
+              </Button>
+            </>
+          )}
+
+          {isExamFinished && showAnswerKey && markedCorrectCount === questionCount && (
+            <Button
+              onClick={calculateResults}
+              className="bg-success hover:bg-success/90 text-white"
+            >
+              <Trophy className="w-4 h-4 ml-2" />
+              مشاهده کارنامه
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Main Content Area */}
       <div className="absolute top-16 bottom-0 left-0 right-0 flex">
         {/* PDF/File Viewer - Left Side */}
-        {showFile && fileUrl && (
+        {showFile && fileUrl && !isExamFinished && (
           <div className="w-1/2 h-full border-l border-white/10 bg-card/30">
             <div className="h-full p-4">
               <div className="h-full rounded-xl overflow-hidden bg-muted/20 border border-white/10">
@@ -311,46 +522,98 @@ const TestExam = () => {
         {/* Answer Sheet - Right Side */}
         <div className={cn(
           "h-full overflow-hidden flex flex-col",
-          showFile && fileUrl ? "w-1/2" : "w-full"
+          showFile && fileUrl && !isExamFinished ? "w-1/2" : "w-full"
         )}>
+          {showAnswerKey && (
+            <div className="p-4 border-b border-white/10 bg-warning/10">
+              <p className="text-center text-warning font-medium">
+                📝 پاسخ صحیح هر سوال را با کلیک روی دکمه «✓» مشخص کنید
+              </p>
+            </div>
+          )}
+          
           <div className="p-4 border-b border-white/10 bg-card/30">
-            <h3 className="text-lg font-semibold">پاسخنامه</h3>
+            <h3 className="text-lg font-semibold">
+              {showAnswerKey ? 'تصحیح آزمون' : 'پاسخنامه'}
+            </h3>
           </div>
           
           <div className="flex-1 overflow-auto p-4">
             <div className={cn(
               "grid gap-3",
-              showFile && fileUrl 
+              showFile && fileUrl && !isExamFinished
                 ? "grid-cols-2 lg:grid-cols-3" 
                 : "grid-cols-3 md:grid-cols-5 lg:grid-cols-8"
             )}>
               {answers.map((answer, index) => (
                 <div
                   key={answer.questionNumber}
-                  className="p-3 rounded-xl bg-card/50 backdrop-blur-sm border border-white/10 hover:border-primary/30 transition-colors"
+                  className={cn(
+                    "p-3 rounded-xl backdrop-blur-sm border transition-colors",
+                    showAnswerKey && answer.isCorrect === true && "bg-success/20 border-success/50",
+                    showAnswerKey && answer.isCorrect === false && "bg-destructive/20 border-destructive/50",
+                    !showAnswerKey || answer.isCorrect === null ? "bg-card/50 border-white/10 hover:border-primary/30" : ""
+                  )}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-sm">سوال {answer.questionNumber}</span>
-                    {answer.selectedOption !== null && (
+                    {showAnswerKey && answer.isCorrect !== null && (
+                      answer.isCorrect ? (
+                        <CheckCircle className="w-4 h-4 text-success" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-destructive" />
+                      )
+                    )}
+                    {!showAnswerKey && answer.selectedOption !== null && (
                       <CheckCircle className="w-4 h-4 text-success" />
                     )}
                   </div>
-                  <div className="grid grid-cols-4 gap-1">
+                  <div className="grid grid-cols-4 gap-1 mb-2">
                     {[1, 2, 3, 4].map((option) => (
                       <button
                         key={option}
                         onClick={() => selectAnswer(index, option)}
+                        disabled={isExamFinished}
                         className={cn(
                           "w-full aspect-square rounded-lg text-sm font-medium transition-all",
                           answer.selectedOption === option
-                            ? "bg-primary text-white shadow-lg shadow-primary/30"
-                            : "bg-muted/30 hover:bg-muted/50"
+                            ? showAnswerKey && answer.correctOption !== null
+                              ? answer.correctOption === option
+                                ? "bg-success text-white"
+                                : "bg-destructive text-white"
+                              : "bg-primary text-white shadow-lg shadow-primary/30"
+                            : showAnswerKey && answer.correctOption === option
+                              ? "bg-success/50 text-white ring-2 ring-success"
+                              : "bg-muted/30 hover:bg-muted/50 disabled:hover:bg-muted/30"
                         )}
                       >
                         {option}
                       </button>
                     ))}
                   </div>
+                  
+                  {/* Correct answer selection */}
+                  {showAnswerKey && (
+                    <div className="border-t border-white/10 pt-2 mt-2">
+                      <p className="text-xs text-muted-foreground mb-1">پاسخ صحیح:</p>
+                      <div className="grid grid-cols-4 gap-1">
+                        {[1, 2, 3, 4].map((option) => (
+                          <button
+                            key={`correct-${option}`}
+                            onClick={() => setCorrectAnswer(index, option)}
+                            className={cn(
+                              "w-full aspect-square rounded-lg text-xs font-medium transition-all",
+                              answer.correctOption === option
+                                ? "bg-success text-white"
+                                : "bg-muted/20 hover:bg-success/30 border border-dashed border-success/30"
+                            )}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -358,7 +621,10 @@ const TestExam = () => {
 
           {/* Bottom Stats Bar */}
           <div className="p-4 border-t border-white/10 bg-card/30">
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className={cn(
+              "grid gap-4 text-center",
+              showAnswerKey ? "grid-cols-5" : "grid-cols-3"
+            )}>
               <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
                 <p className="text-2xl font-bold text-primary">{answeredCount}</p>
                 <p className="text-xs text-muted-foreground">پاسخ داده شده</p>
@@ -367,10 +633,28 @@ const TestExam = () => {
                 <p className="text-2xl font-bold text-warning">{questionCount - answeredCount}</p>
                 <p className="text-xs text-muted-foreground">بدون پاسخ</p>
               </div>
-              <div className="p-3 rounded-xl bg-success/10 border border-success/20">
-                <p className="text-2xl font-bold text-success">{Math.round(progress)}%</p>
-                <p className="text-xs text-muted-foreground">پیشرفت</p>
-              </div>
+              {showAnswerKey && (
+                <>
+                  <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                    <p className="text-2xl font-bold text-success">{correctCount}</p>
+                    <p className="text-xs text-muted-foreground">صحیح</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                    <p className="text-2xl font-bold text-destructive">{wrongCount}</p>
+                    <p className="text-xs text-muted-foreground">غلط</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
+                    <p className="text-2xl font-bold text-accent">{markedCorrectCount}/{questionCount}</p>
+                    <p className="text-xs text-muted-foreground">تصحیح شده</p>
+                  </div>
+                </>
+              )}
+              {!showAnswerKey && (
+                <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                  <p className="text-2xl font-bold text-success">{Math.round(progress)}%</p>
+                  <p className="text-xs text-muted-foreground">پیشرفت</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

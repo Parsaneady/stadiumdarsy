@@ -171,11 +171,12 @@ const Analytics = () => {
               <p className="text-muted-foreground">داده‌ای موجود نیست</p>
             )}
           </div>
-          <div className="flex flex-wrap justify-center gap-3 mt-4">
+        <div className="flex flex-wrap justify-center gap-3 mt-4">
             {subjectDistribution.map((item) => (
               <div key={item.name} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-xs text-muted-foreground">{item.name}</span>
+                <span className="text-sm font-medium" style={{ color: item.color }}>{item.name}</span>
+                <span className="text-sm text-foreground font-semibold">{formatHoursShort(item.value)}</span>
               </div>
             ))}
           </div>
