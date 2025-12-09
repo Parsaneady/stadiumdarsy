@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { Calendar, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { DayCard } from '@/components/DayCard';
@@ -16,6 +16,40 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 
+// Memoized summary stats component
+const WeekSummary = memo(({ 
+  totalSessions, 
+  completedSessions, 
+  totalTargetHours, 
+  totalTargetTests 
+}: {
+  totalSessions: number;
+  completedSessions: number;
+  totalTargetHours: number;
+  totalTargetTests: number;
+}) => (
+  <div className="glass-card rounded-2xl p-4 flex items-center justify-around">
+    <div className="text-center">
+      <p className="text-2xl font-bold text-primary">{totalSessions}</p>
+      <p className="text-sm text-muted-foreground">کل جلسات</p>
+    </div>
+    <div className="text-center">
+      <p className="text-2xl font-bold text-primary">{completedSessions}</p>
+      <p className="text-sm text-muted-foreground">تکمیل شده</p>
+    </div>
+    <div className="text-center">
+      <p className="text-2xl font-bold text-primary">{formatHoursShort(totalTargetHours)}</p>
+      <p className="text-sm text-muted-foreground">ساعت هدف</p>
+    </div>
+    <div className="text-center">
+      <p className="text-2xl font-bold text-primary">{totalTargetTests}</p>
+      <p className="text-sm text-muted-foreground">تست هدف</p>
+    </div>
+  </div>
+));
+
+WeekSummary.displayName = 'WeekSummary';
+
 const WeeklyPlan = () => {
   const { weeklyPlan, initializeWeek, resetWeek } = useStudyStore();
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -26,19 +60,26 @@ const WeeklyPlan = () => {
     }
   }, [weeklyPlan.length, initializeWeek]);
 
-  const handleResetWeek = () => {
+  const handleResetWeek = useCallback(() => {
     resetWeek();
     setShowResetDialog(false);
     toast({
       title: "✅ هفته بازنشانی شد",
       description: "تمام نتایج و گزارش‌ها پاک شدند. برنامه هفتگی حفظ شده است.",
     });
-  };
+  }, [resetWeek]);
 
-  const totalSessions = weeklyPlan.reduce((sum, day) => sum + day.sessions.length, 0);
-  const completedSessions = weeklyPlan.reduce((sum, day) => sum + day.sessions.filter(s => s.completed).length, 0);
-  const totalTargetHours = weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetHours, 0), 0);
-  const totalTargetTests = weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetTests, 0), 0);
+  const openResetDialog = useCallback(() => setShowResetDialog(true), []);
+  const closeResetDialog = useCallback(() => setShowResetDialog(false), []);
+
+  // Memoize summary calculations
+  const summaryStats = useMemo(() => {
+    const totalSessions = weeklyPlan.reduce((sum, day) => sum + day.sessions.length, 0);
+    const completedSessions = weeklyPlan.reduce((sum, day) => sum + day.sessions.filter(s => s.completed).length, 0);
+    const totalTargetHours = weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetHours, 0), 0);
+    const totalTargetTests = weeklyPlan.reduce((sum, day) => sum + day.sessions.reduce((s, sess) => s + sess.targetTests, 0), 0);
+    return { totalSessions, completedSessions, totalTargetHours, totalTargetTests };
+  }, [weeklyPlan]);
 
   return (
     <div className="space-y-6">
@@ -57,7 +98,7 @@ const WeeklyPlan = () => {
         </div>
         <Button
           variant="outline"
-          onClick={() => setShowResetDialog(true)}
+          onClick={openResetDialog}
           className="glass-button text-warning hover:text-warning"
         >
           <RefreshCw className="w-4 h-4 ml-2" />
@@ -66,24 +107,7 @@ const WeeklyPlan = () => {
       </div>
 
       {/* Week Summary */}
-      <div className="glass-card rounded-2xl p-4 flex items-center justify-around">
-        <div className="text-center">
-          <p className="text-2xl font-bold text-primary">{totalSessions}</p>
-          <p className="text-sm text-muted-foreground">کل جلسات</p>
-        </div>
-        <div className="text-center">
-          <p className="text-2xl font-bold text-primary">{completedSessions}</p>
-          <p className="text-sm text-muted-foreground">تکمیل شده</p>
-        </div>
-        <div className="text-center">
-          <p className="text-2xl font-bold text-primary">{formatHoursShort(totalTargetHours)}</p>
-          <p className="text-sm text-muted-foreground">ساعت هدف</p>
-        </div>
-        <div className="text-center">
-          <p className="text-2xl font-bold text-primary">{totalTargetTests}</p>
-          <p className="text-sm text-muted-foreground">تست هدف</p>
-        </div>
-      </div>
+      <WeekSummary {...summaryStats} />
 
       {/* Days */}
       <div className="space-y-4">
@@ -109,7 +133,7 @@ const WeeklyPlan = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogCancel className="glass-button">انصراف</AlertDialogCancel>
+            <AlertDialogCancel className="glass-button" onClick={closeResetDialog}>انصراف</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleResetWeek}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

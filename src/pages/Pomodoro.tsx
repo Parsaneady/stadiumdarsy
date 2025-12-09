@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { Timer, Play, Pause, RotateCcw, Coffee, Brain, Settings, Volume2, VolumeX, Bell } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
@@ -18,36 +18,102 @@ import {
 
 type TimerMode = 'study' | 'shortBreak' | 'longBreak';
 
-// Web Audio API alarm sound generator
-const createAlarmSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  
-  const playBeep = (frequency: number, duration: number, delay: number) => {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-    
-    const startTime = audioContext.currentTime + delay;
-    gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.01);
-    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
-    
-    oscillator.start(startTime);
-    oscillator.stop(startTime + duration);
-  };
-  
-  // Play a series of beeps like a bell
-  playBeep(800, 0.15, 0);
-  playBeep(800, 0.15, 0.2);
-  playBeep(1000, 0.15, 0.4);
-  playBeep(1000, 0.15, 0.6);
-  playBeep(800, 0.3, 0.8);
+// Web Audio API alarm sound generator - created once
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  return audioContext;
 };
+
+const createAlarmSound = () => {
+  try {
+    const ctx = getAudioContext();
+    
+    const playBeep = (frequency: number, duration: number, delay: number) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      
+      const startTime = ctx.currentTime + delay;
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.01);
+      gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    };
+    
+    playBeep(800, 0.15, 0);
+    playBeep(800, 0.15, 0.2);
+    playBeep(1000, 0.15, 0.4);
+    playBeep(1000, 0.15, 0.6);
+    playBeep(800, 0.3, 0.8);
+  } catch (e) {
+    console.log('Audio not supported');
+  }
+};
+
+// Memoized timer display component
+const TimerDisplay = memo(({ timeLeft, progress, modeColor, modeLabel }: {
+  timeLeft: number;
+  progress: number;
+  modeColor: string;
+  modeLabel: string;
+}) => {
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Use CSS transform for GPU-accelerated animation
+  const strokeDashoffset = 2 * Math.PI * 120 * (1 - progress / 100);
+
+  return (
+    <div className="relative w-64 h-64">
+      <svg className="w-full h-full transform -rotate-90">
+        <circle
+          cx="128"
+          cy="128"
+          r="120"
+          className="stroke-muted/20 fill-none"
+          strokeWidth="8"
+        />
+        <circle
+          cx="128"
+          cy="128"
+          r="120"
+          className={`fill-none stroke-current ${modeColor}`}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={2 * Math.PI * 120}
+          strokeDashoffset={strokeDashoffset}
+          style={{ 
+            transition: 'stroke-dashoffset 0.3s ease',
+            willChange: 'stroke-dashoffset'
+          }}
+        />
+      </svg>
+      
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-5xl font-bold tabular-nums">
+          {formatTime(timeLeft)}
+        </span>
+        <span className="text-sm text-muted-foreground mt-2">{modeLabel}</span>
+      </div>
+    </div>
+  );
+});
+
+TimerDisplay.displayName = 'TimerDisplay';
 
 const Pomodoro = () => {
   const { 
@@ -87,7 +153,10 @@ const Pomodoro = () => {
   // Get available subjects from today's plan
   const todayIndex = getTodayIndex();
   const todayPlan = weeklyPlan[todayIndex];
-  const availableSubjects = todayPlan?.sessions.map(s => s.subject) || [];
+  const availableSubjects = useMemo(() => 
+    todayPlan?.sessions.map(s => s.subject) || [], 
+    [todayPlan]
+  );
 
   useEffect(() => {
     if (weeklyPlan.length === 0) {
@@ -95,16 +164,10 @@ const Pomodoro = () => {
     }
   }, [weeklyPlan.length, initializeWeek]);
 
-
   const playAlarm = useCallback(() => {
     if (soundEnabled) {
-      try {
-        createAlarmSound();
-      } catch (e) {
-        console.log('Audio not supported');
-      }
+      createAlarmSound();
       
-      // Also use Web Notification if available
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('پومودورو', {
           body: mode === 'study' ? '🎉 تبریک! زمان استراحت است!' : '⏰ زمان مطالعه است!',
@@ -122,7 +185,7 @@ const Pomodoro = () => {
     }
   }, [pomodoroSettings]);
 
-  // Timer effect
+  // Timer effect with requestAnimationFrame optimization
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -172,13 +235,7 @@ const Pomodoro = () => {
     }
   }, []);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleStartClick = () => {
+  const handleStartClick = useCallback(() => {
     if (mode === 'study' && !pomodoroSubject && availableSubjects.length > 0) {
       setSubjectSelectOpen(true);
     } else if (mode === 'study' && availableSubjects.length === 0) {
@@ -190,29 +247,29 @@ const Pomodoro = () => {
     } else {
       setIsRunning(!isRunning);
     }
-  };
+  }, [mode, pomodoroSubject, availableSubjects.length, isRunning, setIsRunning]);
 
-  const startWithSubject = (subject: string) => {
+  const startWithSubject = useCallback((subject: string) => {
     setPomodoroSubject(subject);
     setSubjectSelectOpen(false);
     setIsRunning(true);
-  };
+  }, [setPomodoroSubject, setIsRunning]);
 
-  const handleResetTimer = () => {
+  const handleResetTimer = useCallback(() => {
     resetTimer(getDuration(mode));
     setPomodoroSubject(null);
-  };
+  }, [resetTimer, getDuration, mode, setPomodoroSubject]);
 
-  const switchMode = (newMode: TimerMode) => {
+  const switchMode = useCallback((newMode: TimerMode) => {
     setMode(newMode);
     setTimeLeft(getDuration(newMode));
     setIsRunning(false);
     if (newMode !== 'study') {
       setPomodoroSubject(null);
     }
-  };
+  }, [setMode, setTimeLeft, getDuration, setIsRunning, setPomodoroSubject]);
 
-  const saveSettings = () => {
+  const saveSettings = useCallback(() => {
     setPomodoroSettings(tempSettings);
     setTimeLeft(tempSettings.studyDuration * 60);
     setMode('study');
@@ -222,37 +279,44 @@ const Pomodoro = () => {
       title: "✅ تنظیمات ذخیره شد",
       description: "تنظیمات پومودورو با موفقیت به‌روزرسانی شد.",
     });
-  };
+  }, [tempSettings, setPomodoroSettings, setTimeLeft, setMode, setIsRunning]);
 
-  const testAlarm = () => {
-    try {
-      createAlarmSound();
-    } catch (e) {
-      console.log('Audio not supported');
-    }
+  const testAlarm = useCallback(() => {
+    createAlarmSound();
     toast({
       title: "🔔 تست زنگ",
       description: "صدای زنگ تست شد!",
     });
-  };
+  }, []);
 
-  const progress = ((getDuration(mode) - timeLeft) / getDuration(mode)) * 100;
+  const progress = useMemo(() => 
+    ((getDuration(mode) - timeLeft) / getDuration(mode)) * 100,
+    [getDuration, mode, timeLeft]
+  );
 
-  const getModeColor = () => {
+  const modeColor = useMemo(() => {
     switch (mode) {
       case 'study': return 'text-primary';
       case 'shortBreak': return 'text-success';
       case 'longBreak': return 'text-warning';
     }
-  };
+  }, [mode]);
 
-  const getModeLabel = () => {
+  const modeLabel = useMemo(() => {
     switch (mode) {
       case 'study': return pomodoroSubject ? `مطالعه: ${pomodoroSubject}` : 'زمان مطالعه';
       case 'shortBreak': return 'استراحت کوتاه';
       case 'longBreak': return 'استراحت بلند';
     }
-  };
+  }, [mode, pomodoroSubject]);
+
+  const buttonGradient = useMemo(() => {
+    switch (mode) {
+      case 'study': return 'from-primary to-accent';
+      case 'shortBreak': return 'from-success to-secondary';
+      case 'longBreak': return 'from-warning to-accent';
+    }
+  }, [mode]);
 
   return (
     <div className="space-y-6">
@@ -390,35 +454,12 @@ const Pomodoro = () => {
 
       {/* Timer Display */}
       <GlassCard delay={0.1} className="flex flex-col items-center py-12">
-        <div className="relative w-64 h-64">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle
-              cx="128"
-              cy="128"
-              r="120"
-              className="stroke-muted/20 fill-none"
-              strokeWidth="8"
-            />
-            <circle
-              cx="128"
-              cy="128"
-              r="120"
-              className={`fill-none stroke-current ${getModeColor()}`}
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 120}
-              strokeDashoffset={2 * Math.PI * 120 * (1 - progress / 100)}
-              style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-            />
-          </svg>
-          
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-5xl font-bold tabular-nums">
-              {formatTime(timeLeft)}
-            </span>
-            <span className="text-sm text-muted-foreground mt-2">{getModeLabel()}</span>
-          </div>
-        </div>
+        <TimerDisplay 
+          timeLeft={timeLeft}
+          progress={progress}
+          modeColor={modeColor}
+          modeLabel={modeLabel}
+        />
 
         {/* Controls */}
         <div className="flex items-center gap-4 mt-8">
@@ -434,10 +475,7 @@ const Pomodoro = () => {
           <Button
             size="lg"
             onClick={isRunning ? () => setIsRunning(false) : handleStartClick}
-            className={`w-20 h-20 rounded-full bg-gradient-to-r ${
-              mode === 'study' ? 'from-primary to-accent' :
-              mode === 'shortBreak' ? 'from-success to-secondary' : 'from-warning to-accent'
-            } hover:opacity-90 shadow-lg`}
+            className={`w-20 h-20 rounded-full bg-gradient-to-r ${buttonGradient} hover:opacity-90 shadow-lg`}
           >
             {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 mr-1" />}
           </Button>

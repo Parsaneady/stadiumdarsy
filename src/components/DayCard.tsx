@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { DayPlan, StudySession, useStudyStore } from '@/stores/studyStore';
 import { SessionCard } from './SessionCard';
@@ -12,32 +12,53 @@ interface DayCardProps {
   delay?: number;
 }
 
-export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
+export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<StudySession | null>(null);
 
   const { addSession, updateSession, deleteSession, toggleSessionComplete } = useStudyStore();
 
-  const completedCount = day.sessions.filter((s) => s.completed).length;
-  const totalHours = day.sessions.reduce((sum, s) => sum + s.targetHours, 0);
-  const completionPercent = day.sessions.length > 0 
-    ? (completedCount / day.sessions.length) * 100 
-    : 0;
+  const { completedCount, totalHours, completionPercent } = useMemo(() => {
+    const completed = day.sessions.filter((s) => s.completed).length;
+    const hours = day.sessions.reduce((sum, s) => sum + s.targetHours, 0);
+    const percent = day.sessions.length > 0 
+      ? (completed / day.sessions.length) * 100 
+      : 0;
+    return { completedCount: completed, totalHours: hours, completionPercent: percent };
+  }, [day.sessions]);
 
-  const handleAddSession = (session: Omit<StudySession, 'id'>) => {
+  const handleAddSession = useCallback((session: Omit<StudySession, 'id'>) => {
     if (editingSession) {
       updateSession(day.id, editingSession.id, session);
       setEditingSession(null);
     } else {
       addSession(day.id, session);
     }
-  };
+  }, [editingSession, updateSession, addSession, day.id]);
 
-  const handleEdit = (session: StudySession) => {
+  const handleEdit = useCallback((session: StudySession) => {
     setEditingSession(session);
     setIsModalOpen(true);
-  };
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setEditingSession(null);
+  }, []);
+
+  const handleOpenModal = useCallback(() => {
+    setEditingSession(null);
+    setIsModalOpen(true);
+  }, []);
+
+  const toggleExpanded = useCallback(() => setIsExpanded(prev => !prev), []);
+
+  const completionBadgeClass = useMemo(() => {
+    if (completionPercent === 100) return 'bg-success/20 text-success';
+    if (completionPercent >= 50) return 'bg-warning/20 text-warning';
+    return 'bg-muted text-muted-foreground';
+  }, [completionPercent]);
 
   return (
     <>
@@ -45,7 +66,7 @@ export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
         {/* Header */}
         <div
           className="flex items-center justify-between cursor-pointer"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={toggleExpanded}
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
@@ -60,12 +81,7 @@ export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Completion Badge */}
-            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-              completionPercent === 100 ? 'bg-success/20 text-success' :
-              completionPercent >= 50 ? 'bg-warning/20 text-warning' :
-              'bg-muted text-muted-foreground'
-            }`}>
+            <div className={`px-3 py-1 rounded-full text-sm font-medium ${completionBadgeClass}`}>
               {completedCount}/{day.sessions.length}
             </div>
             
@@ -90,14 +106,10 @@ export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
               />
             ))}
 
-            {/* Add Session Button */}
             <Button
               variant="outline"
               className="w-full border-dashed border-white/20 hover:border-primary/50 hover:bg-primary/5"
-              onClick={() => {
-                setEditingSession(null);
-                setIsModalOpen(true);
-              }}
+              onClick={handleOpenModal}
             >
               <Plus className="w-4 h-4 ml-2" />
               افزودن جلسه جدید
@@ -108,13 +120,12 @@ export const DayCard = ({ day, delay = 0 }: DayCardProps) => {
 
       <AddSessionModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingSession(null);
-        }}
+        onClose={handleCloseModal}
         onAdd={handleAddSession}
         editSession={editingSession}
       />
     </>
   );
-};
+});
+
+DayCard.displayName = 'DayCard';
