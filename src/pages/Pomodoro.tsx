@@ -18,8 +18,36 @@ import {
 
 type TimerMode = 'study' | 'shortBreak' | 'longBreak';
 
-// Alarm sound - a proper notification bell sound
-const ALARM_SOUND = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQAAAAAAAAAAAGw7RXnxQAAAAAAAAAAAAAAAAD/4xjEAAPAAB4NAAAAgD4CAIAACHwQBAEAQBMAAATB8H/KAgCAJg+D4Pg+CAIHAfB8Hwf4Pg+D4PggCYPg+D4Pgh2D4Pg+D/+D4f/qD4Pg+CAJg+D4Pgv/5QEATBMHwfB8EwQBMEwfB8HwTBAEwTB8HwfB8EAT5cEATB8HwfBMH/4xjECwO0AB5P0AAAB8HwfB8EwQBMHwfB8HwTBMEwfB/ggCYJg+D4Pg+CAJgmCYPg+D/B8HwfB8EwQBAEAfB8HwfB8EATB8HwfB8EwQBMEwfB8HwTBAEwTB8HwfB8EwQBMHwfB8HwTBAEwTB8Hwf/4xjEDAPkBh4P0GAAAgCYJg+D4Pg+CAIAD4Pg+D4PgmCAJg+D4Pg+D4JgmD4Pg+D4Pg+CYJg+D4Pg+D4Pg+CYPg+D4Pg+D4PgmD4Pg+D4Pg+D4Jg+D4Pg+D4Pg+CYPg+D4Pg+D4Pg+CYPAAAAAAAAAAAAAD/4xjEIASoAB5AIAAAAAUMZMmAAwAKAAgQMy8rL3vc974SQhJBFGQ0WZDRZkMzN5HHHHGFpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWl0IIIIIIIAAAAAAAAAAAAAAAAGZmZmZnZ2f/4xjEIQPoAB5AIAAAAAAAAAAAAABmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZnd3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d4iIiIiIiIiIiIiIiIj/4xjEHQHQABpP0AAAAAIiIiIiIiIiIiIiIiIiIqqqqqqqqqqqqqqqqqqqqqru7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7v/4xjELABwABpAAAAAAAAu7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u4=';
+// Web Audio API alarm sound generator
+const createAlarmSound = () => {
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  
+  const playBeep = (frequency: number, duration: number, delay: number) => {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'sine';
+    
+    const startTime = audioContext.currentTime + delay;
+    gainNode.gain.setValueAtTime(0, startTime);
+    gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.01);
+    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+    
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
+  };
+  
+  // Play a series of beeps like a bell
+  playBeep(800, 0.15, 0);
+  playBeep(800, 0.15, 0.2);
+  playBeep(1000, 0.15, 0.4);
+  playBeep(1000, 0.15, 0.6);
+  playBeep(800, 0.3, 0.8);
+};
 
 const Pomodoro = () => {
   const { 
@@ -54,7 +82,6 @@ const Pomodoro = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [subjectSelectOpen, setSubjectSelectOpen] = useState(false);
   const [tempSettings, setTempSettings] = useState(pomodoroSettings);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get available subjects from today's plan
@@ -68,17 +95,14 @@ const Pomodoro = () => {
     }
   }, [weeklyPlan.length, initializeWeek]);
 
-  // Initialize audio
-  useEffect(() => {
-    audioRef.current = new Audio(ALARM_SOUND);
-    audioRef.current.volume = 0.8;
-  }, []);
 
   const playAlarm = useCallback(() => {
-    if (soundEnabled && audioRef.current) {
-      // Play multiple times for better notification
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+    if (soundEnabled) {
+      try {
+        createAlarmSound();
+      } catch (e) {
+        console.log('Audio not supported');
+      }
       
       // Also use Web Notification if available
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -201,9 +225,10 @@ const Pomodoro = () => {
   };
 
   const testAlarm = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+    try {
+      createAlarmSound();
+    } catch (e) {
+      console.log('Audio not supported');
     }
     toast({
       title: "🔔 تست زنگ",
