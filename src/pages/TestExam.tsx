@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { FileText, Upload, Clock, CheckCircle, X, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { FileText, Upload, Clock, CheckCircle, X, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ interface Answer {
 
 const TestExam = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState<number>(60);
   const [duration, setDuration] = useState<number>(60);
   const [isExamStarted, setIsExamStarted] = useState(false);
@@ -23,6 +24,17 @@ const TestExam = () => {
   const [showFile, setShowFile] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Create stable URL for file
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setFileUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setFileUrl(null);
+    }
+  }, [file]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -105,6 +117,7 @@ const TestExam = () => {
   const answeredCount = answers.filter((a) => a.selectedOption !== null).length;
   const progress = questionCount > 0 ? (answeredCount / questionCount) * 100 : 0;
 
+  // Setup screen (before exam starts)
   if (!isExamStarted) {
     return (
       <div className="space-y-6">
@@ -207,98 +220,114 @@ const TestExam = () => {
     );
   }
 
+  // Fullscreen Exam Mode - completely isolated from Layout
   return (
-    <div className="space-y-6">
-      {/* Header with Timer */}
-      <div className="flex items-center justify-between animate-fade-in">
+    <div className="fixed inset-0 z-50 bg-background overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+      </div>
+
+      {/* Top Header Bar */}
+      <div className="absolute top-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6 z-10">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-primary flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">آزمون در حال برگزاری</h1>
-            <p className="text-muted-foreground mt-1">{answeredCount} از {questionCount} سوال پاسخ داده شده</p>
+          <Button
+            variant="ghost"
+            onClick={resetExam}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowRight className="w-5 h-5" />
+            خروج از آزمون
+          </Button>
+          <div className="h-6 w-px bg-white/20" />
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            <span className="font-semibold">آزمون در حال برگزاری</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
+          {/* Progress */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">پیشرفت:</span>
+            <span className="font-bold text-primary">{answeredCount}/{questionCount}</span>
+            <div className="w-24 h-2 bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="h-6 w-px bg-white/20" />
+
+          {/* Timer */}
           <div className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full",
+            "flex items-center gap-2 px-4 py-2 rounded-full font-mono",
             timeLeft < 60 ? "bg-destructive/20 text-destructive" : "bg-primary/20 text-primary"
           )}>
             <Clock className="w-5 h-5" />
             <span className="font-bold text-xl tabular-nums">{formatTime(timeLeft)}</span>
           </div>
-          
+
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={() => setShowFile(!showFile)}
-            className="glass-button"
+            className="gap-2"
           >
-            {showFile ? <EyeOff className="w-4 h-4 ml-2" /> : <Eye className="w-4 h-4 ml-2" />}
-            {showFile ? 'مخفی کردن فایل' : 'نمایش فایل'}
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={resetExam}
-            className="glass-button text-destructive"
-          >
-            <X className="w-4 h-4 ml-2" />
-            پایان آزمون
+            {showFile ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {showFile ? 'مخفی' : 'نمایش'}
           </Button>
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">پیشرفت پاسخگویی</span>
-          <span className="text-sm font-medium">{Math.round(progress)}%</span>
-        </div>
-        <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* File Preview */}
-        {showFile && file && (
-          <GlassCard delay={0.1} className="h-[600px] overflow-hidden">
-            <h3 className="text-lg font-semibold mb-4">فایل آزمون</h3>
-            <div className="h-[calc(100%-2rem)] overflow-auto rounded-lg bg-muted/20">
-              {file.type === 'application/pdf' ? (
-                <iframe
-                  src={URL.createObjectURL(file)}
-                  className="w-full h-full"
-                  title="PDF Viewer"
-                />
-              ) : (
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt="Exam file"
-                  className="w-full h-auto object-contain"
-                />
-              )}
+      {/* Main Content Area */}
+      <div className="absolute top-16 bottom-0 left-0 right-0 flex">
+        {/* PDF/File Viewer - Left Side */}
+        {showFile && fileUrl && (
+          <div className="w-1/2 h-full border-l border-white/10 bg-card/30">
+            <div className="h-full p-4">
+              <div className="h-full rounded-xl overflow-hidden bg-muted/20 border border-white/10">
+                {file?.type === 'application/pdf' ? (
+                  <iframe
+                    src={fileUrl}
+                    className="w-full h-full"
+                    title="PDF Viewer"
+                  />
+                ) : (
+                  <img
+                    src={fileUrl}
+                    alt="Exam file"
+                    className="w-full h-full object-contain"
+                  />
+                )}
+              </div>
             </div>
-          </GlassCard>
+          </div>
         )}
 
-        {/* Answer Sheet */}
-        <GlassCard delay={0.2} className={cn("h-[600px] overflow-hidden", !showFile || !file ? "lg:col-span-2" : "")}>
-          <h3 className="text-lg font-semibold mb-4">پاسخنامه</h3>
-          <div className="h-[calc(100%-2rem)] overflow-auto pr-2">
+        {/* Answer Sheet - Right Side */}
+        <div className={cn(
+          "h-full overflow-hidden flex flex-col",
+          showFile && fileUrl ? "w-1/2" : "w-full"
+        )}>
+          <div className="p-4 border-b border-white/10 bg-card/30">
+            <h3 className="text-lg font-semibold">پاسخنامه</h3>
+          </div>
+          
+          <div className="flex-1 overflow-auto p-4">
             <div className={cn(
               "grid gap-3",
-              !showFile || !file ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-6" : "grid-cols-1 md:grid-cols-2"
+              showFile && fileUrl 
+                ? "grid-cols-2 lg:grid-cols-3" 
+                : "grid-cols-3 md:grid-cols-5 lg:grid-cols-8"
             )}>
               {answers.map((answer, index) => (
                 <div
                   key={answer.questionNumber}
-                  className="p-3 rounded-xl bg-muted/20 border border-white/5"
+                  className="p-3 rounded-xl bg-card/50 backdrop-blur-sm border border-white/10 hover:border-primary/30 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-sm">سوال {answer.questionNumber}</span>
@@ -326,23 +355,25 @@ const TestExam = () => {
               ))}
             </div>
           </div>
-        </GlassCard>
-      </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <GlassCard delay={0.3} className="text-center">
-          <p className="text-3xl font-bold text-primary">{answeredCount}</p>
-          <p className="text-sm text-muted-foreground">پاسخ داده شده</p>
-        </GlassCard>
-        <GlassCard delay={0.35} className="text-center">
-          <p className="text-3xl font-bold text-warning">{questionCount - answeredCount}</p>
-          <p className="text-sm text-muted-foreground">بدون پاسخ</p>
-        </GlassCard>
-        <GlassCard delay={0.4} className="text-center">
-          <p className="text-3xl font-bold text-success">{Math.round(progress)}%</p>
-          <p className="text-sm text-muted-foreground">پیشرفت</p>
-        </GlassCard>
+          {/* Bottom Stats Bar */}
+          <div className="p-4 border-t border-white/10 bg-card/30">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <p className="text-2xl font-bold text-primary">{answeredCount}</p>
+                <p className="text-xs text-muted-foreground">پاسخ داده شده</p>
+              </div>
+              <div className="p-3 rounded-xl bg-warning/10 border border-warning/20">
+                <p className="text-2xl font-bold text-warning">{questionCount - answeredCount}</p>
+                <p className="text-xs text-muted-foreground">بدون پاسخ</p>
+              </div>
+              <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                <p className="text-2xl font-bold text-success">{Math.round(progress)}%</p>
+                <p className="text-xs text-muted-foreground">پیشرفت</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
