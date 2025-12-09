@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 
 interface GlassCardProps {
   children: ReactNode;
@@ -8,11 +8,11 @@ interface GlassCardProps {
   delay?: number;
 }
 
-export const GlassCard = ({ children, className, hover = true, delay = 0 }: GlassCardProps) => {
+export const GlassCard = memo(({ children, className, hover = true, delay = 0 }: GlassCardProps) => {
   return (
     <div
       className={cn(
-        'glass-card rounded-2xl p-6 transition-all duration-200 animate-fade-in',
+        'glass-card rounded-2xl p-6 transition-transform duration-200 animate-fade-in',
         hover && 'hover:scale-[1.01] hover:-translate-y-1',
         className
       )}
@@ -21,4 +21,6 @@ export const GlassCard = ({ children, className, hover = true, delay = 0 }: Glas
       {children}
     </div>
   );
-};
+});
+
+GlassCard.displayName = 'GlassCard';

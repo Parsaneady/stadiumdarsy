@@ -1,3 +1,5 @@
+import { memo, useMemo } from 'react';
+
 interface CircularProgressProps {
   value: number;
   size?: number;
@@ -7,7 +9,7 @@ interface CircularProgressProps {
   showValue?: boolean;
 }
 
-export const CircularProgress = ({
+export const CircularProgress = memo(({
   value,
   size = 120,
   strokeWidth = 8,
@@ -15,9 +17,16 @@ export const CircularProgress = ({
   label,
   showValue = true,
 }: CircularProgressProps) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
+  const { radius, circumference, offset } = useMemo(() => {
+    const r = (size - strokeWidth) / 2;
+    const c = r * 2 * Math.PI;
+    const o = c - (value / 100) * c;
+    return { radius: r, circumference: c, offset: o };
+  }, [size, strokeWidth, value]);
+
+  const filterStyle = useMemo(() => ({
+    filter: `drop-shadow(0 0 10px ${color})`,
+  }), [color]);
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -40,10 +49,8 @@ export const CircularProgress = ({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="drop-shadow-lg transition-all duration-500 ease-out"
-          style={{
-            filter: `drop-shadow(0 0 10px ${color})`,
-          }}
+          className="transition-[stroke-dashoffset] duration-500 ease-out will-change-[stroke-dashoffset]"
+          style={filterStyle}
         />
       </svg>
       <div className="absolute flex flex-col items-center justify-center">
@@ -58,4 +65,6 @@ export const CircularProgress = ({
       </div>
     </div>
   );
-};
+});
+
+CircularProgress.displayName = 'CircularProgress';
