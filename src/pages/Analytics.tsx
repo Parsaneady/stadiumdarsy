@@ -128,6 +128,7 @@ const Analytics = () => {
                     borderRadius: '12px',
                     direction: 'rtl',
                   }}
+                  formatter={(value: number, name: string) => [formatHoursShort(value), name]}
                 />
                 <Area type="monotone" dataKey="هدف" stroke="#06b6d4" fill="url(#gradientTarget)" strokeWidth={2} />
                 <Area type="monotone" dataKey="عملکرد" stroke="#8b5cf6" fill="url(#gradientActual)" strokeWidth={2} />
@@ -162,7 +163,7 @@ const Analytics = () => {
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
                     }}
-                    formatter={(value: number) => [`${Math.floor(value)} ساعت`, '']}
+                    formatter={(value: number) => [formatHoursShort(value), '']}
                   />
                 </PieChart>
               </ResponsiveContainer>

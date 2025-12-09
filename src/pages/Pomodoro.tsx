@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Timer, Play, Pause, RotateCcw, Coffee, Brain, Settings, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useCallback, useRef } from 'react';
+import { Timer, Play, Pause, RotateCcw, Coffee, Brain, Settings, Volume2, VolumeX, Bell } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
+import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,15 +15,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 type TimerMode = 'study' | 'shortBreak' | 'longBreak';
+
+// Alarm sound - a proper notification bell sound
+const ALARM_SOUND = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA/+M4wAAAAAAAAAAAAEluZm8AAAAPAAAAAwAAAbAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////////////////////////////////////////AAAAAExhdmM1OC4xMwAAAAAAAAAAAAAAACQAAAAAAAAAAAGw7RXnxQAAAAAAAAAAAAAAAAD/4xjEAAPAAB4NAAAAgD4CAIAACHwQBAEAQBMAAATB8H/KAgCAJg+D4Pg+CAIHAfB8Hwf4Pg+D4PggCYPg+D4Pgh2D4Pg+D/+D4f/qD4Pg+CAJg+D4Pgv/5QEATBMHwfB8EwQBMEwfB8HwTBAEwTB8HwfB8EAT5cEATB8HwfBMH/4xjECwO0AB5P0AAAB8HwfB8EwQBMHwfB8HwTBMEwfB/ggCYJg+D4Pg+CAJgmCYPg+D/B8HwfB8EwQBAEAfB8HwfB8EATB8HwfB8EwQBMEwfB8HwTBAEwTB8HwfB8EwQBMHwfB8HwTBAEwTB8Hwf/4xjEDAPkBh4P0GAAAgCYJg+D4Pg+CAIAD4Pg+D4PgmCAJg+D4Pg+D4JgmD4Pg+D4Pg+CYJg+D4Pg+D4Pg+CYPg+D4Pg+D4PgmD4Pg+D4Pg+D4Jg+D4Pg+D4Pg+CYPg+D4Pg+D4Pg+CYPAAAAAAAAAAAAAD/4xjEIASoAB5AIAAAAAUMZMmAAwAKAAgQMy8rL3vc974SQhJBFGQ0WZDRZkMzN5HHHHGFpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWl0IIIIIIIAAAAAAAAAAAAAAAAGZmZmZnZ2f/4xjEIQPoAB5AIAAAAAAAAAAAAABmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZnd3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d4iIiIiIiIiIiIiIiIj/4xjEHQHQABpP0AAAAAIiIiIiIiIiIiIiIiIiIqqqqqqqqqqqqqqqqqqqqqru7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7v/4xjELABwABpAAAAAAAAu7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u4=';
 
 const Pomodoro = () => {
   const { 
@@ -32,22 +29,33 @@ const Pomodoro = () => {
     totalPomodoroMinutesToday,
     weeklyPlan,
     getTodayIndex,
-    pomodoroSubject,
-    setPomodoroSubject,
     initializeWeek,
   } = useStudyStore();
   
-  const [mode, setMode] = useState<TimerMode>('study');
-  const [timeLeft, setTimeLeft] = useState(pomodoroSettings.studyDuration * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [currentCycle, setCurrentCycle] = useState(1);
-  const [completedPomodoros, setCompletedPomodoros] = useState(0);
+  const {
+    mode,
+    timeLeft,
+    isRunning,
+    currentCycle,
+    completedPomodoros,
+    pomodoroSubject,
+    setMode,
+    setTimeLeft,
+    decrementTime,
+    setIsRunning,
+    setCurrentCycle,
+    incrementCycle,
+    incrementCompletedPomodoros,
+    setPomodoroSubject,
+    resetTimer,
+  } = usePomodoroStore();
+  
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [subjectSelectOpen, setSubjectSelectOpen] = useState(false);
-  
   const [tempSettings, setTempSettings] = useState(pomodoroSettings);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get available subjects from today's plan
   const todayIndex = getTodayIndex();
@@ -62,14 +70,25 @@ const Pomodoro = () => {
 
   // Initialize audio
   useEffect(() => {
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleF0cN3G58u2YWhomYp7e7ap4QhYgWprk7a95OxEdVZnn7rJ8NQ8YUJfp77R+MA0TSpTr8LWALAsOS5Ls8LaAKwkMR5Pu8biCKQgKRJLw8rmDJwcIQpHy87uFJQYGQI/08r2HJAUFPo728L+IJQUEPIv48cCJJgQDOon68sKLKAQCOIf88sSNKQMBNob+88aPKwIANIT/9MiRLQEAMoP/9cqTLwAAMIH/9syVMQAALn//986XNAAAK33/+dCaNgAAKXv/+tKcOAAAJ3n/+9SePAAAJXf//NagPgAAI3X//diiQAAAIXP//tqlQgAAH3H//9unRAAAHW///9ypRgAAG23//92rSAAAGWv//9+tSgAAF2n//+CvTAAAFWf//+KxTgAAE2X//+SzUAAAEWP//+W1UgAAD2H//+e3VAAADV///+m5VgAAC13//+u7WAAACVT');
+    audioRef.current = new Audio(ALARM_SOUND);
+    audioRef.current.volume = 0.8;
   }, []);
 
-  const playSound = useCallback(() => {
+  const playAlarm = useCallback(() => {
     if (soundEnabled && audioRef.current) {
+      // Play multiple times for better notification
+      audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
+      
+      // Also use Web Notification if available
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('پومودورو', {
+          body: mode === 'study' ? '🎉 تبریک! زمان استراحت است!' : '⏰ زمان مطالعه است!',
+          icon: '🍅',
+        });
+      }
     }
-  }, [soundEnabled]);
+  }, [soundEnabled, mode]);
 
   const getDuration = useCallback((timerMode: TimerMode) => {
     switch (timerMode) {
@@ -81,26 +100,22 @@ const Pomodoro = () => {
 
   // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-
     if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((time) => time - 1);
+      intervalRef.current = setInterval(() => {
+        decrementTime();
       }, 1000);
     } else if (timeLeft === 0 && isRunning) {
-      playSound();
+      playAlarm();
       
       if (mode === 'study' && pomodoroSubject) {
-        // Completed a study session
         addPomodoroTime(pomodoroSettings.studyDuration, pomodoroSubject);
-        setCompletedPomodoros((prev) => prev + 1);
+        incrementCompletedPomodoros();
         
         toast({
           title: "🎉 تبریک!",
           description: `یک پومودورو برای ${pomodoroSubject} تکمیل شد!`,
         });
         
-        // Determine next break type
         if (currentCycle >= pomodoroSettings.cycles) {
           setMode('longBreak');
           setTimeLeft(pomodoroSettings.longBreak * 60);
@@ -108,10 +123,9 @@ const Pomodoro = () => {
         } else {
           setMode('shortBreak');
           setTimeLeft(pomodoroSettings.shortBreak * 60);
-          setCurrentCycle((prev) => prev + 1);
+          incrementCycle();
         }
       } else {
-        // Break finished, back to study
         setMode('study');
         setTimeLeft(pomodoroSettings.studyDuration * 60);
         toast({
@@ -123,9 +137,16 @@ const Pomodoro = () => {
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning, timeLeft, mode, currentCycle, pomodoroSettings, addPomodoroTime, playSound, pomodoroSubject]);
+  }, [isRunning, timeLeft, mode, currentCycle, pomodoroSettings, addPomodoroTime, playAlarm, pomodoroSubject, decrementTime, incrementCompletedPomodoros, incrementCycle, setCurrentCycle, setIsRunning, setMode, setTimeLeft]);
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -135,7 +156,6 @@ const Pomodoro = () => {
 
   const handleStartClick = () => {
     if (mode === 'study' && !pomodoroSubject && availableSubjects.length > 0) {
-      // Show subject selection dialog
       setSubjectSelectOpen(true);
     } else if (mode === 'study' && availableSubjects.length === 0) {
       toast({
@@ -154,9 +174,8 @@ const Pomodoro = () => {
     setIsRunning(true);
   };
 
-  const resetTimer = () => {
-    setIsRunning(false);
-    setTimeLeft(getDuration(mode));
+  const handleResetTimer = () => {
+    resetTimer(getDuration(mode));
     setPomodoroSubject(null);
   };
 
@@ -181,6 +200,17 @@ const Pomodoro = () => {
     });
   };
 
+  const testAlarm = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+    toast({
+      title: "🔔 تست زنگ",
+      description: "صدای زنگ تست شد!",
+    });
+  };
+
   const progress = ((getDuration(mode) - timeLeft) / getDuration(mode)) * 100;
 
   const getModeColor = () => {
@@ -202,11 +232,7 @@ const Pomodoro = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between animate-fade-in">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
             <Timer className="w-6 h-6 text-white" />
@@ -218,6 +244,15 @@ const Pomodoro = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={testAlarm}
+            className="glass-button"
+            title="تست زنگ"
+          >
+            <Bell className="w-5 h-5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -282,15 +317,10 @@ const Pomodoro = () => {
             </DialogContent>
           </Dialog>
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass-card rounded-2xl p-4 flex items-center justify-around"
-      >
+      <div className="glass-card rounded-2xl p-4 flex items-center justify-around animate-fade-in">
         <div className="text-center">
           <p className="text-2xl font-bold text-primary">{completedPomodoros}</p>
           <p className="text-sm text-muted-foreground">پومودورو امروز</p>
@@ -303,15 +333,10 @@ const Pomodoro = () => {
           <p className="text-2xl font-bold text-accent">{currentCycle}/{pomodoroSettings.cycles}</p>
           <p className="text-sm text-muted-foreground">سیکل فعلی</p>
         </div>
-      </motion.div>
+      </div>
 
       {/* Mode Selector */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex justify-center gap-3"
-      >
+      <div className="flex justify-center gap-3 animate-fade-in">
         <Button
           variant={mode === 'study' ? 'default' : 'outline'}
           onClick={() => switchMode('study')}
@@ -336,12 +361,11 @@ const Pomodoro = () => {
           <Coffee className="w-4 h-4 ml-2" />
           استراحت بلند
         </Button>
-      </motion.div>
+      </div>
 
       {/* Timer Display */}
-      <GlassCard delay={0.3} className="flex flex-col items-center py-12">
+      <GlassCard delay={0.1} className="flex flex-col items-center py-12">
         <div className="relative w-64 h-64">
-          {/* Simple circular progress */}
           <svg className="w-full h-full transform -rotate-90">
             <circle
               cx="128"
@@ -363,7 +387,6 @@ const Pomodoro = () => {
             />
           </svg>
           
-          {/* Timer Text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-5xl font-bold tabular-nums">
               {formatTime(timeLeft)}
@@ -377,7 +400,7 @@ const Pomodoro = () => {
           <Button
             size="lg"
             variant="outline"
-            onClick={resetTimer}
+            onClick={handleResetTimer}
             className="glass-button w-14 h-14 rounded-full"
           >
             <RotateCcw className="w-6 h-6" />
@@ -394,7 +417,7 @@ const Pomodoro = () => {
             {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 mr-1" />}
           </Button>
           
-          <div className="w-14 h-14" /> {/* Spacer for symmetry */}
+          <div className="w-14 h-14" />
         </div>
       </GlassCard>
 
@@ -423,13 +446,14 @@ const Pomodoro = () => {
       </Dialog>
 
       {/* Tips */}
-      <GlassCard delay={0.4}>
+      <GlassCard delay={0.2}>
         <h3 className="text-lg font-semibold mb-4">💡 نکات پومودورو</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li>• هر پومودورو ۲۵ دقیقه تمرکز کامل روی یک کار است</li>
           <li>• بعد از هر پومودورو، ۵ دقیقه استراحت کوتاه داشته باشید</li>
           <li>• بعد از ۴ پومودورو، یک استراحت بلند ۱۵-۲۰ دقیقه‌ای داشته باشید</li>
           <li>• در زمان استراحت از صفحه نمایش فاصله بگیرید</li>
+          <li>• تایمر حتی با رفتن به صفحات دیگر ادامه می‌یابد! 🔄</li>
         </ul>
       </GlassCard>
     </div>
