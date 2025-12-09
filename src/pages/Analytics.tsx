@@ -162,6 +162,7 @@ const Analytics = () => {
                       backgroundColor: 'hsl(230, 20%, 12%)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
+                      color: 'hsl(210, 40%, 98%)',
                     }}
                     formatter={(value: number) => [formatHoursShort(value), '']}
                   />
@@ -176,7 +177,6 @@ const Analytics = () => {
               <div key={item.name} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                 <span className="text-sm font-medium" style={{ color: item.color }}>{item.name}</span>
-                <span className="text-sm text-foreground font-semibold">{formatHoursShort(item.value)}</span>
               </div>
             ))}
           </div>

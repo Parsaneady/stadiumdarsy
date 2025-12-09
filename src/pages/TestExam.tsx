@@ -17,6 +17,7 @@ interface Answer {
 
 interface ExamResult {
   id: string;
+  name: string;
   date: string;
   questionCount: number;
   correctCount: number;
@@ -34,6 +35,7 @@ const STORAGE_KEY = 'exam_results';
 const TestExam = () => {
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [examName, setExamName] = useState<string>('');
   const [questionCount, setQuestionCount] = useState<number>(60);
   const [duration, setDuration] = useState<number>(60);
   const [isExamStarted, setIsExamStarted] = useState(false);
@@ -185,6 +187,7 @@ const TestExam = () => {
 
     const result: ExamResult = {
       id: Date.now().toString(),
+      name: examName || 'آزمون بدون نام',
       date: new Date().toISOString(),
       questionCount,
       correctCount,
@@ -294,6 +297,18 @@ const TestExam = () => {
               </div>
             </div>
 
+            {/* Exam Name */}
+            <div className="space-y-2">
+              <Label>نام آزمون</Label>
+              <Input
+                type="text"
+                value={examName}
+                onChange={(e) => setExamName(e.target.value)}
+                placeholder="مثلاً آزمون جامع شیمی"
+                className="glass-input"
+              />
+            </div>
+
             {/* Question Count */}
             <div className="space-y-2">
               <Label>تعداد سوالات</Label>
@@ -344,15 +359,18 @@ const TestExam = () => {
                   className="p-4 rounded-xl bg-muted/30 border border-white/10"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(result.date).toLocaleDateString('fa-IR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                    <div>
+                      <p className="font-semibold">{result.name}</p>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(result.date).toLocaleDateString('fa-IR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -539,43 +557,38 @@ const TestExam = () => {
           </div>
           
           <div className="flex-1 overflow-auto p-4">
-            <div className={cn(
-              "grid gap-3",
-              showFile && fileUrl && !isExamFinished
-                ? "grid-cols-2 lg:grid-cols-3" 
-                : "grid-cols-3 md:grid-cols-5 lg:grid-cols-8"
-            )}>
+            <div className="grid grid-cols-1 gap-4 max-w-md mx-auto">
               {answers.map((answer, index) => (
                 <div
                   key={answer.questionNumber}
                   className={cn(
-                    "p-3 rounded-xl backdrop-blur-sm border transition-colors",
+                    "p-4 rounded-xl backdrop-blur-sm border transition-colors",
                     showAnswerKey && answer.isCorrect === true && "bg-success/20 border-success/50",
                     showAnswerKey && answer.isCorrect === false && "bg-destructive/20 border-destructive/50",
                     !showAnswerKey || answer.isCorrect === null ? "bg-card/50 border-white/10 hover:border-primary/30" : ""
                   )}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">سوال {answer.questionNumber}</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-bold text-lg">سوال {answer.questionNumber}</span>
                     {showAnswerKey && answer.isCorrect !== null && (
                       answer.isCorrect ? (
-                        <CheckCircle className="w-4 h-4 text-success" />
+                        <CheckCircle className="w-5 h-5 text-success" />
                       ) : (
-                        <XCircle className="w-4 h-4 text-destructive" />
+                        <XCircle className="w-5 h-5 text-destructive" />
                       )
                     )}
                     {!showAnswerKey && answer.selectedOption !== null && (
-                      <CheckCircle className="w-4 h-4 text-success" />
+                      <CheckCircle className="w-5 h-5 text-success" />
                     )}
                   </div>
-                  <div className="grid grid-cols-4 gap-1 mb-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {[1, 2, 3, 4].map((option) => (
                       <button
                         key={option}
                         onClick={() => selectAnswer(index, option)}
                         disabled={isExamFinished}
                         className={cn(
-                          "w-full aspect-square rounded-lg text-sm font-medium transition-all",
+                          "w-12 h-12 rounded-lg text-base font-bold transition-all",
                           answer.selectedOption === option
                             ? showAnswerKey && answer.correctOption !== null
                               ? answer.correctOption === option
@@ -594,15 +607,15 @@ const TestExam = () => {
                   
                   {/* Correct answer selection */}
                   {showAnswerKey && (
-                    <div className="border-t border-white/10 pt-2 mt-2">
-                      <p className="text-xs text-muted-foreground mb-1">پاسخ صحیح:</p>
-                      <div className="grid grid-cols-4 gap-1">
+                    <div className="border-t border-white/10 pt-3 mt-3">
+                      <p className="text-sm text-muted-foreground mb-2">پاسخ صحیح:</p>
+                      <div className="grid grid-cols-4 gap-2">
                         {[1, 2, 3, 4].map((option) => (
                           <button
                             key={`correct-${option}`}
                             onClick={() => setCorrectAnswer(index, option)}
                             className={cn(
-                              "w-full aspect-square rounded-lg text-xs font-medium transition-all",
+                              "w-12 h-12 rounded-lg text-base font-bold transition-all",
                               answer.correctOption === option
                                 ? "bg-success text-white"
                                 : "bg-muted/20 hover:bg-success/30 border border-dashed border-success/30"
