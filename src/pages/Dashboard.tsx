@@ -389,10 +389,25 @@ const Dashboard = () => {
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                   }}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'ساعت') return [formatHoursShort(value), name];
+                    return [value, name];
+                  }}
                 />
                 <Bar dataKey="ساعت" fill="hsl(250, 85%, 65%)" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="تست" fill="hsl(200, 80%, 55%)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="flex items-center justify-center gap-6 mt-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(250, 85%, 65%)' }} />
+              <span className="text-sm text-muted-foreground">ساعت</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(200, 80%, 55%)' }} />
+              <span className="text-sm text-muted-foreground">تست</span>
+            </div>
           </div>
         </GlassCard>
       )}

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -7,7 +6,8 @@ import {
   BarChart3, 
   Timer,
   BookOpen,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ const navItems = [
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
   { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
   { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
+  { path: '/test-exam', icon: FileText, label: 'پنل آزمون' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
 ];
 
@@ -23,12 +24,7 @@ export const Sidebar = () => {
   const location = useLocation();
 
   return (
-    <motion.aside
-      initial={{ x: 100, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="fixed right-0 top-0 h-screen w-72 glass-card border-l border-white/10 z-50 flex flex-col"
-    >
+    <aside className="fixed right-0 top-0 h-screen w-72 glass-card border-l border-white/10 z-50 flex flex-col animate-fade-in">
       {/* Logo */}
       <div className="p-6 border-b border-white/10">
         <div className="flex items-center gap-3">
@@ -60,10 +56,7 @@ export const Sidebar = () => {
               <item.icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
               {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  className="mr-auto w-2 h-2 rounded-full bg-primary"
-                />
+                <div className="mr-auto w-2 h-2 rounded-full bg-primary" />
               )}
             </NavLink>
           );
@@ -87,6 +80,6 @@ export const Sidebar = () => {
           طراح سایت: پارسا عیدی‌دهنه
         </p>
       </div>
-    </motion.aside>
+    </aside>
   );
 };
