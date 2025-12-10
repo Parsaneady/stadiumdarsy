@@ -125,42 +125,74 @@ const DashboardCharts = memo(({
         </GlassCard>
       </div>
 
-      {/* Subject Performance */}
+      {/* Subject Performance - Study Hours */}
       {subjectData.length > 0 && (
-        <GlassCard delay={0.6}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">عملکرد به تفکیک درس</h3>
-            <TrendingUp className="w-5 h-5 text-success" />
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={subjectData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
-                <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.5)" width={80} />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(value: number, name: string) => [
-                    name === 'ساعت' ? formatHoursShort(value) : value,
-                    name
-                  ]}
-                />
-                <Bar 
-                  dataKey="ساعت" 
-                  fill="hsl(250, 85%, 65%)" 
-                  radius={[0, 4, 4, 0]}
-                  isAnimationActive={false}
-                />
-                <Bar 
-                  dataKey="تست" 
-                  fill="hsl(200, 80%, 55%)" 
-                  radius={[0, 4, 4, 0]}
-                  isAnimationActive={false}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <GlassCard delay={0.6}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">ساعت مطالعه به تفکیک درس</h3>
+              <TrendingUp className="w-5 h-5 text-success" />
+            </div>
+            <div style={{ height: Math.max(200, subjectData.length * 40) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={subjectData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke="rgba(255,255,255,0.5)" 
+                    width={100}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(value: number) => [formatHoursShort(value), 'ساعت']}
+                  />
+                  <Bar 
+                    dataKey="ساعت" 
+                    fill="hsl(250, 85%, 65%)" 
+                    radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </GlassCard>
+
+          {/* Subject Performance - Test Count */}
+          <GlassCard delay={0.7}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">تست‌زنی به تفکیک درس</h3>
+              <TrendingUp className="w-5 h-5 text-primary" />
+            </div>
+            <div style={{ height: Math.max(200, subjectData.length * 40) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={subjectData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke="rgba(255,255,255,0.5)" 
+                    width={100}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(value: number) => [value, 'تست']}
+                  />
+                  <Bar 
+                    dataKey="تست" 
+                    fill="hsl(200, 80%, 55%)" 
+                    radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </GlassCard>
+        </div>
       )}
     </>
   );
