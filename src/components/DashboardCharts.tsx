@@ -133,17 +133,18 @@ const DashboardCharts = memo(({
               <h3 className="text-lg font-semibold">ساعت مطالعه به تفکیک درس</h3>
               <TrendingUp className="w-5 h-5 text-success" />
             </div>
-            <div style={{ height: Math.max(200, subjectData.length * 40) }}>
+            <div style={{ height: Math.max(200, subjectData.length * 45) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={subjectData} layout="vertical">
+                <BarChart data={subjectData} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
                     stroke="rgba(255,255,255,0.5)" 
-                    width={100}
-                    tick={{ fontSize: 12 }}
+                    width={120}
+                    tick={{ fontSize: 11 }}
+                    tickMargin={8}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
@@ -166,17 +167,18 @@ const DashboardCharts = memo(({
               <h3 className="text-lg font-semibold">تست‌زنی به تفکیک درس</h3>
               <TrendingUp className="w-5 h-5 text-primary" />
             </div>
-            <div style={{ height: Math.max(200, subjectData.length * 40) }}>
+            <div style={{ height: Math.max(200, subjectData.length * 45) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={subjectData} layout="vertical">
+                <BarChart data={subjectData} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
                     stroke="rgba(255,255,255,0.5)" 
-                    width={100}
-                    tick={{ fontSize: 12 }}
+                    width={120}
+                    tick={{ fontSize: 11 }}
+                    tickMargin={8}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
