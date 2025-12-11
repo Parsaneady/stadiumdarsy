@@ -29,8 +29,6 @@ interface ExamResult {
   duration: number;
   timeSpent: number;
   answers?: Answer[];
-  noWrongPenalty?: boolean;
-  noWrongPercentage?: number;
 }
 
 const STORAGE_KEY = 'exam_results';
@@ -51,7 +49,6 @@ const TestExam = () => {
   const [examViewMode, setExamViewMode] = useState<'exam' | 'answer'>('exam');
   const [examResults, setExamResults] = useState<ExamResult[]>([]);
   const [viewingResult, setViewingResult] = useState<ExamResult | null>(null);
-  const [noWrongPenalty, setNoWrongPenalty] = useState(false);
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -170,7 +167,7 @@ const TestExam = () => {
     });
   };
 
-  const calculateResults = (useNoWrongPenalty: boolean = noWrongPenalty) => {
+  const calculateResults = () => {
     // Update isCorrect for all answers
     const updatedAnswers = answers.map(a => ({
       ...a,
@@ -181,22 +178,13 @@ const TestExam = () => {
     setAnswers(updatedAnswers);
 
     const correctCount = updatedAnswers.filter(a => a.isCorrect === true).length;
-    let wrongCount = updatedAnswers.filter(a => a.selectedOption !== null && a.correctOption !== null && a.isCorrect === false).length;
-    let blankCount = updatedAnswers.filter(a => a.selectedOption === null).length;
-    
-    // If noWrongPenalty is enabled, treat wrong answers as blank
-    if (useNoWrongPenalty) {
-      blankCount = blankCount + wrongCount;
-      wrongCount = 0;
-    }
+    const wrongCount = updatedAnswers.filter(a => a.selectedOption !== null && a.correctOption !== null && a.isCorrect === false).length;
+    const blankCount = updatedAnswers.filter(a => a.selectedOption === null).length;
     
     // Konkour formula: correct - (wrong / 3)
     const rawScore = correctCount;
     const konkourScore = correctCount - (wrongCount / 3);
     const percentage = (konkourScore / questionCount) * 100;
-    
-    // Calculate no-wrong penalty percentage for comparison
-    const noWrongPercentage = (correctCount / questionCount) * 100;
     
     const timeSpent = initialTime - timeLeft;
 
@@ -214,8 +202,6 @@ const TestExam = () => {
       duration,
       timeSpent,
       answers: updatedAnswers,
-      noWrongPenalty: useNoWrongPenalty,
-      noWrongPercentage,
     };
 
     let newResults: ExamResult[];
@@ -251,7 +237,6 @@ const TestExam = () => {
     setIsExamStarted(true);
     setIsExamFinished(true);
     setShowAnswerKey(true);
-    setNoWrongPenalty(result.noWrongPenalty || false);
     setViewingResult(null);
   };
 
@@ -447,7 +432,7 @@ const TestExam = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-5 gap-2 text-center">
+                  <div className="grid grid-cols-4 gap-2 text-center">
                     <div>
                       <p className="text-lg font-bold text-success">{result.correctCount}</p>
                       <p className="text-xs text-muted-foreground">صحیح</p>
@@ -469,12 +454,6 @@ const TestExam = () => {
                         {result.percentage.toFixed(1)}%
                       </p>
                       <p className="text-xs text-muted-foreground">درصد کنکور</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-muted-foreground">
-                        {(result.noWrongPercentage || (result.correctCount / result.questionCount * 100)).toFixed(1)}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">بدون منفی</p>
                     </div>
                   </div>
                 </div>
@@ -514,7 +493,7 @@ const TestExam = () => {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-5 gap-4 mb-6">
+              <div className="grid grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-success/10 border border-success/20 text-center">
                   <p className="text-2xl font-bold text-success">{viewingResult.correctCount}</p>
                   <p className="text-sm text-muted-foreground">صحیح</p>
@@ -536,12 +515,6 @@ const TestExam = () => {
                     {viewingResult.percentage.toFixed(1)}%
                   </p>
                   <p className="text-sm text-muted-foreground">درصد کنکور</p>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/30 text-center">
-                  <p className="text-2xl font-bold text-muted-foreground">
-                    {(viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)).toFixed(1)}%
-                  </p>
-                  <p className="text-sm text-muted-foreground">درصد بدون منفی</p>
                 </div>
               </div>
 
@@ -691,24 +664,13 @@ const TestExam = () => {
           )}
 
           {isExamFinished && showAnswerKey && markedCorrectCount === questionCount && (
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={noWrongPenalty}
-                  onChange={(e) => setNoWrongPenalty(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-muted/30"
-                />
-                <span className="text-muted-foreground">بدون نمره منفی</span>
-              </label>
-              <Button
-                onClick={() => calculateResults(noWrongPenalty)}
-                className="bg-success hover:bg-success/90 text-white"
-              >
-                <Trophy className="w-4 h-4 ml-2" />
-                مشاهده کارنامه
-              </Button>
-            </div>
+            <Button
+              onClick={() => calculateResults()}
+              className="bg-success hover:bg-success/90 text-white"
+            >
+              <Trophy className="w-4 h-4 ml-2" />
+              مشاهده کارنامه
+            </Button>
           )}
         </div>
       </div>
