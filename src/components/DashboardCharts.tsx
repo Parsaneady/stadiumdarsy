@@ -3,7 +3,7 @@ import { TrendingUp } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
 import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardChartsProps {
   weeklyChartData: any[];
@@ -133,31 +133,21 @@ const DashboardCharts = memo(({
               <h3 className="text-lg font-semibold">ساعت مطالعه به تفکیک درس</h3>
               <TrendingUp className="w-5 h-5 text-success" />
             </div>
-            <div style={{ height: Math.max(200, subjectData.length * 45) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={subjectData} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    stroke="rgba(255,255,255,0.5)" 
-                    width={120}
-                    tick={{ fontSize: 11 }}
-                    tickMargin={8}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value: number) => [formatHoursShort(value), 'ساعت']}
-                  />
-                  <Bar 
-                    dataKey="ساعت" 
-                    fill="hsl(250, 85%, 65%)" 
-                    radius={[0, 4, 4, 0]}
-                    isAnimationActive={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="space-y-3">
+              {subjectData.map((subject, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground w-28 text-right truncate" title={subject.name}>
+                    {subject.name}
+                  </span>
+                  <div className="flex-1 h-6 bg-muted/30 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all"
+                      style={{ width: `${Math.max(5, (subject['ساعت'] / Math.max(...subjectData.map(s => s['ساعت']), 1)) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-16 text-left">{formatHoursShort(subject['ساعت'])}</span>
+                </div>
+              ))}
             </div>
           </GlassCard>
 
@@ -167,31 +157,21 @@ const DashboardCharts = memo(({
               <h3 className="text-lg font-semibold">تست‌زنی به تفکیک درس</h3>
               <TrendingUp className="w-5 h-5 text-primary" />
             </div>
-            <div style={{ height: Math.max(200, subjectData.length * 45) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={subjectData} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis type="number" stroke="rgba(255,255,255,0.5)" />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    stroke="rgba(255,255,255,0.5)" 
-                    width={120}
-                    tick={{ fontSize: 11 }}
-                    tickMargin={8}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value: number) => [value, 'تست']}
-                  />
-                  <Bar 
-                    dataKey="تست" 
-                    fill="hsl(200, 80%, 55%)" 
-                    radius={[0, 4, 4, 0]}
-                    isAnimationActive={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="space-y-3">
+              {subjectData.map((subject, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground w-28 text-right truncate" title={subject.name}>
+                    {subject.name}
+                  </span>
+                  <div className="flex-1 h-6 bg-muted/30 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-secondary to-secondary/70 rounded-full transition-all"
+                      style={{ width: `${Math.max(5, (subject['تست'] / Math.max(...subjectData.map(s => s['تست']), 1)) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-12 text-left">{subject['تست']} تست</span>
+                </div>
+              ))}
             </div>
           </GlassCard>
         </div>
