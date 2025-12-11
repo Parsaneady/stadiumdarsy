@@ -690,24 +690,60 @@ const TestExam = () => {
             </>
           )}
 
-          {isExamFinished && showAnswerKey && markedCorrectCount === questionCount && (
+          {isExamFinished && showAnswerKey && (
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={noWrongPenalty}
-                  onChange={(e) => setNoWrongPenalty(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-muted/30"
-                />
-                <span className="text-muted-foreground">بدون نمره منفی</span>
-              </label>
-              <Button
-                onClick={() => calculateResults(noWrongPenalty)}
-                className="bg-success hover:bg-success/90 text-white"
-              >
-                <Trophy className="w-4 h-4 ml-2" />
-                مشاهده کارنامه
-              </Button>
+              {markedCorrectCount < questionCount && (
+                <Button
+                  onClick={() => {
+                    // Save exam with partial answers for later correction
+                    const timeSpent = initialTime - timeLeft;
+                    const result: ExamResult = {
+                      id: editingResultId || Date.now().toString(),
+                      name: examName || 'آزمون بدون نام',
+                      date: new Date().toISOString(),
+                      questionCount,
+                      correctCount: 0,
+                      wrongCount: 0,
+                      blankCount: questionCount,
+                      rawScore: 0,
+                      konkourScore: 0,
+                      percentage: 0,
+                      duration,
+                      timeSpent,
+                      answers: answers,
+                    };
+                    
+                    let newResults: ExamResult[];
+                    if (editingResultId) {
+                      newResults = examResults.map(r => r.id === editingResultId ? result : r);
+                      setEditingResultId(null);
+                    } else {
+                      newResults = [result, ...examResults];
+                    }
+                    setExamResults(newResults);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(newResults));
+                    
+                    resetExam();
+                    toast({
+                      title: "📝 آزمون ذخیره شد",
+                      description: "می‌توانید بعداً از بایگانی تصحیح را ادامه دهید.",
+                    });
+                  }}
+                  variant="outline"
+                >
+                  <History className="w-4 h-4 ml-2" />
+                  تصحیح بعداً
+                </Button>
+              )}
+              {markedCorrectCount === questionCount && (
+                <Button
+                  onClick={() => calculateResults(false)}
+                  className="bg-success hover:bg-success/90 text-white"
+                >
+                  <Trophy className="w-4 h-4 ml-2" />
+                  مشاهده کارنامه
+                </Button>
+              )}
             </div>
           )}
         </div>
