@@ -471,11 +471,7 @@ const TestExam = () => {
                       <p className="text-xs text-muted-foreground">درصد کنکور</p>
                     </div>
                     <div>
-                      <p className={cn(
-                        "text-lg font-bold",
-                        (result.noWrongPercentage || (result.correctCount / result.questionCount * 100)) >= 70 ? "text-success" :
-                        (result.noWrongPercentage || (result.correctCount / result.questionCount * 100)) >= 50 ? "text-warning" : "text-accent"
-                      )}>
+                      <p className="text-lg font-bold text-muted-foreground">
                         {(result.noWrongPercentage || (result.correctCount / result.questionCount * 100)).toFixed(1)}%
                       </p>
                       <p className="text-xs text-muted-foreground">بدون منفی</p>
@@ -541,12 +537,8 @@ const TestExam = () => {
                   </p>
                   <p className="text-sm text-muted-foreground">درصد کنکور</p>
                 </div>
-                <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-center">
-                  <p className={cn(
-                    "text-2xl font-bold",
-                    (viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)) >= 70 ? "text-success" :
-                    (viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)) >= 50 ? "text-warning" : "text-destructive"
-                  )}>
+                <div className="p-4 rounded-xl bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-muted-foreground">
                     {(viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)).toFixed(1)}%
                   </p>
                   <p className="text-sm text-muted-foreground">درصد بدون منفی</p>
