@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { FileText, Upload, Clock, CheckCircle, X, Eye, EyeOff, ArrowRight, Trophy, Target, XCircle, MinusCircle, History, Trash2 } from 'lucide-react';
+import { FileText, Upload, Clock, CheckCircle, X, Eye, EyeOff, ArrowRight, Trophy, Target, XCircle, MinusCircle, History, Trash2, Edit2 } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,8 @@ interface ExamResult {
   duration: number;
   timeSpent: number;
   answers?: Answer[];
+  noWrongPenalty?: boolean;
+  noWrongPercentage?: number;
 }
 
 const STORAGE_KEY = 'exam_results';
@@ -49,6 +51,8 @@ const TestExam = () => {
   const [examViewMode, setExamViewMode] = useState<'exam' | 'answer'>('exam');
   const [examResults, setExamResults] = useState<ExamResult[]>([]);
   const [viewingResult, setViewingResult] = useState<ExamResult | null>(null);
+  const [noWrongPenalty, setNoWrongPenalty] = useState(false);
+  const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -166,7 +170,7 @@ const TestExam = () => {
     });
   };
 
-  const calculateResults = () => {
+  const calculateResults = (useNoWrongPenalty: boolean = noWrongPenalty) => {
     // Update isCorrect for all answers
     const updatedAnswers = answers.map(a => ({
       ...a,
@@ -177,18 +181,27 @@ const TestExam = () => {
     setAnswers(updatedAnswers);
 
     const correctCount = updatedAnswers.filter(a => a.isCorrect === true).length;
-    const wrongCount = updatedAnswers.filter(a => a.selectedOption !== null && a.correctOption !== null && a.isCorrect === false).length;
-    const blankCount = updatedAnswers.filter(a => a.selectedOption === null).length;
+    let wrongCount = updatedAnswers.filter(a => a.selectedOption !== null && a.correctOption !== null && a.isCorrect === false).length;
+    let blankCount = updatedAnswers.filter(a => a.selectedOption === null).length;
+    
+    // If noWrongPenalty is enabled, treat wrong answers as blank
+    if (useNoWrongPenalty) {
+      blankCount = blankCount + wrongCount;
+      wrongCount = 0;
+    }
     
     // Konkour formula: correct - (wrong / 3)
     const rawScore = correctCount;
     const konkourScore = correctCount - (wrongCount / 3);
     const percentage = (konkourScore / questionCount) * 100;
     
+    // Calculate no-wrong penalty percentage for comparison
+    const noWrongPercentage = (correctCount / questionCount) * 100;
+    
     const timeSpent = initialTime - timeLeft;
 
     const result: ExamResult = {
-      id: Date.now().toString(),
+      id: editingResultId || Date.now().toString(),
       name: examName || 'آزمون بدون نام',
       date: new Date().toISOString(),
       questionCount,
@@ -201,9 +214,18 @@ const TestExam = () => {
       duration,
       timeSpent,
       answers: updatedAnswers,
+      noWrongPenalty: useNoWrongPenalty,
+      noWrongPercentage,
     };
 
-    const newResults = [result, ...examResults];
+    let newResults: ExamResult[];
+    if (editingResultId) {
+      // Update existing result
+      newResults = examResults.map(r => r.id === editingResultId ? result : r);
+      setEditingResultId(null);
+    } else {
+      newResults = [result, ...examResults];
+    }
     setExamResults(newResults);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newResults));
 
@@ -213,6 +235,24 @@ const TestExam = () => {
     });
 
     return result;
+  };
+
+  // Start correction mode for an existing result
+  const startCorrection = (result: ExamResult) => {
+    if (!result.answers) return;
+    
+    setEditingResultId(result.id);
+    setExamName(result.name);
+    setQuestionCount(result.questionCount);
+    setDuration(result.duration);
+    setAnswers(result.answers);
+    setTimeLeft(0);
+    setInitialTime(result.duration * 60);
+    setIsExamStarted(true);
+    setIsExamFinished(true);
+    setShowAnswerKey(true);
+    setNoWrongPenalty(result.noWrongPenalty || false);
+    setViewingResult(null);
   };
 
   const deleteResult = (id: string) => {
@@ -376,15 +416,26 @@ const TestExam = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       {result.answers && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setViewingResult(result)}
-                          className="text-primary hover:text-primary"
-                        >
-                          <Eye className="w-4 h-4 ml-1" />
-                          جزییات
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewingResult(result)}
+                            className="text-primary hover:text-primary"
+                          >
+                            <Eye className="w-4 h-4 ml-1" />
+                            جزییات
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startCorrection(result)}
+                            className="text-accent hover:text-accent"
+                          >
+                            <Edit2 className="w-4 h-4 ml-1" />
+                            ویرایش
+                          </Button>
+                        </>
                       )}
                       <Button
                         variant="ghost"
@@ -396,7 +447,7 @@ const TestExam = () => {
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="grid grid-cols-5 gap-2 text-center">
                     <div>
                       <p className="text-lg font-bold text-success">{result.correctCount}</p>
                       <p className="text-xs text-muted-foreground">صحیح</p>
@@ -418,6 +469,16 @@ const TestExam = () => {
                         {result.percentage.toFixed(1)}%
                       </p>
                       <p className="text-xs text-muted-foreground">درصد کنکور</p>
+                    </div>
+                    <div>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        (result.noWrongPercentage || (result.correctCount / result.questionCount * 100)) >= 70 ? "text-success" :
+                        (result.noWrongPercentage || (result.correctCount / result.questionCount * 100)) >= 50 ? "text-warning" : "text-accent"
+                      )}>
+                        {(result.noWrongPercentage || (result.correctCount / result.questionCount * 100)).toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">بدون منفی</p>
                     </div>
                   </div>
                 </div>
@@ -441,14 +502,23 @@ const TestExam = () => {
                     })}
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => setViewingResult(null)}>
-                  <X className="w-4 h-4 ml-2" />
-                  بستن
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => startCorrection(viewingResult)}
+                  >
+                    <Edit2 className="w-4 h-4 ml-2" />
+                    ویرایش تصحیح
+                  </Button>
+                  <Button variant="outline" onClick={() => setViewingResult(null)}>
+                    <X className="w-4 h-4 ml-2" />
+                    بستن
+                  </Button>
+                </div>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-5 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-success/10 border border-success/20 text-center">
                   <p className="text-2xl font-bold text-success">{viewingResult.correctCount}</p>
                   <p className="text-sm text-muted-foreground">صحیح</p>
@@ -470,6 +540,16 @@ const TestExam = () => {
                     {viewingResult.percentage.toFixed(1)}%
                   </p>
                   <p className="text-sm text-muted-foreground">درصد کنکور</p>
+                </div>
+                <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-center">
+                  <p className={cn(
+                    "text-2xl font-bold",
+                    (viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)) >= 70 ? "text-success" :
+                    (viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)) >= 50 ? "text-warning" : "text-destructive"
+                  )}>
+                    {(viewingResult.noWrongPercentage || (viewingResult.correctCount / viewingResult.questionCount * 100)).toFixed(1)}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">درصد بدون منفی</p>
                 </div>
               </div>
 
@@ -619,13 +699,24 @@ const TestExam = () => {
           )}
 
           {isExamFinished && showAnswerKey && markedCorrectCount === questionCount && (
-            <Button
-              onClick={calculateResults}
-              className="bg-success hover:bg-success/90 text-white"
-            >
-              <Trophy className="w-4 h-4 ml-2" />
-              مشاهده کارنامه
-            </Button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noWrongPenalty}
+                  onChange={(e) => setNoWrongPenalty(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-muted/30"
+                />
+                <span className="text-muted-foreground">بدون نمره منفی</span>
+              </label>
+              <Button
+                onClick={() => calculateResults(noWrongPenalty)}
+                className="bg-success hover:bg-success/90 text-white"
+              >
+                <Trophy className="w-4 h-4 ml-2" />
+                مشاهده کارنامه
+              </Button>
+            </div>
           )}
         </div>
       </div>
