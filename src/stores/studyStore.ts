@@ -21,6 +21,16 @@ export interface DayPlan {
   sessions: StudySession[];
 }
 
+export interface DailyLogSession {
+  subject: string;
+  targetHours: number;
+  targetTests: number;
+  actualHours: number;
+  actualTests: number;
+  completed: boolean;
+  color: string;
+}
+
 export interface DailyLog {
   id: string;
   date: string;
@@ -30,6 +40,7 @@ export interface DailyLog {
   totalSessions: number;
   overallScore: number;
   feedback: string;
+  sessions?: DailyLogSession[];
 }
 
 export interface PomodoroSettings {
@@ -272,6 +283,17 @@ export const useStudyStore = create<StudyStore>()(
         const overallScore = Math.min(100, (hoursScore + testsScore + completionScore) / 3);
         const feedback = getPerformanceFeedback(overallScore);
 
+        // Capture session details for history
+        const sessionDetails: DailyLogSession[] = day.sessions.map(s => ({
+          subject: s.subject,
+          targetHours: s.targetHours,
+          targetTests: s.targetTests,
+          actualHours: s.actualHours,
+          actualTests: s.actualTests,
+          completed: s.completed,
+          color: s.color,
+        }));
+
         const newLog: DailyLog = {
           id: generateId(),
           date: new Date().toISOString(),
@@ -281,6 +303,7 @@ export const useStudyStore = create<StudyStore>()(
           totalSessions,
           overallScore,
           feedback,
+          sessions: sessionDetails,
         };
 
         set((state) => ({
