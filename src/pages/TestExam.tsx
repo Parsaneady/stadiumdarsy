@@ -463,8 +463,7 @@ const TestExam = () => {
                     <div>
                       <p className={cn(
                         "text-lg font-bold",
-                        result.percentage >= 70 ? "text-success" :
-                        result.percentage >= 50 ? "text-warning" : "text-destructive"
+                        result.percentage >= 0 ? "text-success" : "text-destructive"
                       )}>
                         {result.percentage.toFixed(1)}%
                       </p>
@@ -527,11 +526,13 @@ const TestExam = () => {
                   <p className="text-2xl font-bold text-muted-foreground">{viewingResult.blankCount}</p>
                   <p className="text-sm text-muted-foreground">نزده</p>
                 </div>
-                <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
+                <div className={cn(
+                  "p-4 rounded-xl text-center border",
+                  viewingResult.percentage >= 0 ? "bg-success/10 border-success/20" : "bg-destructive/10 border-destructive/20"
+                )}>
                   <p className={cn(
                     "text-2xl font-bold",
-                    viewingResult.percentage >= 70 ? "text-success" :
-                    viewingResult.percentage >= 50 ? "text-warning" : "text-destructive"
+                    viewingResult.percentage >= 0 ? "text-success" : "text-destructive"
                   )}>
                     {viewingResult.percentage.toFixed(1)}%
                   </p>
