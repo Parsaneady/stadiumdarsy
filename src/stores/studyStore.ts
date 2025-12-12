@@ -29,6 +29,7 @@ export interface DailyLogSession {
   actualTests: number;
   completed: boolean;
   color: string;
+  notes?: string;
 }
 
 export interface DailyLog {
@@ -304,6 +305,7 @@ export const useStudyStore = create<StudyStore>()(
           actualTests: s.actualTests,
           completed: s.completed,
           color: s.color,
+          notes: s.notes,
         }));
 
         const newLog: DailyLog = {
