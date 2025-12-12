@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useCallback, lazy, Suspense, memo } from 'react';
-import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2, Sparkles, Star, CalendarDays } from 'lucide-react';
+import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2, Sparkles, Star, CalendarDays, StickyNote } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { StatCard } from '@/components/StatCard';
 import { GlassCard } from '@/components/GlassCard';
@@ -98,6 +98,16 @@ const SessionItem = memo(({
           />
         </div>
       </div>
+      
+      {/* Notes Section */}
+      {session.notes && (
+        <div className="mt-3 pt-3 border-t border-white/5">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
+            <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-primary/70" />
+            <p className="text-xs leading-relaxed">{session.notes}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
