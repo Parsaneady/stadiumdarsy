@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useMemo } from 'react';
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -10,6 +11,7 @@ import {
   FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTodayQuote } from '@/lib/quotes';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
@@ -22,7 +24,7 @@ const navItems = [
 
 export const Sidebar = () => {
   const location = useLocation();
-
+  const todayQuote = useMemo(() => getTodayQuote(), []);
   return (
     <aside className="fixed right-0 top-0 h-screen w-72 glass-card border-l border-white/10 z-50 flex flex-col animate-fade-in">
       {/* Logo */}
@@ -70,8 +72,9 @@ export const Sidebar = () => {
           <span className="text-sm font-medium text-primary">انگیزه امروز</span>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          هر قدم کوچک، مسیر بزرگ رو می‌سازه. امروز بهترین روز برای شروعه!
+          «{todayQuote.quote}»
         </p>
+        <p className="text-xs text-muted-foreground/70 mt-1">— {todayQuote.author}</p>
       </div>
 
       {/* Footer Credit */}

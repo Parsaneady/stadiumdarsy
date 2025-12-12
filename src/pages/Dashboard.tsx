@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { useNavigate } from 'react-router-dom';
+import { getTodayQuote } from '@/lib/quotes';
 
 // Lazy load charts
 const LazyCharts = lazy(() => import('@/components/DashboardCharts'));
@@ -16,33 +17,6 @@ const LazyCharts = lazy(() => import('@/components/DashboardCharts'));
 const ChartSkeleton = () => (
   <div className="h-64 bg-muted/20 rounded-xl animate-pulse" />
 );
-
-// Daily motivational quotes
-const DAILY_QUOTES = [
-  { quote: "هر روز یک قدم کوچک، در انتها یک مسیر بزرگ می‌سازد.", author: "موفقیت" },
-  { quote: "سخت‌کوشی امروز، آسایش فرداست.", author: "تلاش" },
-  { quote: "رویاهایت را بزرگ ببین، اما از قدم‌های کوچک شروع کن.", author: "پشتکار" },
-  { quote: "هر استاد بزرگی، روزی دانش‌آموزی مبتدی بوده است.", author: "صبر" },
-  { quote: "موفقیت مجموعه تلاش‌های کوچک روزانه است.", author: "استمرار" },
-  { quote: "امروز سخت‌تر تلاش کن تا فردا راحت‌تر زندگی کنی.", author: "انگیزه" },
-  { quote: "هر صفحه‌ای که می‌خوانی، پلی به سوی آینده‌ات می‌سازد.", author: "مطالعه" },
-  { quote: "باور داشته باش که می‌توانی، نیمی از راه را رفته‌ای.", author: "اعتماد" },
-  { quote: "زمانی که برای مطالعه می‌گذاری، سرمایه‌گذاری برای آینده‌ات است.", author: "آینده" },
-  { quote: "هر تست که حل می‌کنی، یک قدم به هدفت نزدیک‌تری.", author: "پیشرفت" },
-  { quote: "استراحت کن، اما هرگز تسلیم نشو.", author: "استقامت" },
-  { quote: "کسی که هر روز ۱٪ بهتر شود، در سال ۳۷ برابر بهتر می‌شود.", author: "رشد" },
-  { quote: "موفقیت یک شبه نمی‌آید، اما مطمئناً می‌آید.", author: "صبوری" },
-  { quote: "ذهن تو مثل یک چتر است، فقط وقتی باز باشد کار می‌کند.", author: "یادگیری" },
-];
-
-// Get today's quote based on day of year - memoized
-const getTodayQuote = () => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
-};
 
 // Memoized session item component
 const SessionItem = memo(({ 
