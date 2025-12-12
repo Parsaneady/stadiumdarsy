@@ -59,6 +59,13 @@ export interface PomodoroSession {
   completedAt: string;
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // ISO date string
+  persianDate: { year: number; month: number; day: number };
+}
+
 interface StudyStore {
   weeklyPlan: DayPlan[];
   dailyLogs: DailyLog[];
@@ -70,6 +77,7 @@ interface StudyStore {
   pomodoroSubject: string | null;
   lastPomodoroDate: string | null;
   pomodoroHistory: PomodoroSession[];
+  calendarEvents: CalendarEvent[];
   
   // Actions
   initializeWeek: () => void;
@@ -86,6 +94,9 @@ interface StudyStore {
   getTodayIndex: () => number;
   getTodayPomodoros: () => PomodoroSession[];
   getWeeklyPomodoroCount: () => number;
+  addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  deleteCalendarEvent: (eventId: string) => void;
+  getUpcomingEvents: () => { event: CalendarEvent; daysRemaining: number }[];
   getStats: () => { 
     totalHours: number; 
     totalTests: number; 
@@ -140,6 +151,7 @@ export const useStudyStore = create<StudyStore>()(
       lastPomodoroDate: null,
       pomodoroSubject: null,
       pomodoroHistory: [],
+      calendarEvents: [],
 
       getTodayIndex: () => {
         const today = new Date().getDay();
@@ -428,6 +440,35 @@ export const useStudyStore = create<StudyStore>()(
           const sessionDate = new Date(p.date);
           return sessionDate >= weekStart;
         }).length;
+      },
+
+      addCalendarEvent: (event) => {
+        set((state) => ({
+          calendarEvents: [...state.calendarEvents, { ...event, id: generateId() }],
+        }));
+      },
+
+      deleteCalendarEvent: (eventId) => {
+        set((state) => ({
+          calendarEvents: state.calendarEvents.filter((e) => e.id !== eventId),
+        }));
+      },
+
+      getUpcomingEvents: () => {
+        const state = get();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        return state.calendarEvents
+          .map((event) => {
+            const eventDate = new Date(event.date);
+            eventDate.setHours(0, 0, 0, 0);
+            const diffTime = eventDate.getTime() - today.getTime();
+            const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return { event, daysRemaining };
+          })
+          .filter(({ daysRemaining }) => daysRemaining >= 0)
+          .sort((a, b) => a.daysRemaining - b.daysRemaining);
       },
 
       getStats: () => {

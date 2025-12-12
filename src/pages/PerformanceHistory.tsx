@@ -1,8 +1,10 @@
 import { useState, useMemo, memo } from 'react';
-import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Target, StickyNote, BookOpen } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Target, StickyNote, BookOpen, Star, Plus, Trash2 } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
-import { useStudyStore, DailyLog } from '@/stores/studyStore';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useStudyStore, DailyLog, CalendarEvent } from '@/stores/studyStore';
 import { formatHoursDisplay } from '@/lib/timeUtils';
 import { cn } from '@/lib/utils';
 
@@ -62,7 +64,6 @@ const persianToGregorian = (jy: number, jm: number, jd: number): [number, number
 const getPersianMonthDays = (year: number, month: number): number => {
   if (month <= 6) return 31;
   if (month <= 11) return 30;
-  // Esfand (month 12)
   const isLeap = ((year - (year > 0 ? 474 : 473)) % 2820 + 474 + 38) * 682 % 2816 < 682;
   return isLeap ? 30 : 29;
 };
@@ -71,8 +72,7 @@ const getPersianMonthDays = (year: number, month: number): number => {
 const getFirstDayOfPersianMonth = (year: number, month: number): number => {
   const [gy, gm, gd] = persianToGregorian(year, month, 1);
   const date = new Date(gy, gm - 1, gd);
-  const jsDay = date.getDay(); // 0 = Sunday
-  // Convert to Persian week (0 = Saturday)
+  const jsDay = date.getDay();
   return jsDay === 6 ? 0 : jsDay + 1;
 };
 
@@ -85,12 +85,14 @@ interface CalendarDayProps {
   day: number;
   isToday: boolean;
   log: DailyLog | null;
+  event: CalendarEvent | null;
   onClick: () => void;
   isSelected: boolean;
 }
 
-const CalendarDay = memo(({ day, isToday, log, onClick, isSelected }: CalendarDayProps) => {
+const CalendarDay = memo(({ day, isToday, log, event, onClick, isSelected }: CalendarDayProps) => {
   const hasLog = !!log;
+  const hasEvent = !!event;
   const score = log?.overallScore ?? 0;
   
   let bgColor = 'bg-background/30';
@@ -117,17 +119,23 @@ const CalendarDay = memo(({ day, isToday, log, onClick, isSelected }: CalendarDa
     <button
       onClick={onClick}
       className={cn(
-        'aspect-square w-full rounded-lg border-2 transition-all duration-200',
+        'aspect-square w-full rounded-lg border-2 transition-all duration-200 relative',
         'flex flex-col items-center justify-center gap-0.5',
         'hover:scale-105 hover:shadow-lg',
         bgColor,
         borderColor,
-        isToday && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+        isToday && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+        hasEvent && 'shadow-[0_0_15px_rgba(234,179,8,0.5)] border-amber-400/70'
       )}
     >
+      {hasEvent && (
+        <div className="absolute -top-1 -right-1">
+          <Star className="w-4 h-4 text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(234,179,8,0.8)]" />
+        </div>
+      )}
       <span className={cn(
         'text-sm font-medium',
-        isToday ? 'text-primary' : 'text-foreground'
+        isToday ? 'text-primary' : hasEvent ? 'text-amber-400' : 'text-foreground'
       )}>
         {day}
       </span>
@@ -144,11 +152,10 @@ const CalendarDay = memo(({ day, isToday, log, onClick, isSelected }: CalendarDa
 CalendarDay.displayName = 'CalendarDay';
 
 const PerformanceHistory = () => {
-  const { dailyLogs } = useStudyStore();
+  const { dailyLogs, calendarEvents, addCalendarEvent, deleteCalendarEvent } = useStudyStore();
   
-  // Get current Persian date
   const today = new Date();
-  const [currentPersianYear, currentPersianMonth] = gregorianToPersian(
+  const [currentPersianYear, currentPersianMonth, currentPersianDay] = gregorianToPersian(
     today.getFullYear(),
     today.getMonth() + 1,
     today.getDate()
@@ -157,6 +164,8 @@ const PerformanceHistory = () => {
   const [viewYear, setViewYear] = useState(currentPersianYear);
   const [viewMonth, setViewMonth] = useState(currentPersianMonth);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [eventTitle, setEventTitle] = useState('');
+  const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   
   // Create a map of logs by date for quick lookup
   const logsByDate = useMemo(() => {
@@ -164,7 +173,6 @@ const PerformanceHistory = () => {
     dailyLogs.forEach(log => {
       const date = new Date(log.date);
       const key = formatDateKey(date);
-      // Keep the latest log for each day
       if (!map.has(key) || new Date(map.get(key)!.date) < new Date(log.date)) {
         map.set(key, log);
       }
@@ -172,15 +180,23 @@ const PerformanceHistory = () => {
     return map;
   }, [dailyLogs]);
   
+  // Create a map of events by date for quick lookup
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent>();
+    calendarEvents.forEach(event => {
+      const key = `${event.persianDate.year}-${event.persianDate.month}-${event.persianDate.day}`;
+      map.set(key, event);
+    });
+    return map;
+  }, [calendarEvents]);
+  
   const daysInMonth = getPersianMonthDays(viewYear, viewMonth);
   const firstDayOffset = getFirstDayOfPersianMonth(viewYear, viewMonth);
   
-  // Check if a day is today
   const todayPersian = gregorianToPersian(today.getFullYear(), today.getMonth() + 1, today.getDate());
   const isToday = (day: number) => 
     viewYear === todayPersian[0] && viewMonth === todayPersian[1] && day === todayPersian[2];
   
-  // Get log for a specific day
   const getLogForDay = (day: number): DailyLog | null => {
     const [gy, gm, gd] = persianToGregorian(viewYear, viewMonth, day);
     const date = new Date(gy, gm - 1, gd);
@@ -188,10 +204,34 @@ const PerformanceHistory = () => {
     return logsByDate.get(key) || null;
   };
   
-  // Selected day's log
-  const selectedLog = selectedDay ? getLogForDay(selectedDay) : null;
+  const getEventForDay = (day: number): CalendarEvent | null => {
+    const key = `${viewYear}-${viewMonth}-${day}`;
+    return eventsByDate.get(key) || null;
+  };
   
-  // Navigation handlers
+  const selectedLog = selectedDay ? getLogForDay(selectedDay) : null;
+  const selectedEvent = selectedDay ? getEventForDay(selectedDay) : null;
+  
+  const handleAddEvent = () => {
+    if (!selectedDay || !eventTitle.trim()) return;
+    
+    const [gy, gm, gd] = persianToGregorian(viewYear, viewMonth, selectedDay);
+    const date = new Date(gy, gm - 1, gd);
+    
+    addCalendarEvent({
+      title: eventTitle.trim(),
+      date: date.toISOString(),
+      persianDate: { year: viewYear, month: viewMonth, day: selectedDay },
+    });
+    
+    setEventTitle('');
+    setIsAddEventOpen(false);
+  };
+  
+  const handleDeleteEvent = (eventId: string) => {
+    deleteCalendarEvent(eventId);
+  };
+  
   const goToPrevMonth = () => {
     if (viewMonth === 1) {
       if (viewYear > 1400) {
@@ -222,24 +262,17 @@ const PerformanceHistory = () => {
     setSelectedDay(todayPersian[2]);
   };
   
-  // Can navigate
   const canGoPrev = viewYear > 1400 || (viewYear === 1400 && viewMonth > 1);
   const canGoNext = viewYear < 1410 || (viewYear === 1410 && viewMonth < 12);
   
-  // Generate calendar grid
   const calendarDays = useMemo(() => {
     const days: (number | null)[] = [];
-    
-    // Add empty cells for offset
     for (let i = 0; i < firstDayOffset; i++) {
       days.push(null);
     }
-    
-    // Add days
     for (let d = 1; d <= daysInMonth; d++) {
       days.push(d);
     }
-    
     return days;
   }, [firstDayOffset, daysInMonth]);
 
@@ -303,6 +336,7 @@ const PerformanceHistory = () => {
                     day={day}
                     isToday={isToday(day)}
                     log={getLogForDay(day)}
+                    event={getEventForDay(day)}
                     onClick={() => setSelectedDay(day)}
                     isSelected={selectedDay === day}
                   />
@@ -314,7 +348,7 @@ const PerformanceHistory = () => {
           </div>
           
           {/* Legend */}
-          <div className="flex items-center justify-center gap-6 mt-6 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-success" />
               <span>عالی (۷۵٪+)</span>
@@ -327,6 +361,10 @@ const PerformanceHistory = () => {
               <div className="w-3 h-3 rounded-full bg-destructive" />
               <span>نیاز به بهبود (&lt;۵۰٪)</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span>رویداد</span>
+            </div>
           </div>
         </GlassCard>
         
@@ -337,7 +375,7 @@ const PerformanceHistory = () => {
             جزئیات روز
           </h3>
           
-          {selectedDay && selectedLog ? (
+          {selectedDay ? (
             <div className="space-y-4">
               {/* Date */}
               <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -346,86 +384,136 @@ const PerformanceHistory = () => {
                 </p>
               </div>
               
-              {/* Score */}
-              <div className="text-center">
-                <div className={cn(
-                  'inline-block px-4 py-2 rounded-full text-lg font-bold',
-                  selectedLog.overallScore >= 75 ? 'bg-success/20 text-success' :
-                  selectedLog.overallScore >= 50 ? 'bg-warning/20 text-warning' :
-                  'bg-destructive/20 text-destructive'
-                )}>
-                  امتیاز: {Math.round(selectedLog.overallScore)}٪
-                </div>
-              </div>
-              
-              {/* Summary */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="p-3 rounded-lg bg-secondary/10 text-center">
-                  <p className="text-muted-foreground">ساعت مطالعه</p>
-                  <p className="font-bold text-secondary">{formatHoursDisplay(selectedLog.totalStudyHours)}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-accent/10 text-center">
-                  <p className="text-muted-foreground">تعداد تست</p>
-                  <p className="font-bold text-accent">{selectedLog.totalTests}</p>
-                </div>
-              </div>
-              
-              {/* Feedback */}
-              <div className="p-3 rounded-lg bg-muted/30 text-center">
-                <p className="text-sm">{selectedLog.feedback}</p>
-              </div>
-              
-              {/* Sessions */}
-              {selectedLog.sessions && selectedLog.sessions.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">جزئیات دروس</h4>
-                  {selectedLog.sessions.map((session, idx) => (
-                    <div 
-                      key={idx}
-                      className="p-3 rounded-lg bg-background/50 space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: session.color }}
-                          />
-                          <span className="font-medium text-sm">{session.subject}</span>
-                        </div>
-                        {session.completed ? (
-                          <CheckCircle2 className="w-4 h-4 text-success" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-destructive/50" />
-                        )}
-                      </div>
-                      
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Target className="w-3 h-3" />
-                        هدف: {formatHoursDisplay(session.targetHours)} • {session.targetTests} تست
-                      </div>
-                      
-                      <div className="text-xs text-foreground">
-                        انجام شده: {formatHoursDisplay(session.actualHours)} • {session.actualTests} تست
-                      </div>
-                      
-                      {session.notes && (
-                        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">
-                          <StickyNote className="w-3 h-3 mt-0.5 shrink-0" />
-                          <p>{session.notes}</p>
-                        </div>
-                      )}
+              {/* Event Section */}
+              {selectedEvent ? (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+                      <span className="font-bold text-amber-400">رویداد</span>
                     </div>
-                  ))}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteEvent(selectedEvent.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-lg font-medium">{selectedEvent.title}</p>
+                </div>
+              ) : (
+                <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full gap-2 border-dashed border-amber-400/50 text-amber-400 hover:bg-amber-400/10">
+                      <Plus className="w-4 h-4" />
+                      افزودن رویداد
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-right">افزودن رویداد</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <p className="text-sm text-muted-foreground text-right">
+                        {selectedDay} {PERSIAN_MONTHS[viewMonth - 1]} {viewYear}
+                      </p>
+                      <Input
+                        placeholder="عنوان رویداد (مثلاً: آزمون جامع)"
+                        value={eventTitle}
+                        onChange={(e) => setEventTitle(e.target.value)}
+                        className="text-right"
+                        dir="rtl"
+                      />
+                      <Button onClick={handleAddEvent} className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                        ذخیره رویداد
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+              
+              {selectedLog ? (
+                <>
+                  {/* Score */}
+                  <div className="text-center">
+                    <div className={cn(
+                      'inline-block px-4 py-2 rounded-full text-lg font-bold',
+                      selectedLog.overallScore >= 75 ? 'bg-success/20 text-success' :
+                      selectedLog.overallScore >= 50 ? 'bg-warning/20 text-warning' :
+                      'bg-destructive/20 text-destructive'
+                    )}>
+                      امتیاز: {Math.round(selectedLog.overallScore)}٪
+                    </div>
+                  </div>
+                  
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 rounded-lg bg-secondary/10 text-center">
+                      <p className="text-muted-foreground">ساعت مطالعه</p>
+                      <p className="font-bold text-secondary">{formatHoursDisplay(selectedLog.totalStudyHours)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-accent/10 text-center">
+                      <p className="text-muted-foreground">تعداد تست</p>
+                      <p className="font-bold text-accent">{selectedLog.totalTests}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Feedback */}
+                  <div className="p-3 rounded-lg bg-muted/30 text-center">
+                    <p className="text-sm">{selectedLog.feedback}</p>
+                  </div>
+                  
+                  {/* Sessions */}
+                  {selectedLog.sessions && selectedLog.sessions.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-muted-foreground">جزئیات دروس</h4>
+                      {selectedLog.sessions.map((session, idx) => (
+                        <div 
+                          key={idx}
+                          className="p-3 rounded-lg bg-background/50 space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: session.color }}
+                              />
+                              <span className="font-medium text-sm">{session.subject}</span>
+                            </div>
+                            {session.completed ? (
+                              <CheckCircle2 className="w-4 h-4 text-success" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-destructive/50" />
+                            )}
+                          </div>
+                          
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Target className="w-3 h-3" />
+                            هدف: {formatHoursDisplay(session.targetHours)} • {session.targetTests} تست
+                          </div>
+                          
+                          <div className="text-xs text-foreground">
+                            انجام شده: {formatHoursDisplay(session.actualHours)} • {session.actualTests} تست
+                          </div>
+                          
+                          {session.notes && (
+                            <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">
+                              <StickyNote className="w-3 h-3 mt-0.5 shrink-0" />
+                              <p>{session.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p className="text-sm">ثبت عملکردی برای این روز وجود ندارد</p>
                 </div>
               )}
-            </div>
-          ) : selectedDay ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>ثبتی برای این روز وجود ندارد</p>
-              <p className="text-sm mt-1">
-                {selectedDay} {PERSIAN_MONTHS[viewMonth - 1]} {viewYear}
-              </p>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">

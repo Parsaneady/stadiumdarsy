@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useCallback, lazy, Suspense, memo } from 'react';
-import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2, Sparkles } from 'lucide-react';
+import { Clock, FileText, Target, TrendingUp, Flame, Award, Plus, CheckCircle2, Sparkles, Star, CalendarDays } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { StatCard } from '@/components/StatCard';
 import { GlassCard } from '@/components/GlassCard';
@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { useNavigate } from 'react-router-dom';
 import { getTodayQuote } from '@/lib/quotes';
+import { cn } from '@/lib/utils';
 
 // Lazy load charts
 const LazyCharts = lazy(() => import('@/components/DashboardCharts'));
@@ -104,7 +105,7 @@ const SessionItem = memo(({
 SessionItem.displayName = 'SessionItem';
 
 const Dashboard = () => {
-  const { weeklyPlan, initializeWeek, getStats, streak, getTodayIndex, toggleSessionComplete } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getStats, streak, getTodayIndex, toggleSessionComplete, getUpcomingEvents } = useStudyStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -115,6 +116,7 @@ const Dashboard = () => {
 
   const todayQuote = useMemo(() => getTodayQuote(), []);
   const stats = useMemo(() => getStats(), [getStats, weeklyPlan]);
+  const upcomingEvents = useMemo(() => getUpcomingEvents(), [getUpcomingEvents]);
   const todayIndex = getTodayIndex();
   const todayPlan = weeklyPlan[todayIndex];
 
@@ -163,6 +165,7 @@ const Dashboard = () => {
 
   const navigateToWeeklyPlan = useCallback(() => navigate('/weekly-plan'), [navigate]);
   const navigateToDailyLog = useCallback(() => navigate('/daily-log'), [navigate]);
+  const navigateToHistory = useCallback(() => navigate('/history'), [navigate]);
 
   return (
     <div className="space-y-6">
@@ -191,6 +194,53 @@ const Dashboard = () => {
           </div>
         </div>
       </GlassCard>
+
+      {/* Upcoming Events */}
+      {upcomingEvents.length > 0 && (
+        <GlassCard className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-400/20" delay={0.15}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+              رویدادهای پیش رو
+            </h3>
+            <Button variant="ghost" size="sm" onClick={navigateToHistory} className="text-amber-400 hover:text-amber-300">
+              <CalendarDays className="w-4 h-4 ml-1" />
+              تقویم
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {upcomingEvents.slice(0, 5).map(({ event, daysRemaining }) => (
+              <div 
+                key={event.id}
+                className={cn(
+                  "px-4 py-3 rounded-xl border transition-all",
+                  "bg-gradient-to-r from-amber-500/20 to-orange-500/20",
+                  "border-amber-400/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]",
+                  daysRemaining <= 3 && "animate-pulse"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "flex flex-col items-center justify-center w-12 h-12 rounded-lg",
+                    daysRemaining === 0 ? "bg-destructive/20 text-destructive" :
+                    daysRemaining <= 3 ? "bg-warning/20 text-warning" :
+                    "bg-amber-400/20 text-amber-400"
+                  )}>
+                    <span className="text-lg font-bold">{daysRemaining}</span>
+                    <span className="text-[10px]">روز</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-amber-400">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.persianDate.day} {['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'][event.persianDate.month - 1]}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
