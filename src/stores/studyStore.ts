@@ -308,21 +308,49 @@ export const useStudyStore = create<StudyStore>()(
           notes: s.notes,
         }));
 
-        const newLog: DailyLog = {
-          id: generateId(),
-          date: new Date().toISOString(),
-          totalStudyHours,
-          totalTests,
-          completedSessions,
-          totalSessions,
-          overallScore,
-          feedback,
-          sessions: sessionDetails,
-        };
+        // Check for existing log for today and update it instead of creating new
+        const today = new Date().toISOString().split('T')[0];
+        const existingLogIndex = state.dailyLogs.findIndex(log => 
+          log.date.split('T')[0] === today
+        );
 
-        set((state) => ({
-          dailyLogs: [...state.dailyLogs, newLog],
-        }));
+        if (existingLogIndex !== -1) {
+          // Update existing log
+          set((state) => ({
+            dailyLogs: state.dailyLogs.map((log, idx) =>
+              idx === existingLogIndex
+                ? {
+                    ...log,
+                    date: new Date().toISOString(),
+                    totalStudyHours,
+                    totalTests,
+                    completedSessions,
+                    totalSessions,
+                    overallScore,
+                    feedback,
+                    sessions: sessionDetails,
+                  }
+                : log
+            ),
+          }));
+        } else {
+          // Create new log
+          const newLog: DailyLog = {
+            id: generateId(),
+            date: new Date().toISOString(),
+            totalStudyHours,
+            totalTests,
+            completedSessions,
+            totalSessions,
+            overallScore,
+            feedback,
+            sessions: sessionDetails,
+          };
+
+          set((state) => ({
+            dailyLogs: [...state.dailyLogs, newLog],
+          }));
+        }
         
         // Update streak
         get().updateStreak();

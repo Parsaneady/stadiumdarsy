@@ -13,6 +13,7 @@ const DailyLog = lazy(() => import("./pages/DailyLog"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Pomodoro = lazy(() => import("./pages/Pomodoro"));
 const TestExam = lazy(() => import("./pages/TestExam"));
+const PerformanceHistory = lazy(() => import("./pages/PerformanceHistory"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/pomodoro" element={<Pomodoro />} />
               <Route path="/test-exam" element={<TestExam />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/history" element={<PerformanceHistory />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

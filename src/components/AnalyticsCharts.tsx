@@ -1,26 +1,13 @@
-import { memo, useState } from 'react';
-import { TrendingUp, Award, ChevronDown, ChevronUp, BookOpen, Target, CheckCircle2, XCircle, StickyNote } from 'lucide-react';
+import { memo } from 'react';
+import { TrendingUp, Award } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
 import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
-import { DailyLogSession } from '@/stores/studyStore';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   BarChart, Bar, Legend
 } from 'recharts';
-
-interface DailyLogWithSessions {
-  id: string;
-  date: string;
-  totalStudyHours: number;
-  totalTests: number;
-  completedSessions: number;
-  totalSessions: number;
-  overallScore: number;
-  feedback: string;
-  sessions?: DailyLogSession[];
-}
 
 interface AnalyticsChartsProps {
   weeklyProgressData: any[];
@@ -29,7 +16,6 @@ interface AnalyticsChartsProps {
   completionByDay: any[];
   subjectRankings: any[];
   totalHours: number;
-  dailyLogs: DailyLogWithSessions[];
 }
 
 const tooltipStyle = {
@@ -50,7 +36,6 @@ const AnalyticsCharts = memo(({
   completionByDay,
   subjectRankings,
   totalHours,
-  dailyLogs
 }: AnalyticsChartsProps) => {
   return (
     <>
@@ -208,137 +193,9 @@ const AnalyticsCharts = memo(({
           ))}
         </div>
       </GlassCard>
-
-      {/* Performance History */}
-      {dailyLogs.length > 0 && (
-        <PerformanceHistory dailyLogs={dailyLogs} />
-      )}
     </>
   );
 });
-
-// Separate component for performance history with expandable details
-const PerformanceHistory = memo(({ dailyLogs }: { dailyLogs: DailyLogWithSessions[] }) => {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
-  return (
-    <GlassCard delay={0.8}>
-      <h3 className="text-lg font-semibold mb-4">تاریخچه عملکرد</h3>
-      <div className="space-y-3">
-        {dailyLogs.slice(-7).reverse().map((log) => (
-          <div
-            key={log.id}
-            className="rounded-xl bg-muted/30 overflow-hidden"
-          >
-            {/* Main row - clickable */}
-            <div 
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => toggleExpand(log.id)}
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-muted-foreground">
-                  {expandedId === log.id ? (
-                    <ChevronUp className="w-5 h-5" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium">
-                    {new Date(log.date).toLocaleDateString('fa-IR', { 
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{log.feedback}</p>
-                </div>
-              </div>
-              <div className="text-left">
-                <p className={`text-xl font-bold ${
-                  log.overallScore >= 80 ? 'text-success' :
-                  log.overallScore >= 60 ? 'text-warning' : 'text-destructive'
-                }`}>
-                  {log.overallScore.toFixed(0)}%
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatHoursDisplay(log.totalStudyHours)}
-                </p>
-              </div>
-            </div>
-
-            {/* Expanded details */}
-            {expandedId === log.id && log.sessions && log.sessions.length > 0 && (
-              <div className="border-t border-border/30 p-4 bg-muted/20 space-y-3">
-                <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4" />
-                  جزئیات برنامه این روز
-                </p>
-                {log.sessions.map((session, idx) => (
-                  <div 
-                    key={idx} 
-                    className="p-3 rounded-lg bg-background/50 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: session.color }}
-                        />
-                        <div>
-                          <p className="font-medium text-sm">{session.subject}</p>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                            <span className="flex items-center gap-1">
-                              <Target className="w-3 h-3" />
-                              هدف: {formatHoursDisplay(session.targetHours)} • {session.targetTests} تست
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-left text-sm">
-                          <p className="text-foreground">
-                            {formatHoursDisplay(session.actualHours)} • {session.actualTests} تست
-                          </p>
-                        </div>
-                        {session.completed ? (
-                          <CheckCircle2 className="w-5 h-5 text-success" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-destructive/50" />
-                        )}
-                      </div>
-                    </div>
-                    {session.notes && (
-                      <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md mr-6">
-                        <StickyNote className="w-3 h-3 mt-0.5 shrink-0" />
-                        <p>{session.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* No sessions message */}
-            {expandedId === log.id && (!log.sessions || log.sessions.length === 0) && (
-              <div className="border-t border-border/30 p-4 bg-muted/20">
-                <p className="text-sm text-muted-foreground text-center">
-                  جزئیات این روز ثبت نشده است
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </GlassCard>
-  );
-});
-
-PerformanceHistory.displayName = 'PerformanceHistory';
 
 AnalyticsCharts.displayName = 'AnalyticsCharts';
 
