@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef, useMemo, memo } from 'react';
-import { Timer, Play, Pause, RotateCcw, Coffee, Brain, Settings, Volume2, VolumeX, Bell } from 'lucide-react';
+import { Timer, Play, Pause, RotateCcw, Coffee, Brain, Settings, Volume2, VolumeX, Bell, Calendar, Clock } from 'lucide-react';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
@@ -124,6 +124,8 @@ const Pomodoro = () => {
     weeklyPlan,
     getTodayIndex,
     initializeWeek,
+    getTodayPomodoros,
+    getWeeklyPomodoroCount,
   } = useStudyStore();
   
   const {
@@ -411,12 +413,16 @@ const Pomodoro = () => {
       {/* Stats Bar */}
       <div className="glass-card rounded-2xl p-4 flex items-center justify-around animate-fade-in">
         <div className="text-center">
-          <p className="text-2xl font-bold text-primary">{completedPomodoros}</p>
+          <p className="text-2xl font-bold text-primary">{getTodayPomodoros().length}</p>
           <p className="text-sm text-muted-foreground">پومودورو امروز</p>
         </div>
         <div className="text-center">
           <p className="text-2xl font-bold text-success">{Math.floor(totalPomodoroMinutesToday)}</p>
           <p className="text-sm text-muted-foreground">دقیقه مطالعه</p>
+        </div>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-warning">{getWeeklyPomodoroCount()}</p>
+          <p className="text-sm text-muted-foreground">پومودورو هفته</p>
         </div>
         <div className="text-center">
           <p className="text-2xl font-bold text-accent">{currentCycle}/{pomodoroSettings.cycles}</p>
@@ -508,8 +514,40 @@ const Pomodoro = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Today's Pomodoro History */}
+      {getTodayPomodoros().length > 0 && (
+        <GlassCard delay={0.2}>
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-primary" />
+            <h3 className="text-lg font-semibold">پومودوروهای امروز</h3>
+          </div>
+          <div className="space-y-2">
+            {getTodayPomodoros().map((session) => (
+              <div 
+                key={session.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <span className="font-medium">{session.subject}</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>{session.minutes} دقیقه</span>
+                  <span>
+                    {new Date(session.completedAt).toLocaleTimeString('fa-IR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
+
       {/* Tips */}
-      <GlassCard delay={0.2}>
+      <GlassCard delay={0.3}>
         <h3 className="text-lg font-semibold mb-4">💡 نکات پومودورو</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li>• هر پومودورو ۲۵ دقیقه تمرکز کامل روی یک کار است</li>

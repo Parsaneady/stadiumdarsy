@@ -50,6 +50,14 @@ export interface PomodoroSettings {
   cycles: number;
 }
 
+export interface PomodoroSession {
+  id: string;
+  date: string;
+  subject: string;
+  minutes: number;
+  completedAt: string;
+}
+
 interface StudyStore {
   weeklyPlan: DayPlan[];
   dailyLogs: DailyLog[];
@@ -60,6 +68,7 @@ interface StudyStore {
   totalPomodoroMinutesToday: number;
   pomodoroSubject: string | null;
   lastPomodoroDate: string | null;
+  pomodoroHistory: PomodoroSession[];
   
   // Actions
   initializeWeek: () => void;
@@ -74,6 +83,8 @@ interface StudyStore {
   addPomodoroTime: (minutes: number, subject: string) => void;
   setPomodoroSubject: (subject: string | null) => void;
   getTodayIndex: () => number;
+  getTodayPomodoros: () => PomodoroSession[];
+  getWeeklyPomodoroCount: () => number;
   getStats: () => { 
     totalHours: number; 
     totalTests: number; 
@@ -127,6 +138,7 @@ export const useStudyStore = create<StudyStore>()(
       totalPomodoroMinutesToday: 0,
       lastPomodoroDate: null,
       pomodoroSubject: null,
+      pomodoroHistory: [],
 
       getTodayIndex: () => {
         const today = new Date().getDay();
@@ -326,11 +338,27 @@ export const useStudyStore = create<StudyStore>()(
         const today = new Date().toDateString();
         const state = get();
         
-        // Reset if new day
+        // Create new pomodoro session record
+        const newSession: PomodoroSession = {
+          id: generateId(),
+          date: today,
+          subject,
+          minutes,
+          completedAt: new Date().toISOString(),
+        };
+        
+        // Reset daily count if new day
         if (state.lastPomodoroDate !== today) {
-          set({ totalPomodoroMinutesToday: minutes, lastPomodoroDate: today });
+          set({ 
+            totalPomodoroMinutesToday: minutes, 
+            lastPomodoroDate: today,
+            pomodoroHistory: [...state.pomodoroHistory, newSession],
+          });
         } else {
-          set({ totalPomodoroMinutesToday: state.totalPomodoroMinutesToday + minutes });
+          set({ 
+            totalPomodoroMinutesToday: state.totalPomodoroMinutesToday + minutes,
+            pomodoroHistory: [...state.pomodoroHistory, newSession],
+          });
         }
         
         // Add to the specific subject session
@@ -347,6 +375,29 @@ export const useStudyStore = create<StudyStore>()(
         
         // Update streak
         get().updateStreak();
+      },
+
+      getTodayPomodoros: () => {
+        const today = new Date().toDateString();
+        const state = get();
+        return state.pomodoroHistory.filter(p => p.date === today);
+      },
+
+      getWeeklyPomodoroCount: () => {
+        const state = get();
+        const now = new Date();
+        
+        // Get start of current week (Saturday)
+        const dayOfWeek = now.getDay();
+        const daysFromSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - daysFromSaturday);
+        weekStart.setHours(0, 0, 0, 0);
+        
+        return state.pomodoroHistory.filter(p => {
+          const sessionDate = new Date(p.date);
+          return sessionDate >= weekStart;
+        }).length;
       },
 
       getStats: () => {
