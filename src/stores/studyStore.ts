@@ -78,10 +78,12 @@ interface StudyStore {
   lastPomodoroDate: string | null;
   pomodoroHistory: PomodoroSession[];
   calendarEvents: CalendarEvent[];
+  lastWeeklyReset: string | null;
   
   // Actions
   initializeWeek: () => void;
   resetWeek: () => void;
+  checkAndResetWeekly: () => void;
   addSession: (dayId: string, session: Omit<StudySession, 'id'>) => void;
   updateSession: (dayId: string, sessionId: string, updates: Partial<StudySession>) => void;
   deleteSession: (dayId: string, sessionId: string) => void;
@@ -152,6 +154,7 @@ export const useStudyStore = create<StudyStore>()(
       pomodoroSubject: null,
       pomodoroHistory: [],
       calendarEvents: [],
+      lastWeeklyReset: null,
 
       getTodayIndex: () => {
         const today = new Date().getDay();
@@ -188,7 +191,31 @@ export const useStudyStore = create<StudyStore>()(
           })),
           totalPomodoroMinutesToday: 0,
           lastPomodoroDate: null,
+          lastWeeklyReset: new Date().toISOString(),
         }));
+      },
+
+      checkAndResetWeekly: () => {
+        const state = get();
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        // Check if today is Saturday (6 in JS, which is 0 in Persian week)
+        if (dayOfWeek !== 6) return;
+        
+        // Check if we already reset today
+        if (state.lastWeeklyReset) {
+          const lastReset = new Date(state.lastWeeklyReset);
+          const isSameDay = 
+            lastReset.getFullYear() === today.getFullYear() &&
+            lastReset.getMonth() === today.getMonth() &&
+            lastReset.getDate() === today.getDate();
+          
+          if (isSameDay) return;
+        }
+        
+        // Reset the week
+        get().resetWeek();
       },
 
       addSession: (dayId, session) => {

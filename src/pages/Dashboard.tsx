@@ -115,14 +115,17 @@ const SessionItem = memo(({
 SessionItem.displayName = 'SessionItem';
 
 const Dashboard = () => {
-  const { weeklyPlan, initializeWeek, getStats, streak, getTodayIndex, toggleSessionComplete, getUpcomingEvents } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getStats, streak, getTodayIndex, toggleSessionComplete, getUpcomingEvents, checkAndResetWeekly } = useStudyStore();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if we need to reset weekly data (every Saturday)
+    checkAndResetWeekly();
+    
     if (weeklyPlan.length === 0) {
       initializeWeek();
     }
-  }, [weeklyPlan.length, initializeWeek]);
+  }, [weeklyPlan.length, initializeWeek, checkAndResetWeekly]);
 
   const todayQuote = useMemo(() => getTodayQuote(), []);
   const stats = useMemo(() => getStats(), [getStats, weeklyPlan]);
