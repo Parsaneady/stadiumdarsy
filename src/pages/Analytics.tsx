@@ -36,7 +36,7 @@ const QuickStat = memo(({ icon: Icon, label, value, unit, color }: {
 QuickStat.displayName = 'QuickStat';
 
 const Analytics = () => {
-  const { weeklyPlan, dailyLogs, initializeWeek, getStats } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getStats } = useStudyStore();
 
   useEffect(() => {
     if (weeklyPlan.length === 0) {
@@ -143,7 +143,6 @@ const Analytics = () => {
           completionByDay={chartData.completionByDay}
           subjectRankings={chartData.subjectRankings}
           totalHours={stats.totalHours}
-          dailyLogs={dailyLogs}
         />
       </Suspense>
     </div>

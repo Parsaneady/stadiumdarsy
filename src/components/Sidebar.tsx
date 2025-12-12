@@ -8,7 +8,8 @@ import {
   Timer,
   BookOpen,
   Sparkles,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTodayQuote } from '@/lib/quotes';
@@ -20,6 +21,7 @@ const navItems = [
   { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
   { path: '/test-exam', icon: FileText, label: 'پنل آزمون' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
+  { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
 ];
 
 export const Sidebar = () => {

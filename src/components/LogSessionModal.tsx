@@ -36,12 +36,18 @@ export const LogSessionModal = ({ isOpen, onClose, session, onSave }: LogSession
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const totalHours = hoursMinutesToHours(actualHours, actualMinutes);
+    
+    // Calculate if hours and tests are 100% complete for auto-check
+    const hoursComplete = session.targetHours > 0 && totalHours >= session.targetHours;
+    const testsComplete = session.targetTests > 0 && (parseInt(actualTests) || 0) >= session.targetTests;
+    const autoComplete = hoursComplete && testsComplete;
+    
     onSave({
       actualHours: totalHours,
       actualTests: parseInt(actualTests) || 0,
       completionPercent,
       notes,
-      completed: completionPercent >= 100,
+      completed: autoComplete || completionPercent >= 100,
     });
     onClose();
   };
