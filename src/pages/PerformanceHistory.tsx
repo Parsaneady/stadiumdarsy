@@ -201,8 +201,6 @@ const PerformanceHistory = () => {
   const getLogForDay = (day: number): DailyLog | null => {
     const [gy, gm, gd] = persianToGregorian(viewYear, viewMonth, day);
     const date = new Date(gy, gm - 1, gd);
-    // Shift back 1 day to match the stored log dates
-    date.setDate(date.getDate() - 1);
     const key = formatDateKey(date);
     return logsByDate.get(key) || null;
   };
