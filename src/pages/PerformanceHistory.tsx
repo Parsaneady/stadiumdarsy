@@ -77,9 +77,12 @@ const getFirstDayOfPersianMonth = (year: number, month: number): number => {
   return (jsDay + 1) % 7;
 };
 
-// Format date key for matching logs
+// Format date key for matching logs - use local date to avoid timezone issues
 const formatDateKey = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 interface CalendarDayProps {
