@@ -30,6 +30,9 @@ const gregorianToPersian = (gy: number, gm: number, gd: number): [number, number
   days %= 1461;
   jy += Math.floor((days - 1) / 365);
   if (days > 365) days = (days - 1) % 365;
+  // Shift back by 1 day to fix offset
+  days = days - 1;
+  if (days < 0) days = 0;
   const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
   const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
   return [jy, jm, jd];
