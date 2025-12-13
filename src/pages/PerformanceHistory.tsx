@@ -41,8 +41,6 @@ const persianToGregorian = (jy: number, jm: number, jd: number): [number, number
   jy = (jy <= 979) ? jy : jy - 979;
   let days = (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4) 
     + 78 + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-  // Add 1 day to fix offset - logs are stored for the correct Gregorian date
-  days = days + 1;
   gy += 400 * Math.floor(days / 146097);
   days %= 146097;
   if (days > 36524) {
@@ -203,6 +201,8 @@ const PerformanceHistory = () => {
   const getLogForDay = (day: number): DailyLog | null => {
     const [gy, gm, gd] = persianToGregorian(viewYear, viewMonth, day);
     const date = new Date(gy, gm - 1, gd);
+    // Shift back 1 day to match the stored log dates
+    date.setDate(date.getDate() - 1);
     const key = formatDateKey(date);
     return logsByDate.get(key) || null;
   };
