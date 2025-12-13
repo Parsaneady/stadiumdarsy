@@ -98,6 +98,7 @@ interface StudyStore {
   getWeeklyPomodoroCount: () => number;
   addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   deleteCalendarEvent: (eventId: string) => void;
+  clearAllLogs: () => void;
   getUpcomingEvents: () => { event: CalendarEvent; daysRemaining: number }[];
   getStats: () => { 
     totalHours: number; 
@@ -347,17 +348,13 @@ export const useStudyStore = create<StudyStore>()(
           notes: s.notes,
         }));
 
-        // Calculate the correct date for this day based on dayIndex
+        // Use today's date directly
         const today = new Date();
-        const todayIndex = get().getTodayIndex();
-        const dayDiff = day.dayIndex - todayIndex;
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + dayDiff);
-        const targetDateKey = targetDate.toISOString().split('T')[0];
+        const todayKey = today.toISOString().split('T')[0];
 
-        // Check for existing log for this specific date
+        // Check for existing log for today
         const existingLogIndex = state.dailyLogs.findIndex(log => 
-          log.date.split('T')[0] === targetDateKey
+          log.date.split('T')[0] === todayKey
         );
 
         if (existingLogIndex !== -1) {
@@ -367,7 +364,7 @@ export const useStudyStore = create<StudyStore>()(
               idx === existingLogIndex
                 ? {
                     ...log,
-                    date: targetDate.toISOString(),
+                    date: today.toISOString(),
                     totalStudyHours,
                     totalTests,
                     completedSessions,
@@ -383,7 +380,7 @@ export const useStudyStore = create<StudyStore>()(
           // Create new log
           const newLog: DailyLog = {
             id: generateId(),
-            date: targetDate.toISOString(),
+            date: today.toISOString(),
             totalStudyHours,
             totalTests,
             completedSessions,
@@ -486,6 +483,10 @@ export const useStudyStore = create<StudyStore>()(
         set((state) => ({
           calendarEvents: state.calendarEvents.filter((e) => e.id !== eventId),
         }));
+      },
+
+      clearAllLogs: () => {
+        set({ dailyLogs: [] });
       },
 
       getUpcomingEvents: () => {
