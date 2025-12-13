@@ -347,10 +347,17 @@ export const useStudyStore = create<StudyStore>()(
           notes: s.notes,
         }));
 
-        // Check for existing log for today and update it instead of creating new
-        const today = new Date().toISOString().split('T')[0];
+        // Calculate the correct date for this day based on dayIndex
+        const today = new Date();
+        const todayIndex = get().getTodayIndex();
+        const dayDiff = day.dayIndex - todayIndex;
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + dayDiff);
+        const targetDateKey = targetDate.toISOString().split('T')[0];
+
+        // Check for existing log for this specific date
         const existingLogIndex = state.dailyLogs.findIndex(log => 
-          log.date.split('T')[0] === today
+          log.date.split('T')[0] === targetDateKey
         );
 
         if (existingLogIndex !== -1) {
@@ -360,7 +367,7 @@ export const useStudyStore = create<StudyStore>()(
               idx === existingLogIndex
                 ? {
                     ...log,
-                    date: new Date().toISOString(),
+                    date: targetDate.toISOString(),
                     totalStudyHours,
                     totalTests,
                     completedSessions,
@@ -376,7 +383,7 @@ export const useStudyStore = create<StudyStore>()(
           // Create new log
           const newLog: DailyLog = {
             id: generateId(),
-            date: new Date().toISOString(),
+            date: targetDate.toISOString(),
             totalStudyHours,
             totalTests,
             completedSessions,
