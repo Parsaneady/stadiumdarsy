@@ -72,8 +72,9 @@ const getPersianMonthDays = (year: number, month: number): number => {
 const getFirstDayOfPersianMonth = (year: number, month: number): number => {
   const [gy, gm, gd] = persianToGregorian(year, month, 1);
   const date = new Date(gy, gm - 1, gd);
-  const jsDay = date.getDay();
-  return jsDay === 6 ? 0 : jsDay + 1;
+  const jsDay = date.getDay(); // 0 = Sunday, 6 = Saturday
+  // Convert to Persian week (0 = Saturday, 1 = Sunday, ..., 6 = Friday)
+  return (jsDay + 1) % 7;
 };
 
 // Format date key for matching logs
