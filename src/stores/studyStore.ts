@@ -541,6 +541,26 @@ export const useStudyStore = create<StudyStore>()(
     }),
     {
       name: 'study-planner-storage',
+      version: 2,
+      migrate: () => ({
+        weeklyPlan: [],
+        dailyLogs: [],
+        currentWeekStart: new Date(),
+        streak: 0,
+        lastStudyDate: null,
+        pomodoroSettings: {
+          studyDuration: 25,
+          shortBreak: 5,
+          longBreak: 15,
+          cycles: 4,
+        },
+        totalPomodoroMinutesToday: 0,
+        lastPomodoroDate: null,
+        pomodoroSubject: null,
+        pomodoroHistory: [],
+        calendarEvents: [],
+        lastWeeklyReset: null,
+      }),
     }
   )
 );
