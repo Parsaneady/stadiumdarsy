@@ -30,9 +30,6 @@ const gregorianToPersian = (gy: number, gm: number, gd: number): [number, number
   days %= 1461;
   jy += Math.floor((days - 1) / 365);
   if (days > 365) days = (days - 1) % 365;
-  // Shift back by 1 day to fix offset
-  days = days - 1;
-  if (days < 0) days = 0;
   const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
   const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
   return [jy, jm, jd];
@@ -44,6 +41,8 @@ const persianToGregorian = (jy: number, jm: number, jd: number): [number, number
   jy = (jy <= 979) ? jy : jy - 979;
   let days = (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4) 
     + 78 + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+  // Add 1 day to fix offset - logs are stored for the correct Gregorian date
+  days = days + 1;
   gy += 400 * Math.floor(days / 146097);
   days %= 146097;
   if (days > 36524) {
