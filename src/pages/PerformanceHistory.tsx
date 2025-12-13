@@ -320,7 +320,7 @@ const PerformanceHistory = () => {
           </div>
           
           {/* Weekday Headers */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
+          <div className="grid grid-cols-7 gap-2 mb-2" dir="rtl">
             {PERSIAN_WEEKDAYS.map((day, i) => (
               <div key={i} className="text-center text-sm font-medium text-muted-foreground py-2">
                 {day}
@@ -329,7 +329,7 @@ const PerformanceHistory = () => {
           </div>
           
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-2" dir="rtl">
             {calendarDays.map((day, i) => (
               <div key={i} className="aspect-square">
                 {day !== null ? (
