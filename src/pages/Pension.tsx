@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,7 +21,9 @@ import {
   Clock,
   FileText,
   Trophy,
-  LogOut
+  LogOut,
+  Trash2,
+  ClipboardList
 } from 'lucide-react';
 
 interface PensionMember {
@@ -210,6 +214,30 @@ const Pension = () => {
     }
   };
 
+  const handleDeletePension = async () => {
+    if (!pension || !user || !isLeader) return;
+
+    try {
+      // First delete all members
+      await supabase
+        .from('pension_members')
+        .delete()
+        .eq('pension_id', pension.id);
+
+      // Then delete the pension
+      await supabase
+        .from('pensions')
+        .delete()
+        .eq('id', pension.id);
+
+      toast.success('پانسیون حذف شد');
+      setPension(null);
+      setMembers([]);
+    } catch (error) {
+      toast.error('خطا در حذف پانسیون');
+    }
+  };
+
   const formatStudyTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -297,12 +325,14 @@ const Pension = () => {
             </div>
           </div>
 
-          {isLeader && (
-            <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
-              <Crown className="w-3 h-3 ml-1" />
-              سرگروه
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {isLeader && (
+              <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+                <Crown className="w-3 h-3 ml-1" />
+                سرگروه
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Invite Link (Leader only) */}
@@ -344,77 +374,176 @@ const Pension = () => {
           </GlassCard>
         )}
 
-        {/* Members Leaderboard */}
-        <GlassCard>
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-5 h-5 text-yellow-500" />
-            <h2 className="font-bold text-lg">جدول امتیازات</h2>
-          </div>
+        {/* Pension Tabs */}
+        <Tabs defaultValue="leaderboard" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="leaderboard">
+              <Trophy className="w-4 h-4 ml-1" />
+              جدول امتیازات
+            </TabsTrigger>
+            <TabsTrigger value="exams">
+              <FileText className="w-4 h-4 ml-1" />
+              آزمون‌ها
+            </TabsTrigger>
+            <TabsTrigger value="tasks">
+              <ClipboardList className="w-4 h-4 ml-1" />
+              تسک‌ها
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            {members.map((member, index) => (
-              <div 
-                key={member.id}
-                className={`flex items-center justify-between p-3 rounded-lg ${
-                  index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                  index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
-                  index === 2 ? 'bg-orange-500/10 border border-orange-500/20' :
-                  'bg-white/5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    index === 0 ? 'bg-yellow-500 text-black' :
-                    index === 1 ? 'bg-gray-400 text-black' :
-                    index === 2 ? 'bg-orange-500 text-black' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <Avatar className="w-10 h-10 border border-white/10">
-                    <AvatarImage src={member.profile?.avatar_url || ''} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                      {member.profile?.first_name?.[0] || member.profile?.username?.[0] || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium flex items-center gap-2">
-                      @{member.profile?.username || 'بدون نام'}
-                      {member.role === 'leader' && (
-                        <Crown className="w-4 h-4 text-yellow-500" />
-                      )}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {member.profile?.first_name} {member.profile?.last_name}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span>{formatStudyTime(member.profile?.total_study_minutes || 0)}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <FileText className="w-4 h-4" />
-                    <span>{member.profile?.total_tests || 0} آزمون</span>
-                  </div>
-                </div>
+          {/* Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <GlassCard>
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-yellow-500" />
+                <h2 className="font-bold text-lg">جدول امتیازات</h2>
               </div>
-            ))}
-          </div>
-        </GlassCard>
 
-        {/* Leave Button (non-leaders) */}
-        {!isLeader && (
-          <Button 
-            variant="outline" 
-            className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={handleLeavePension}
-          >
-            <LogOut className="w-4 h-4 ml-2" />
-            خروج از پانسیون
-          </Button>
-        )}
+              <div className="space-y-2">
+                {members.map((member, index) => (
+                  <div 
+                    key={member.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                      index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
+                      index === 2 ? 'bg-orange-500/10 border border-orange-500/20' :
+                      'bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0 ? 'bg-yellow-500 text-black' :
+                        index === 1 ? 'bg-gray-400 text-black' :
+                        index === 2 ? 'bg-orange-500 text-black' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <Avatar className="w-10 h-10 border border-white/10">
+                        <AvatarImage src={member.profile?.avatar_url || ''} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                          {member.profile?.first_name?.[0] || member.profile?.username?.[0] || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          @{member.profile?.username || 'بدون نام'}
+                          {member.role === 'leader' && (
+                            <Crown className="w-4 h-4 text-yellow-500" />
+                          )}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {member.profile?.first_name} {member.profile?.last_name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        <span>{formatStudyTime(member.profile?.total_study_minutes || 0)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <FileText className="w-4 h-4" />
+                        <span>{member.profile?.total_tests || 0} آزمون</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </TabsContent>
+
+          {/* Exams Tab */}
+          <TabsContent value="exams">
+            <GlassCard>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  <h2 className="font-bold text-lg">آزمون‌های پانسیون</h2>
+                </div>
+                {isLeader && (
+                  <Button size="sm" className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    ایجاد آزمون
+                  </Button>
+                )}
+              </div>
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                <p>هنوز آزمونی ایجاد نشده است</p>
+                {isLeader && <p className="text-sm">برای ایجاد آزمون روی دکمه بالا کلیک کنید</p>}
+              </div>
+            </GlassCard>
+          </TabsContent>
+
+          {/* Tasks Tab */}
+          <TabsContent value="tasks">
+            <GlassCard>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <h2 className="font-bold text-lg">تسک‌های پانسیون</h2>
+                </div>
+                {isLeader && (
+                  <Button size="sm" className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    ایجاد تسک
+                  </Button>
+                )}
+              </div>
+              <div className="text-center py-8 text-muted-foreground">
+                <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                <p>هنوز تسکی ایجاد نشده است</p>
+                {isLeader && <p className="text-sm">برای ایجاد تسک روی دکمه بالا کلیک کنید</p>}
+              </div>
+            </GlassCard>
+          </TabsContent>
+        </Tabs>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          {!isLeader && (
+            <Button 
+              variant="outline" 
+              className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+              onClick={handleLeavePension}
+            >
+              <LogOut className="w-4 h-4 ml-2" />
+              خروج از پانسیون
+            </Button>
+          )}
+          
+          {isLeader && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-4 h-4 ml-2" />
+                  حذف پانسیون
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>آیا مطمئن هستید؟</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    با حذف پانسیون، تمام اعضا و اطلاعات آن حذف خواهد شد. این عمل قابل بازگشت نیست.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-2">
+                  <AlertDialogCancel>انصراف</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeletePension}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    حذف پانسیون
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
     </AppLayout>
   );
