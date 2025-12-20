@@ -258,6 +258,94 @@ export type Database = {
           },
         ]
       }
+      pension_announcements: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          pension_id: string
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          pension_id: string
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          pension_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pension_announcements_pension_id_fkey"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pension_exams: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          duration_minutes: number | null
+          end_time: string
+          exam_type: string
+          id: string
+          is_active: boolean | null
+          lessons: Json | null
+          pension_id: string
+          start_time: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          duration_minutes?: number | null
+          end_time: string
+          exam_type?: string
+          id?: string
+          is_active?: boolean | null
+          lessons?: Json | null
+          pension_id: string
+          start_time: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          duration_minutes?: number | null
+          end_time?: string
+          exam_type?: string
+          id?: string
+          is_active?: boolean | null
+          lessons?: Json | null
+          pension_id?: string
+          start_time?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pension_exams_pension_id_fkey"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pension_invites: {
         Row: {
           created_at: string
