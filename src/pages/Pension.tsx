@@ -288,12 +288,10 @@ const Pension = () => {
               })
             );
             
-            // Sort by combined score (study minutes + tests)
-            membersWithProfiles.sort((a, b) => {
-              const scoreA = (a.profile?.total_study_minutes || 0) + (a.profile?.total_tests || 0) * 2;
-              const scoreB = (b.profile?.total_study_minutes || 0) + (b.profile?.total_tests || 0) * 2;
-              return scoreB - scoreA;
-            });
+            // Sort by total study minutes (leaderboard)
+            membersWithProfiles.sort((a, b) => 
+              (b.profile?.total_study_minutes || 0) - (a.profile?.total_study_minutes || 0)
+            );
             
             setMembers(membersWithProfiles);
           }
@@ -1152,9 +1150,6 @@ const Pension = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
-                      <div className="text-center px-2 py-1 rounded bg-primary/20 text-primary font-bold">
-                        {((member.profile?.total_study_minutes || 0) + (member.profile?.total_tests || 0) * 2).toLocaleString('fa-IR')} امتیاز
-                      </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="w-4 h-4" />
                         <span>{formatStudyTime(member.profile?.total_study_minutes || 0)}</span>
