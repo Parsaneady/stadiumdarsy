@@ -459,12 +459,12 @@ const Pension = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
-                  <h2 className="font-bold text-lg">تست‌های پانسیون</h2>
+                  <h2 className="font-bold text-lg">آزمون‌های پانسیون</h2>
                 </div>
                 {isLeader && (
                   <Button size="sm" className="gap-1">
                     <Plus className="w-4 h-4" />
-                    ایجاد تست
+                    ایجاد آزمون
                   </Button>
                 )}
               </div>
