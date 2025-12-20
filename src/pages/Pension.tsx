@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -23,8 +24,13 @@ import {
   Trophy,
   LogOut,
   Trash2,
-  ClipboardList
+  Bell,
+  Calendar,
+  Play,
+  Edit,
+  X
 } from 'lucide-react';
+import { format } from 'date-fns-jalali';
 
 interface PensionMember {
   id: string;
@@ -52,6 +58,30 @@ interface Pension {
   max_members: number;
 }
 
+interface PensionAnnouncement {
+  id: string;
+  pension_id: string;
+  created_by: string;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
+interface PensionExam {
+  id: string;
+  pension_id: string;
+  created_by: string;
+  title: string;
+  description: string | null;
+  exam_type: string;
+  lessons: any[];
+  start_time: string;
+  end_time: string;
+  duration_minutes: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 const Pension = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -61,6 +91,21 @@ const Pension = () => {
   const [loading, setLoading] = useState(true);
   const [pensionName, setPensionName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  // Announcements state
+  const [announcements, setAnnouncements] = useState<PensionAnnouncement[]>([]);
+  const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementContent, setAnnouncementContent] = useState('');
+
+  // Exams state
+  const [exams, setExams] = useState<PensionExam[]>([]);
+  const [isExamDialogOpen, setIsExamDialogOpen] = useState(false);
+  const [examTitle, setExamTitle] = useState('');
+  const [examDescription, setExamDescription] = useState('');
+  const [examStartTime, setExamStartTime] = useState('');
+  const [examEndTime, setExamEndTime] = useState('');
+  const [examDuration, setExamDuration] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -118,6 +163,28 @@ const Pension = () => {
             );
             
             setMembers(membersWithProfiles);
+          }
+
+          // Fetch announcements
+          const { data: announcementsData } = await supabase
+            .from('pension_announcements')
+            .select('*')
+            .eq('pension_id', pensionData.id)
+            .order('created_at', { ascending: false });
+
+          if (announcementsData) {
+            setAnnouncements(announcementsData);
+          }
+
+          // Fetch exams
+          const { data: examsData } = await supabase
+            .from('pension_exams')
+            .select('*')
+            .eq('pension_id', pensionData.id)
+            .order('start_time', { ascending: true });
+
+          if (examsData) {
+            setExams(examsData as PensionExam[]);
           }
         }
       }
@@ -238,10 +305,145 @@ const Pension = () => {
     }
   };
 
+  const handleCreateAnnouncement = async () => {
+    if (!announcementTitle.trim() || !announcementContent.trim() || !pension || !user) {
+      toast.error('عنوان و محتوای اعلان را وارد کنید');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('pension_announcements')
+        .insert({
+          pension_id: pension.id,
+          created_by: user.id,
+          title: announcementTitle,
+          content: announcementContent,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAnnouncements([data, ...announcements]);
+      setIsAnnouncementDialogOpen(false);
+      setAnnouncementTitle('');
+      setAnnouncementContent('');
+      toast.success('اعلان ایجاد شد');
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('[Debug]', error);
+      toast.error('خطا در ایجاد اعلان');
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    try {
+      await supabase
+        .from('pension_announcements')
+        .delete()
+        .eq('id', id);
+
+      setAnnouncements(announcements.filter(a => a.id !== id));
+      toast.success('اعلان حذف شد');
+    } catch (error) {
+      toast.error('خطا در حذف اعلان');
+    }
+  };
+
+  const handleCreateExam = async () => {
+    if (!examTitle.trim() || !examStartTime || !examEndTime || !pension || !user) {
+      toast.error('اطلاعات آزمون را کامل وارد کنید');
+      return;
+    }
+
+    const startDate = new Date(examStartTime);
+    const endDate = new Date(examEndTime);
+
+    if (endDate <= startDate) {
+      toast.error('زمان پایان باید بعد از زمان شروع باشد');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('pension_exams')
+        .insert({
+          pension_id: pension.id,
+          created_by: user.id,
+          title: examTitle,
+          description: examDescription || null,
+          exam_type: 'tashrihi',
+          start_time: startDate.toISOString(),
+          end_time: endDate.toISOString(),
+          duration_minutes: examDuration ? parseInt(examDuration) : null,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setExams([...exams, data as PensionExam]);
+      setIsExamDialogOpen(false);
+      setExamTitle('');
+      setExamDescription('');
+      setExamStartTime('');
+      setExamEndTime('');
+      setExamDuration('');
+      toast.success('آزمون ایجاد شد');
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('[Debug]', error);
+      toast.error('خطا در ایجاد آزمون');
+    }
+  };
+
+  const handleDeleteExam = async (id: string) => {
+    try {
+      await supabase
+        .from('pension_exams')
+        .delete()
+        .eq('id', id);
+
+      setExams(exams.filter(e => e.id !== id));
+      toast.success('آزمون حذف شد');
+    } catch (error) {
+      toast.error('خطا در حذف آزمون');
+    }
+  };
+
   const formatStudyTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  const getExamStatus = (exam: PensionExam) => {
+    const now = new Date();
+    const start = new Date(exam.start_time);
+    const end = new Date(exam.end_time);
+
+    if (now < start) {
+      return { label: 'در انتظار', color: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30' };
+    } else if (now >= start && now <= end) {
+      return { label: 'در حال برگزاری', color: 'bg-green-500/20 text-green-500 border-green-500/30' };
+    } else {
+      return { label: 'پایان یافته', color: 'bg-muted text-muted-foreground border-muted' };
+    }
+  };
+
+  const canTakeExam = (exam: PensionExam) => {
+    const now = new Date();
+    const start = new Date(exam.start_time);
+    const end = new Date(exam.end_time);
+    return now >= start && now <= end && exam.is_active;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'yyyy/MM/dd - HH:mm');
+    } catch {
+      return dateString;
+    }
   };
 
   if (loading) {
@@ -383,11 +585,11 @@ const Pension = () => {
             </TabsTrigger>
             <TabsTrigger value="exams">
               <FileText className="w-4 h-4 ml-1" />
-              تست‌ها
+              آزمون
             </TabsTrigger>
-            <TabsTrigger value="tasks">
-              <ClipboardList className="w-4 h-4 ml-1" />
-              تسک‌ها
+            <TabsTrigger value="announcements">
+              <Bell className="w-4 h-4 ml-1" />
+              اعلان‌ها
             </TabsTrigger>
           </TabsList>
 
@@ -462,40 +664,270 @@ const Pension = () => {
                   <h2 className="font-bold text-lg">آزمون‌های پانسیون</h2>
                 </div>
                 {isLeader && (
-                  <Button size="sm" className="gap-1">
-                    <Plus className="w-4 h-4" />
-                    ایجاد آزمون
-                  </Button>
+                  <Dialog open={isExamDialogOpen} onOpenChange={setIsExamDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="gap-1">
+                        <Plus className="w-4 h-4" />
+                        ایجاد آزمون
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>ایجاد آزمون جدید</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div>
+                          <label className="text-sm text-muted-foreground mb-1 block">عنوان آزمون</label>
+                          <Input
+                            value={examTitle}
+                            onChange={(e) => setExamTitle(e.target.value)}
+                            placeholder="مثال: آزمون جامع هفتگی"
+                            className="bg-white/5"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground mb-1 block">توضیحات (اختیاری)</label>
+                          <Textarea
+                            value={examDescription}
+                            onChange={(e) => setExamDescription(e.target.value)}
+                            placeholder="توضیحات آزمون..."
+                            className="bg-white/5"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-1 block">زمان شروع</label>
+                            <Input
+                              type="datetime-local"
+                              value={examStartTime}
+                              onChange={(e) => setExamStartTime(e.target.value)}
+                              className="bg-white/5"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-1 block">زمان پایان</label>
+                            <Input
+                              type="datetime-local"
+                              value={examEndTime}
+                              onChange={(e) => setExamEndTime(e.target.value)}
+                              className="bg-white/5"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground mb-1 block">مدت زمان (دقیقه - اختیاری)</label>
+                          <Input
+                            type="number"
+                            value={examDuration}
+                            onChange={(e) => setExamDuration(e.target.value)}
+                            placeholder="مثال: 60"
+                            className="bg-white/5"
+                          />
+                        </div>
+                        <Button onClick={handleCreateExam} className="w-full">
+                          ایجاد آزمون
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p>هنوز تستی ایجاد نشده است</p>
-                {isLeader && <p className="text-sm">برای ایجاد تست روی دکمه بالا کلیک کنید</p>}
-              </div>
+
+              {exams.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                  <p>هنوز آزمونی ایجاد نشده است</p>
+                  {isLeader && <p className="text-sm">برای ایجاد آزمون روی دکمه بالا کلیک کنید</p>}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {exams.map((exam) => {
+                    const status = getExamStatus(exam);
+                    const canTake = canTakeExam(exam);
+                    return (
+                      <div 
+                        key={exam.id}
+                        className="p-4 rounded-lg bg-white/5 border border-white/10 space-y-3"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-medium">{exam.title}</h3>
+                            {exam.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{exam.description}</p>
+                            )}
+                          </div>
+                          <Badge className={status.color}>
+                            {status.label}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>شروع: {formatDateTime(exam.start_time)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>پایان: {formatDateTime(exam.end_time)}</span>
+                          </div>
+                          {exam.duration_minutes && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>مدت: {exam.duration_minutes} دقیقه</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {canTake && !isLeader && (
+                            <Button 
+                              size="sm" 
+                              className="gap-1"
+                              onClick={() => navigate(`/exam-panel?examId=${exam.id}`)}
+                            >
+                              <Play className="w-4 h-4" />
+                              شرکت در آزمون
+                            </Button>
+                          )}
+                          {isLeader && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  حذف
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>حذف آزمون</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter className="gap-2">
+                                  <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteExam(exam.id)}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                  >
+                                    حذف
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </GlassCard>
           </TabsContent>
 
-          {/* Tasks Tab */}
-          <TabsContent value="tasks">
+          {/* Announcements Tab */}
+          <TabsContent value="announcements">
             <GlassCard>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-primary" />
-                  <h2 className="font-bold text-lg">تسک‌های پانسیون</h2>
+                  <Bell className="w-5 h-5 text-primary" />
+                  <h2 className="font-bold text-lg">اعلان‌های پانسیون</h2>
                 </div>
                 {isLeader && (
-                  <Button size="sm" className="gap-1">
-                    <Plus className="w-4 h-4" />
-                    ایجاد تسک
-                  </Button>
+                  <Dialog open={isAnnouncementDialogOpen} onOpenChange={setIsAnnouncementDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="gap-1">
+                        <Plus className="w-4 h-4" />
+                        اعلان جدید
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>ایجاد اعلان جدید</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <Input
+                          value={announcementTitle}
+                          onChange={(e) => setAnnouncementTitle(e.target.value)}
+                          placeholder="عنوان اعلان"
+                          className="bg-white/5"
+                        />
+                        <Textarea
+                          value={announcementContent}
+                          onChange={(e) => setAnnouncementContent(e.target.value)}
+                          placeholder="متن اعلان..."
+                          rows={4}
+                          className="bg-white/5"
+                        />
+                        <Button onClick={handleCreateAnnouncement} className="w-full">
+                          ایجاد اعلان
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
-              <div className="text-center py-8 text-muted-foreground">
-                <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p>هنوز تسکی ایجاد نشده است</p>
-                {isLeader && <p className="text-sm">برای ایجاد تسک روی دکمه بالا کلیک کنید</p>}
-              </div>
+
+              {announcements.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bell className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                  <p>هنوز اعلانی ایجاد نشده است</p>
+                  {isLeader && <p className="text-sm">برای ایجاد اعلان روی دکمه بالا کلیک کنید</p>}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {announcements.map((announcement) => (
+                    <div 
+                      key={announcement.id}
+                      className="p-4 rounded-lg bg-white/5 border border-white/10"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium">{announcement.title}</h3>
+                          <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                            {announcement.content}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-3">
+                            {formatDateTime(announcement.created_at)}
+                          </p>
+                        </div>
+                        {isLeader && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                size="icon" 
+                                variant="ghost"
+                                className="text-destructive hover:bg-destructive/10"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>حذف اعلان</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  آیا مطمئن هستید که می‌خواهید این اعلان را حذف کنید؟
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="gap-2">
+                                <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteAnnouncement(announcement.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  حذف
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </GlassCard>
           </TabsContent>
         </Tabs>
