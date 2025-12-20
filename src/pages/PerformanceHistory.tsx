@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useStudyStore, DailyLog, CalendarEvent } from '@/stores/studyStore';
 import { formatHoursDisplay } from '@/lib/timeUtils';
 import { cn } from '@/lib/utils';
+import { AppLayout } from '@/components/AppLayout';
 
 // Persian calendar utilities
 const PERSIAN_MONTHS = [
@@ -281,6 +282,7 @@ const PerformanceHistory = () => {
   }, [firstDayOffset, daysInMonth]);
 
   return (
+    <AppLayout>
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -528,6 +530,7 @@ const PerformanceHistory = () => {
         </GlassCard>
       </div>
     </div>
+    </AppLayout>
   );
 };
 

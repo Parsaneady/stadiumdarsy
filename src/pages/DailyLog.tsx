@@ -7,6 +7,7 @@ import { LogSessionModal } from '@/components/LogSessionModal';
 import { Progress } from '@/components/ui/progress';
 import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { toast } from '@/hooks/use-toast';
+import { AppLayout } from '@/components/AppLayout';
 
 const DailyLog = () => {
   const { weeklyPlan, initializeWeek, updateSession, logDaily, getTodayIndex, toggleSessionComplete } = useStudyStore();
@@ -66,6 +67,7 @@ const DailyLog = () => {
   const feedback = getPerformanceFeedback();
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in">
@@ -268,6 +270,7 @@ const DailyLog = () => {
         />
       )}
     </div>
+    </AppLayout>
   );
 };
 

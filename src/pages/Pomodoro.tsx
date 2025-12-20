@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { AppLayout } from '@/components/AppLayout';
 import {
   Dialog,
   DialogContent,
@@ -321,6 +322,7 @@ const Pomodoro = () => {
   }, [mode]);
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in">
@@ -557,6 +559,7 @@ const Pomodoro = () => {
         </ul>
       </GlassCard>
     </div>
+    </AppLayout>
   );
 };
 
