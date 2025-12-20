@@ -47,33 +47,43 @@ const PensionInvite = () => {
         return;
       }
 
-      // Find pension by invite code
-      const { data: pensionData, error: pensionError } = await supabase
-        .from('pensions')
-        .select('*')
-        .eq('invite_code', code)
-        .maybeSingle();
+      // Use secure edge function to look up pension by invite code
+      const { data: response, error: functionError } = await supabase.functions.invoke(
+        'lookup-pension-by-invite',
+        {
+          body: { invite_code: code }
+        }
+      );
 
-      if (pensionError || !pensionData) {
+      if (functionError) {
+        console.error('Function error:', functionError);
+        setError('خطا در بررسی لینک');
+        setLoading(false);
+        return;
+      }
+
+      if (response?.error) {
+        // Map error messages to Persian
+        const errorMessages: Record<string, string> = {
+          'Invalid invite code': 'لینک دعوت معتبر نیست',
+          'Invalid invite code format': 'فرمت کد دعوت نامعتبر است',
+          'Invite link is disabled': 'لینک دعوت غیرفعال است',
+          'Pension is full': 'پانسیون پر است',
+        };
+        setError(errorMessages[response.error] || 'خطا در بررسی لینک');
+        setLoading(false);
+        return;
+      }
+
+      if (!response?.pension) {
         setError('لینک دعوت معتبر نیست');
         setLoading(false);
         return;
       }
 
-      if (!pensionData.invite_enabled) {
-        setError('لینک دعوت غیرفعال است');
-        setLoading(false);
-        return;
-      }
-
-      if (pensionData.member_count >= pensionData.max_members) {
-        setError('پانسیون پر است');
-        setLoading(false);
-        return;
-      }
-
-      setPension(pensionData);
+      setPension(response.pension);
     } catch (error) {
+      console.error('Check invite error:', error);
       setError('خطا در بررسی لینک');
     } finally {
       setLoading(false);
