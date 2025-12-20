@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { FileText, Upload, Clock, CheckCircle, X, Eye, EyeOff, ArrowRight, Trophy, Target, XCircle, MinusCircle, History, Trash2, Edit2 } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -305,6 +306,7 @@ const TestExam = () => {
   // Setup screen (before exam starts)
   if (!isExamStarted) {
     return (
+      <AppLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4 animate-fade-in">
@@ -617,6 +619,7 @@ const TestExam = () => {
           </ul>
         </GlassCard>
       </div>
+      </AppLayout>
     );
   }
 
