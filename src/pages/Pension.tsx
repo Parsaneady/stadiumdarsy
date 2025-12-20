@@ -28,7 +28,8 @@ import {
   Calendar,
   Play,
   Edit,
-  X
+  X,
+  Target
 } from 'lucide-react';
 import { format } from 'date-fns-jalali';
 
@@ -78,9 +79,120 @@ interface PensionExam {
   start_time: string;
   end_time: string;
   duration_minutes: number | null;
+  question_count: number;
   is_active: boolean;
   created_at: string;
 }
+
+interface ExamResult {
+  id: string;
+  user_id: string;
+  exam_id: string | null;
+  lesson_name: string | null;
+  total_questions: number;
+  correct_answers: number;
+  wrong_answers: number;
+  blank_answers: number;
+  percentage: number | null;
+  created_at: string;
+}
+
+// Member Results Section Component
+const MemberResultsSection = ({ pensionId, members }: { pensionId: string; members: PensionMember[] }) => {
+  const [results, setResults] = useState<ExamResult[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      try {
+        const { data } = await supabase
+          .from('exam_results')
+          .select('*')
+          .eq('pension_id', pensionId)
+          .eq('exam_type', 'pension')
+          .order('created_at', { ascending: false });
+
+        if (data) {
+          setResults(data as ExamResult[]);
+        }
+      } catch (error) {
+        console.error('Error fetching results:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [pensionId]);
+
+  const getMemberName = (userId: string) => {
+    const member = members.find(m => m.user_id === userId);
+    return member?.profile?.username || member?.profile?.first_name || 'کاربر';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (results.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Target className="w-12 h-12 mx-auto mb-2 opacity-30" />
+        <p>هنوز نتیجه‌ای ثبت نشده است</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {results.map((result) => (
+        <div 
+          key={result.id}
+          className="p-4 rounded-lg bg-white/5 border border-white/10"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Avatar className="w-8 h-8">
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  {getMemberName(result.user_id)[0]}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-medium">@{getMemberName(result.user_id)}</span>
+            </div>
+            <span className={`font-bold ${(result.percentage || 0) >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+              {(result.percentage || 0).toFixed(1)}%
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center text-sm">
+            <div>
+              <p className="font-bold text-green-500">{result.correct_answers}</p>
+              <p className="text-xs text-muted-foreground">صحیح</p>
+            </div>
+            <div>
+              <p className="font-bold text-red-500">{result.wrong_answers}</p>
+              <p className="text-xs text-muted-foreground">غلط</p>
+            </div>
+            <div>
+              <p className="font-bold text-muted-foreground">{result.blank_answers}</p>
+              <p className="text-xs text-muted-foreground">نزده</p>
+            </div>
+            <div>
+              <p className="font-bold">{result.total_questions}</p>
+              <p className="text-xs text-muted-foreground">کل</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {result.lesson_name} - {new Date(result.created_at).toLocaleDateString('fa-IR')}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Pension = () => {
   const { user, profile } = useAuth();
@@ -107,8 +219,17 @@ const Pension = () => {
   const [examStartMinute, setExamStartMinute] = useState('00');
   const [examEndHour, setExamEndHour] = useState('10');
   const [examEndMinute, setExamEndMinute] = useState('00');
-  const [examDuration, setExamDuration] = useState('');
+  const [examDuration, setExamDuration] = useState('60');
+  const [examQuestionCount, setExamQuestionCount] = useState('60');
   const [examPdfFile, setExamPdfFile] = useState<File | null>(null);
+  
+  // Exam taking state
+  const [takingExam, setTakingExam] = useState<PensionExam | null>(null);
+  const [examAnswers, setExamAnswers] = useState<{[key: number]: number | null}>({});
+  const [examTimeLeft, setExamTimeLeft] = useState(0);
+  const [isExamRunning, setIsExamRunning] = useState(false);
+  const [showExamResults, setShowExamResults] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState<{[key: number]: number | null}>({});
 
   useEffect(() => {
     if (user) {
@@ -359,6 +480,12 @@ const Pension = () => {
       return;
     }
 
+    const qCount = parseInt(examQuestionCount) || 60;
+    if (qCount < 1 || qCount > 200) {
+      toast.error('تعداد سوالات باید بین ۱ تا ۲۰۰ باشد');
+      return;
+    }
+
     // Create today's date with selected hours
     const today = new Date();
     const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(examStartHour), parseInt(examStartMinute));
@@ -380,7 +507,8 @@ const Pension = () => {
           exam_type: 'tashrihi',
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
-          duration_minutes: examDuration ? parseInt(examDuration) : null,
+          duration_minutes: examDuration ? parseInt(examDuration) : 60,
+          question_count: qCount,
           is_active: true,
         })
         .select()
@@ -396,13 +524,136 @@ const Pension = () => {
       setExamStartMinute('00');
       setExamEndHour('10');
       setExamEndMinute('00');
-      setExamDuration('');
+      setExamDuration('60');
+      setExamQuestionCount('60');
       setExamPdfFile(null);
       toast.success('آزمون ایجاد شد');
     } catch (error) {
       if (import.meta.env.DEV) console.error('[Debug]', error);
       toast.error('خطا در ایجاد آزمون');
     }
+  };
+
+  const handleStartExam = (exam: PensionExam) => {
+    setTakingExam(exam);
+    const initialAnswers: {[key: number]: number | null} = {};
+    for (let i = 0; i < exam.question_count; i++) {
+      initialAnswers[i] = null;
+    }
+    setExamAnswers(initialAnswers);
+    setCorrectAnswers({});
+    setShowExamResults(false);
+    
+    const duration = exam.duration_minutes || 60;
+    setExamTimeLeft(duration * 60);
+    setIsExamRunning(true);
+  };
+
+  const handleExamAnswerSelect = (questionIndex: number, option: number) => {
+    if (showExamResults) return;
+    setExamAnswers(prev => ({
+      ...prev,
+      [questionIndex]: prev[questionIndex] === option ? null : option
+    }));
+  };
+
+  const handleCorrectAnswerSelect = (questionIndex: number, option: number) => {
+    setCorrectAnswers(prev => ({
+      ...prev,
+      [questionIndex]: prev[questionIndex] === option ? null : option
+    }));
+  };
+
+  const handleFinishExam = () => {
+    setIsExamRunning(false);
+    setShowExamResults(true);
+    toast.info('آزمون به پایان رسید - پاسخ‌های صحیح را مشخص کنید');
+  };
+
+  const handleSaveExamResults = async () => {
+    if (!takingExam || !user || !pension) return;
+
+    const qCount = takingExam.question_count;
+    let correctCount = 0;
+    let wrongCount = 0;
+    let blankCount = 0;
+
+    for (let i = 0; i < qCount; i++) {
+      const myAnswer = examAnswers[i];
+      const correct = correctAnswers[i];
+      
+      if (myAnswer === null) {
+        blankCount++;
+      } else if (correct !== null && myAnswer === correct) {
+        correctCount++;
+      } else if (correct !== null && myAnswer !== correct) {
+        wrongCount++;
+      } else {
+        blankCount++;
+      }
+    }
+
+    const percentage = qCount > 0 ? ((correctCount - (wrongCount / 3)) / qCount) * 100 : 0;
+
+    try {
+      await supabase
+        .from('exam_results')
+        .insert({
+          user_id: user.id,
+          exam_type: 'pension',
+          pension_id: pension.id,
+          exam_id: takingExam.id,
+          lesson_name: takingExam.title,
+          total_questions: qCount,
+          correct_answers: correctCount,
+          wrong_answers: wrongCount,
+          blank_answers: blankCount,
+          percentage: Math.max(0, percentage),
+        });
+
+      toast.success('نتایج ذخیره شد');
+      setTakingExam(null);
+      setExamAnswers({});
+      setCorrectAnswers({});
+      setShowExamResults(false);
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('[Debug]', error);
+      toast.error('خطا در ذخیره نتایج');
+    }
+  };
+
+  const handleExitExam = () => {
+    setTakingExam(null);
+    setExamAnswers({});
+    setCorrectAnswers({});
+    setShowExamResults(false);
+    setIsExamRunning(false);
+  };
+
+  // Timer effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isExamRunning && examTimeLeft > 0) {
+      timer = setInterval(() => {
+        setExamTimeLeft(prev => {
+          if (prev <= 1) {
+            setIsExamRunning(false);
+            toast.info('زمان آزمون تمام شد');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isExamRunning]);
+
+  const formatExamTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleDeleteExam = async (id: string) => {
@@ -453,6 +704,118 @@ const Pension = () => {
       return dateString;
     }
   };
+
+  // Taking exam view
+  if (takingExam) {
+    const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
+    const markedCount = Object.values(correctAnswers).filter(a => a !== null).length;
+    
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={handleExitExam}>
+                <X className="w-5 h-5" />
+              </Button>
+              <h1 className="font-bold">{takingExam.title}</h1>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {isExamRunning && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="font-mono font-bold">{formatExamTime(examTimeLeft)}</span>
+                </div>
+              )}
+              
+              <div className="text-sm text-muted-foreground">
+                {answeredCount}/{takingExam.question_count}
+              </div>
+
+              {!showExamResults ? (
+                <Button onClick={handleFinishExam} className="gap-2">
+                  <Trophy className="w-4 h-4" />
+                  پایان و تصحیح
+                </Button>
+              ) : (
+                <Button onClick={handleSaveExamResults} className="gap-2">
+                  <Trophy className="w-4 h-4" />
+                  ذخیره نتایج
+                </Button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Main */}
+        <main className="flex-1 overflow-hidden flex">
+          {/* Answer Sheet */}
+          <div className="w-full max-w-4xl mx-auto p-4 overflow-y-auto">
+            {showExamResults && (
+              <div className="mb-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
+                <p className="text-sm text-muted-foreground mb-2">
+                  کلید سوالات را وارد کنید تا نتایج محاسبه شود
+                </p>
+                <div className="flex gap-4 text-sm">
+                  <span>پاسخ داده: {answeredCount}</span>
+                  <span>کلید وارد شده: {markedCount}</span>
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
+              {Array.from({ length: takingExam.question_count }, (_, idx) => {
+                const myAnswer = examAnswers[idx];
+                const correct = correctAnswers[idx];
+                const isCorrect = showExamResults && myAnswer !== null && correct !== null && myAnswer === correct;
+                const isWrong = showExamResults && myAnswer !== null && correct !== null && myAnswer !== correct;
+                
+                return (
+                  <div key={idx} className={`p-2 rounded-lg text-center ${
+                    isCorrect ? 'bg-green-500/20 border border-green-500/30' :
+                    isWrong ? 'bg-red-500/20 border border-red-500/30' :
+                    'bg-white/5'
+                  }`}>
+                    <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
+                    <div className="grid grid-cols-4 gap-0.5">
+                      {[1, 2, 3, 4].map((opt) => {
+                        const isSelected = myAnswer === opt;
+                        const isCorrectAnswer = correct === opt;
+                        
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => {
+                              if (showExamResults) {
+                                handleCorrectAnswerSelect(idx, opt);
+                              } else {
+                                handleExamAnswerSelect(idx, opt);
+                              }
+                            }}
+                            className={`w-5 h-5 rounded-full text-[10px] font-bold transition-all ${
+                              showExamResults && isCorrectAnswer
+                                ? 'bg-green-500 text-white'
+                                : isSelected
+                                  ? 'bg-primary text-white'
+                                  : 'bg-white/10 hover:bg-white/20'
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -586,14 +949,18 @@ const Pension = () => {
 
         {/* Pension Tabs */}
         <Tabs defaultValue="leaderboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="leaderboard">
               <Trophy className="w-4 h-4 ml-1" />
-              جدول امتیازات
+              امتیازات
             </TabsTrigger>
             <TabsTrigger value="exams">
               <FileText className="w-4 h-4 ml-1" />
               آزمون
+            </TabsTrigger>
+            <TabsTrigger value="results">
+              <Target className="w-4 h-4 ml-1" />
+              عملکرد
             </TabsTrigger>
             <TabsTrigger value="announcements">
               <Bell className="w-4 h-4 ml-1" />
@@ -752,15 +1119,29 @@ const Pension = () => {
                             </div>
                           </div>
                         </div>
-                        <div>
-                          <label className="text-sm text-muted-foreground mb-1 block">مدت زمان (دقیقه - اختیاری)</label>
-                          <Input
-                            type="number"
-                            value={examDuration}
-                            onChange={(e) => setExamDuration(e.target.value)}
-                            placeholder="مثال: 60"
-                            className="bg-white/5"
-                          />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-1 block">مدت زمان (دقیقه)</label>
+                            <Input
+                              type="number"
+                              value={examDuration}
+                              onChange={(e) => setExamDuration(e.target.value)}
+                              placeholder="مثال: 60"
+                              className="bg-white/5"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-1 block">تعداد سوالات</label>
+                            <Input
+                              type="number"
+                              value={examQuestionCount}
+                              onChange={(e) => setExamQuestionCount(e.target.value)}
+                              placeholder="مثال: 60"
+                              className="bg-white/5"
+                              min={1}
+                              max={200}
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="text-sm text-muted-foreground mb-1 block">فایل سوالات (PDF - اختیاری)</label>
@@ -827,13 +1208,17 @@ const Pension = () => {
                               <span>مدت: {exam.duration_minutes} دقیقه</span>
                             </div>
                           )}
+                          <div className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            <span>{exam.question_count} سوال</span>
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           {canTake && !isLeader && (
                             <Button 
                               size="sm" 
                               className="gap-1"
-                              onClick={() => navigate(`/exam-panel?examId=${exam.id}`)}
+                              onClick={() => handleStartExam(exam)}
                             >
                               <Play className="w-4 h-4" />
                               شرکت در آزمون
@@ -876,6 +1261,18 @@ const Pension = () => {
                   })}
                 </div>
               )}
+            </GlassCard>
+          </TabsContent>
+
+          {/* Results Tab */}
+          <TabsContent value="results">
+            <GlassCard>
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="w-5 h-5 text-primary" />
+                <h2 className="font-bold text-lg">عملکرد اعضا در آزمون‌ها</h2>
+              </div>
+
+              <MemberResultsSection pensionId={pension.id} members={members} />
             </GlassCard>
           </TabsContent>
 
