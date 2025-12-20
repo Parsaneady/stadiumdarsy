@@ -18,6 +18,9 @@ const PerformanceHistory = lazy(() => import("./pages/PerformanceHistory"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Challenges = lazy(() => import("./pages/Challenges"));
+const Pension = lazy(() => import("./pages/Pension"));
+const PensionInvite = lazy(() => import("./pages/PensionInvite"));
+const ExamPanel = lazy(() => import("./pages/ExamPanel"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -56,9 +59,12 @@ const App = () => (
                 <Route path="/daily-log" element={<DailyLog />} />
                 <Route path="/pomodoro" element={<Pomodoro />} />
                 <Route path="/test-exam" element={<TestExam />} />
+                <Route path="/exam-panel" element={<ExamPanel />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/history" element={<PerformanceHistory />} />
                 <Route path="/challenges" element={<Challenges />} />
+                <Route path="/pension" element={<Pension />} />
+                <Route path="/pension/invite/:code" element={<PensionInvite />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

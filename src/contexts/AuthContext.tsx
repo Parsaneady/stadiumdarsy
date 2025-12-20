@@ -8,6 +8,11 @@ interface Profile {
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  total_study_minutes: number;
+  total_tests: number;
 }
 
 interface AuthContextType {
@@ -15,11 +20,12 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, displayName?: string, firstName?: string, lastName?: string, username?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,7 +91,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  };
+
+  const signUp = async (email: string, password: string, displayName?: string, firstName?: string, lastName?: string, username?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -95,9 +107,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: displayName || email,
+          first_name: firstName || '',
+          last_name: lastName || '',
+          username: username || '',
         },
       },
     });
+    
+    // Update profile with additional fields after signup
+    if (!error && username) {
+      const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser) {
+        await supabase
+          .from('profiles')
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            username: username,
+            display_name: displayName,
+          })
+          .eq('user_id', newUser.id);
+      }
+    }
     
     return { error };
   };
@@ -156,6 +187,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signInWithGoogle,
         signOut,
         updateProfile,
+        refreshProfile,
       }}
     >
       {children}

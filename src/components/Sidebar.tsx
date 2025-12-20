@@ -3,14 +3,10 @@ import { useMemo } from 'react';
 import { 
   LayoutDashboard, 
   Calendar, 
-  ClipboardList, 
-  BarChart3, 
-  Timer,
   BookOpen,
   Sparkles,
   FileText,
-  History,
-  Trophy,
+  Users,
   User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,12 +15,8 @@ import { getTodayQuote } from '@/lib/quotes';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
-  { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
-  { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
-  { path: '/test-exam', icon: FileText, label: 'پنل آزمون' },
-  { path: '/challenges', icon: Trophy, label: 'چالش‌ها' },
-  { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
-  { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
+  { path: '/exam-panel', icon: FileText, label: 'پنل آزمون' },
+  { path: '/pension', icon: Users, label: 'پانسیون' },
   { path: '/profile', icon: User, label: 'پروفایل' },
 ];
 
