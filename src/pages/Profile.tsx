@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -32,6 +33,12 @@ interface Stats {
   streak: number;
 }
 
+// Default avatar options
+const DEFAULT_AVATARS = [
+  '🧑‍🎓', '👨‍💻', '👩‍💻', '📚', '🎯', '🚀', '⭐', '🌟', '💡', '🔥',
+  '🎨', '🏆', '💪', '🧠', '📖', '✏️'
+];
+
 const Profile = () => {
   const navigate = useNavigate();
   const { user, profile, signOut, updateProfile, loading } = useAuth();
@@ -39,6 +46,8 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [stats, setStats] = useState<Stats>({
     totalStudyHours: 0,
     totalTests: 0,
@@ -56,6 +65,7 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name || '');
+      setSelectedAvatar(profile.avatar_url || '');
     }
   }, [profile]);
 
@@ -115,6 +125,17 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarSelect = async (emoji: string) => {
+    setSelectedAvatar(emoji);
+    const { error } = await updateProfile({ avatar_url: emoji });
+    if (error) {
+      toast.error('خطا در ذخیره آواتار');
+    } else {
+      toast.success('آواتار ذخیره شد');
+      setIsAvatarDialogOpen(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     toast.success('خروج موفق');
@@ -156,10 +177,33 @@ const Profile = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-center mb-6">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-3xl font-bold text-white">
-                  {(profile?.display_name || user?.email || 'U')[0].toUpperCase()}
-                </div>
+              <div className="flex flex-col items-center justify-center mb-6">
+                <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
+                  <DialogTrigger asChild>
+                    <button className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl font-bold text-white hover:opacity-80 transition-opacity cursor-pointer">
+                      {selectedAvatar || (profile?.display_name || user?.email || 'U')[0].toUpperCase()}
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>انتخاب آواتار</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-4 gap-3 mt-4">
+                      {DEFAULT_AVATARS.map((emoji, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleAvatarSelect(emoji)}
+                          className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl hover:bg-primary/20 transition-colors ${
+                            selectedAvatar === emoji ? 'bg-primary/30 ring-2 ring-primary' : 'bg-white/5'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <p className="text-xs text-muted-foreground mt-2">برای تغییر آواتار کلیک کنید</p>
               </div>
 
               <div className="space-y-4">
