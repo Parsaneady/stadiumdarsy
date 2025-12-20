@@ -10,10 +10,15 @@ import { SeasonProvider } from "./contexts/SeasonContext";
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const WeeklyProgram = lazy(() => import("./pages/WeeklyProgram"));
+const DailyLog = lazy(() => import("./pages/DailyLog"));
+const Pomodoro = lazy(() => import("./pages/Pomodoro"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const PerformanceHistory = lazy(() => import("./pages/PerformanceHistory"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Pension = lazy(() => import("./pages/Pension"));
 const PensionInvite = lazy(() => import("./pages/PensionInvite"));
 const ExamPanel = lazy(() => import("./pages/ExamPanel"));
+const Profile = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -48,9 +53,14 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/weekly-plan" element={<WeeklyProgram />} />
+                <Route path="/daily-log" element={<DailyLog />} />
+                <Route path="/pomodoro" element={<Pomodoro />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/history" element={<PerformanceHistory />} />
                 <Route path="/exam-panel" element={<ExamPanel />} />
                 <Route path="/pension" element={<Pension />} />
                 <Route path="/pension/invite/:code" element={<PensionInvite />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

@@ -13,7 +13,7 @@ interface DayCardProps {
 }
 
 export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<StudySession | null>(null);
 

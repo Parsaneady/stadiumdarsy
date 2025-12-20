@@ -4,6 +4,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
 import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
+import { AppLayout } from '@/components/AppLayout';
 
 // Lazy load chart components
 const LazyAnalyticsCharts = lazy(() => import('@/components/AnalyticsCharts'));
@@ -108,6 +109,7 @@ const Analytics = () => {
   ], [stats]);
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4 animate-fade-in">
@@ -146,6 +148,7 @@ const Analytics = () => {
         />
       </Suspense>
     </div>
+    </AppLayout>
   );
 };
 

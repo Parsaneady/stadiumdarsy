@@ -7,7 +7,11 @@ import {
   Sparkles,
   FileText,
   Users,
-  User
+  User,
+  Timer,
+  BarChart3,
+  ClipboardList,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTodayQuote } from '@/lib/quotes';
@@ -15,7 +19,11 @@ import { getTodayQuote } from '@/lib/quotes';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
+  { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
+  { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
   { path: '/exam-panel', icon: FileText, label: 'پنل آزمون' },
+  { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
+  { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
   { path: '/pension', icon: Users, label: 'پانسیون' },
   { path: '/profile', icon: User, label: 'پروفایل' },
 ];

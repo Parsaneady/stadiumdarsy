@@ -4,6 +4,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { DayCard } from '@/components/DayCard';
 import { Button } from '@/components/ui/button';
 import { formatHoursShort } from '@/lib/timeUtils';
+import { AppLayout } from '@/components/AppLayout';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,6 +83,7 @@ const WeeklyPlan = () => {
   }, [weeklyPlan]);
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in">
@@ -144,6 +146,7 @@ const WeeklyPlan = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </AppLayout>
   );
 };
 
