@@ -103,9 +103,12 @@ const Pension = () => {
   const [isExamDialogOpen, setIsExamDialogOpen] = useState(false);
   const [examTitle, setExamTitle] = useState('');
   const [examDescription, setExamDescription] = useState('');
-  const [examStartTime, setExamStartTime] = useState('');
-  const [examEndTime, setExamEndTime] = useState('');
+  const [examStartHour, setExamStartHour] = useState('09');
+  const [examStartMinute, setExamStartMinute] = useState('00');
+  const [examEndHour, setExamEndHour] = useState('10');
+  const [examEndMinute, setExamEndMinute] = useState('00');
   const [examDuration, setExamDuration] = useState('');
+  const [examPdfFile, setExamPdfFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -351,16 +354,18 @@ const Pension = () => {
   };
 
   const handleCreateExam = async () => {
-    if (!examTitle.trim() || !examStartTime || !examEndTime || !pension || !user) {
-      toast.error('اطلاعات آزمون را کامل وارد کنید');
+    if (!examTitle.trim() || !pension || !user) {
+      toast.error('عنوان آزمون را وارد کنید');
       return;
     }
 
-    const startDate = new Date(examStartTime);
-    const endDate = new Date(examEndTime);
+    // Create today's date with selected hours
+    const today = new Date();
+    const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(examStartHour), parseInt(examStartMinute));
+    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(examEndHour), parseInt(examEndMinute));
 
     if (endDate <= startDate) {
-      toast.error('زمان پایان باید بعد از زمان شروع باشد');
+      toast.error('ساعت پایان باید بعد از ساعت شروع باشد');
       return;
     }
 
@@ -387,9 +392,12 @@ const Pension = () => {
       setIsExamDialogOpen(false);
       setExamTitle('');
       setExamDescription('');
-      setExamStartTime('');
-      setExamEndTime('');
+      setExamStartHour('09');
+      setExamStartMinute('00');
+      setExamEndHour('10');
+      setExamEndMinute('00');
       setExamDuration('');
+      setExamPdfFile(null);
       toast.success('آزمون ایجاد شد');
     } catch (error) {
       if (import.meta.env.DEV) console.error('[Debug]', error);
@@ -673,7 +681,7 @@ const Pension = () => {
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
-                        <DialogTitle>ایجاد آزمون جدید</DialogTitle>
+                        <DialogTitle>ایجاد آزمون جدید (امروز)</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 mt-4">
                         <div>
@@ -696,22 +704,52 @@ const Pension = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-sm text-muted-foreground mb-1 block">زمان شروع</label>
-                            <Input
-                              type="datetime-local"
-                              value={examStartTime}
-                              onChange={(e) => setExamStartTime(e.target.value)}
-                              className="bg-white/5"
-                            />
+                            <label className="text-sm text-muted-foreground mb-1 block">ساعت شروع</label>
+                            <div className="flex gap-1">
+                              <select
+                                value={examStartHour}
+                                onChange={(e) => setExamStartHour(e.target.value)}
+                                className="flex-1 h-10 rounded-md border border-input bg-white/5 px-3 py-2 text-sm"
+                              >
+                                {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map(h => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                              <span className="flex items-center">:</span>
+                              <select
+                                value={examStartMinute}
+                                onChange={(e) => setExamStartMinute(e.target.value)}
+                                className="flex-1 h-10 rounded-md border border-input bg-white/5 px-3 py-2 text-sm"
+                              >
+                                {['00', '15', '30', '45'].map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           <div>
-                            <label className="text-sm text-muted-foreground mb-1 block">زمان پایان</label>
-                            <Input
-                              type="datetime-local"
-                              value={examEndTime}
-                              onChange={(e) => setExamEndTime(e.target.value)}
-                              className="bg-white/5"
-                            />
+                            <label className="text-sm text-muted-foreground mb-1 block">ساعت پایان</label>
+                            <div className="flex gap-1">
+                              <select
+                                value={examEndHour}
+                                onChange={(e) => setExamEndHour(e.target.value)}
+                                className="flex-1 h-10 rounded-md border border-input bg-white/5 px-3 py-2 text-sm"
+                              >
+                                {Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0')).map(h => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                              <span className="flex items-center">:</span>
+                              <select
+                                value={examEndMinute}
+                                onChange={(e) => setExamEndMinute(e.target.value)}
+                                className="flex-1 h-10 rounded-md border border-input bg-white/5 px-3 py-2 text-sm"
+                              >
+                                {['00', '15', '30', '45'].map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         </div>
                         <div>
@@ -723,6 +761,20 @@ const Pension = () => {
                             placeholder="مثال: 60"
                             className="bg-white/5"
                           />
+                        </div>
+                        <div>
+                          <label className="text-sm text-muted-foreground mb-1 block">فایل سوالات (PDF - اختیاری)</label>
+                          <Input
+                            type="file"
+                            accept=".pdf"
+                            onChange={(e) => setExamPdfFile(e.target.files?.[0] || null)}
+                            className="bg-white/5"
+                          />
+                          {examPdfFile && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              فایل انتخاب شده: {examPdfFile.name}
+                            </p>
+                          )}
                         </div>
                         <Button onClick={handleCreateExam} className="w-full">
                           ایجاد آزمون
