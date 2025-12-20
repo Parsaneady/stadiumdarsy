@@ -297,7 +297,7 @@ const Profile = () => {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex flex-col gap-2 border-white/10 hover:bg-white/5"
-                onClick={() => navigate('/performance-history')}
+                onClick={() => navigate('/history')}
               >
                 <TrendingUp className="h-6 w-6" />
                 <span>تاریخچه عملکرد</span>
