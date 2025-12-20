@@ -18,6 +18,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const Pension = lazy(() => import("./pages/Pension"));
 const PensionInvite = lazy(() => import("./pages/PensionInvite"));
 const ExamPanel = lazy(() => import("./pages/ExamPanel"));
+const TestExam = lazy(() => import("./pages/TestExam"));
 const Profile = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -57,7 +58,8 @@ const App = () => (
                 <Route path="/pomodoro" element={<Pomodoro />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/history" element={<PerformanceHistory />} />
-                <Route path="/exam-panel" element={<ExamPanel />} />
+                <Route path="/exam" element={<ExamPanel />} />
+                <Route path="/exam/test" element={<TestExam />} />
                 <Route path="/pension" element={<Pension />} />
                 <Route path="/pension/invite/:code" element={<PensionInvite />} />
                 <Route path="/profile" element={<Profile />} />
