@@ -540,7 +540,7 @@ const Pension = () => {
           is_active: true,
           pdf_url: pdfUrl,
           answer_key: {},
-        })
+        } as any)
         .select()
         .single();
 
