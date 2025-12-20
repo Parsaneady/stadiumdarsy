@@ -98,7 +98,9 @@ export const useCloudSync = () => {
       }
 
     } catch (error) {
-      console.error('Error loading from cloud:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error loading from cloud:', error);
+      }
     } finally {
       isSyncing.current = false;
       isInitialLoad.current = false;
@@ -143,7 +145,9 @@ export const useCloudSync = () => {
         .eq('id', dayId)
         .eq('user_id', user.id);
     } catch (error) {
-      console.error('Error saving weekly plan:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error saving weekly plan:', error);
+      }
     }
   }, [user]);
 
@@ -186,7 +190,9 @@ export const useCloudSync = () => {
           });
       }
     } catch (error) {
-      console.error('Error saving daily log:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error saving daily log:', error);
+      }
     }
   }, [user]);
 
@@ -207,7 +213,9 @@ export const useCloudSync = () => {
           persian_day: event.persianDate.day,
         });
     } catch (error) {
-      console.error('Error saving calendar event:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error saving calendar event:', error);
+      }
     }
   }, [user]);
 
@@ -222,7 +230,9 @@ export const useCloudSync = () => {
         .eq('id', eventId)
         .eq('user_id', user.id);
     } catch (error) {
-      console.error('Error deleting calendar event:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error deleting calendar event:', error);
+      }
     }
   }, [user]);
 
@@ -241,7 +251,9 @@ export const useCloudSync = () => {
         })
         .eq('user_id', user.id);
     } catch (error) {
-      console.error('Error saving pomodoro settings:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error saving pomodoro settings:', error);
+      }
     }
   }, [user]);
 
@@ -258,7 +270,9 @@ export const useCloudSync = () => {
         })
         .eq('user_id', user.id);
     } catch (error) {
-      console.error('Error saving streak:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error saving streak:', error);
+      }
     }
   }, [user]);
 
@@ -275,7 +289,9 @@ export const useCloudSync = () => {
           minutes,
         });
     } catch (error) {
-      console.error('Error saving pomodoro session:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error saving pomodoro session:', error);
+      }
     }
   }, [user]);
 
