@@ -106,6 +106,11 @@ interface StudyStore {
     avgCompletion: number;
     subjectStats: Record<string, { hours: number; tests: number; sessions: number }>;
   };
+  // Cloud sync setters
+  setWeeklyPlan: (plans: DayPlan[]) => void;
+  setDailyLogs: (logs: DailyLog[]) => void;
+  setCalendarEvents: (events: CalendarEvent[]) => void;
+  setStreak: (streak: number) => void;
 }
 
 const PERSIAN_DAYS = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
@@ -487,6 +492,23 @@ export const useStudyStore = create<StudyStore>()(
 
       clearAllLogs: () => {
         set({ dailyLogs: [] });
+      },
+
+      // Cloud sync setters
+      setWeeklyPlan: (plans) => {
+        set({ weeklyPlan: plans });
+      },
+
+      setDailyLogs: (logs) => {
+        set({ dailyLogs: logs });
+      },
+
+      setCalendarEvents: (events) => {
+        set({ calendarEvents: events });
+      },
+
+      setStreak: (streak) => {
+        set({ streak });
       },
 
       getUpcomingEvents: () => {

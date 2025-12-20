@@ -14,7 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calendar_events: {
+        Row: {
+          created_at: string
+          event_date: string
+          id: string
+          persian_day: number | null
+          persian_month: number | null
+          persian_year: number | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_date: string
+          id?: string
+          persian_day?: number | null
+          persian_month?: number | null
+          persian_year?: number | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_date?: string
+          id?: string
+          persian_day?: number | null
+          persian_month?: number | null
+          persian_year?: number | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_logs: {
+        Row: {
+          completed_sessions: number
+          created_at: string
+          date: string
+          feedback: string | null
+          id: string
+          overall_score: number
+          sessions: Json | null
+          total_sessions: number
+          total_study_hours: number
+          total_tests: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_sessions?: number
+          created_at?: string
+          date: string
+          feedback?: string | null
+          id?: string
+          overall_score?: number
+          sessions?: Json | null
+          total_sessions?: number
+          total_study_hours?: number
+          total_tests?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_sessions?: number
+          created_at?: string
+          date?: string
+          feedback?: string | null
+          id?: string
+          overall_score?: number
+          sessions?: Json | null
+          total_sessions?: number
+          total_study_hours?: number
+          total_tests?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pomodoro_sessions: {
+        Row: {
+          completed_at: string
+          id: string
+          minutes: number
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          minutes: number
+          subject: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          minutes?: number
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          last_study_date: string | null
+          pomodoro_cycles: number
+          pomodoro_long_break: number
+          pomodoro_short_break: number
+          pomodoro_study_duration: number
+          streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_study_date?: string | null
+          pomodoro_cycles?: number
+          pomodoro_long_break?: number
+          pomodoro_short_break?: number
+          pomodoro_study_duration?: number
+          streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_study_date?: string | null
+          pomodoro_cycles?: number
+          pomodoro_long_break?: number
+          pomodoro_short_break?: number
+          pomodoro_study_duration?: number
+          streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_plans: {
+        Row: {
+          created_at: string
+          day_index: number
+          day_name: string
+          id: string
+          sessions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_index: number
+          day_name: string
+          id?: string
+          sessions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_index?: number
+          day_name?: string
+          id?: string
+          sessions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
