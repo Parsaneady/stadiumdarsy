@@ -105,7 +105,9 @@ const Challenges = () => {
 
       setChallenges(challengesWithParticipants);
     } catch (error) {
-      console.error('Error fetching challenges:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error fetching challenges:', error);
+      }
       toast.error('خطا در دریافت چالش‌ها');
     } finally {
       setLoading(false);
@@ -137,12 +139,11 @@ const Challenges = () => {
       setEndDate(undefined);
       fetchChallenges();
     } catch (error: any) {
-      console.error('Error creating challenge:', error);
-      if (error.message?.includes('row-level security')) {
-        toast.error('شما دسترسی ایجاد چالش ندارید. فقط سرگروه می‌تواند چالش ایجاد کند.');
-      } else {
-        toast.error('خطا در ایجاد چالش');
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error creating challenge:', error);
       }
+      // Generic error message - don't expose RLS policy details
+      toast.error('شما دسترسی ایجاد چالش ندارید');
     }
   };
 
@@ -160,7 +161,9 @@ const Challenges = () => {
       toast.success('با موفقیت به چالش پیوستید');
       fetchChallenges();
     } catch (error) {
-      console.error('Error joining challenge:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error joining challenge:', error);
+      }
       toast.error('خطا در پیوستن به چالش');
     }
   };
@@ -180,7 +183,9 @@ const Challenges = () => {
       toast.success('از چالش خارج شدید');
       fetchChallenges();
     } catch (error) {
-      console.error('Error leaving challenge:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error leaving challenge:', error);
+      }
       toast.error('خطا در خروج از چالش');
     }
   };
@@ -197,7 +202,9 @@ const Challenges = () => {
       toast.success('چالش حذف شد');
       fetchChallenges();
     } catch (error) {
-      console.error('Error deleting challenge:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error deleting challenge:', error);
+      }
       toast.error('خطا در حذف چالش');
     }
   };

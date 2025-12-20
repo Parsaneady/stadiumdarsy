@@ -56,11 +56,25 @@ const TestExam = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load saved results
+  // Load saved results with safe JSON parsing
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      setExamResults(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validate structure before using
+        if (Array.isArray(parsed)) {
+          setExamResults(parsed);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+    } catch (error) {
+      // Corrupted data - remove and start fresh
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Failed to parse exam results:', error);
+      }
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
