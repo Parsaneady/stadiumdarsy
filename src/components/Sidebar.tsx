@@ -21,7 +21,7 @@ const navItems = [
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
   { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
   { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
-  { path: '/exam-panel', icon: FileText, label: 'پنل آزمون' },
+  { path: '/exam', icon: FileText, label: 'پنل تست' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
   { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
   { path: '/pension', icon: Users, label: 'پانسیون' },
