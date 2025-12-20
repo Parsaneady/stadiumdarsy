@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,30 +7,50 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2, AtSign } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 const emailSchema = z.string().email('ایمیل معتبر وارد کنید');
 const passwordSchema = z.string().min(6, 'رمز عبور باید حداقل ۶ کاراکتر باشد');
+const usernameSchema = z.string().min(3, 'نام کاربری باید حداقل ۳ کاراکتر باشد').regex(/^[a-zA-Z0-9_]+$/, 'فقط حروف انگلیسی، اعداد و _ مجاز است');
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite');
   const { user, signIn, signUp, signInWithGoogle, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    username: '',
     email: '',
     password: '',
-    displayName: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user && !loading) {
-      navigate('/');
+      // If there's an invite code, redirect to pension invite page
+      if (inviteCode) {
+        navigate(`/pension/invite/${inviteCode}`);
+      } else {
+        navigate('/');
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, inviteCode]);
 
-  const validateForm = (isSignUp: boolean) => {
+  const checkUsernameAvailable = async (username: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username)
+      .maybeSingle();
+    return !data;
+  };
+
+  const validateForm = async (isSignUp: boolean) => {
     const newErrors: Record<string, string> = {};
 
     try {
@@ -49,8 +69,26 @@ const Auth = () => {
       }
     }
 
-    if (isSignUp && !formData.displayName.trim()) {
-      newErrors.displayName = 'نام کاربری الزامی است';
+    if (isSignUp) {
+      if (!formData.firstName.trim()) {
+        newErrors.firstName = 'نام الزامی است';
+      }
+      if (!formData.lastName.trim()) {
+        newErrors.lastName = 'نام خانوادگی الزامی است';
+      }
+      
+      try {
+        usernameSchema.parse(formData.username);
+        // Check if username is available
+        const isAvailable = await checkUsernameAvailable(formData.username);
+        if (!isAvailable) {
+          newErrors.username = 'این نام کاربری قبلاً استفاده شده است';
+        }
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          newErrors.username = e.errors[0].message;
+        }
+      }
     }
 
     setErrors(newErrors);
@@ -59,7 +97,7 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm(false)) return;
+    if (!(await validateForm(false))) return;
 
     setIsSubmitting(true);
     const { error } = await signIn(formData.email, formData.password);
@@ -69,31 +107,36 @@ const Auth = () => {
       if (error.message.includes('Invalid login credentials')) {
         toast.error('ایمیل یا رمز عبور اشتباه است');
       } else {
-        toast.error('خطا در ورود: ' + error.message);
+        toast.error('خطا در ورود');
       }
     } else {
       toast.success('ورود موفق!');
-      navigate('/');
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm(true)) return;
+    if (!(await validateForm(true))) return;
 
     setIsSubmitting(true);
-    const { error } = await signUp(formData.email, formData.password, formData.displayName);
+    const { error } = await signUp(
+      formData.email, 
+      formData.password, 
+      `${formData.firstName} ${formData.lastName}`,
+      formData.firstName,
+      formData.lastName,
+      formData.username
+    );
     setIsSubmitting(false);
 
     if (error) {
       if (error.message.includes('already registered')) {
         toast.error('این ایمیل قبلاً ثبت‌نام شده است');
       } else {
-        toast.error('خطا در ثبت‌نام: ' + error.message);
+        toast.error('خطا در ثبت‌نام');
       }
     } else {
       toast.success('ثبت‌نام موفق! خوش آمدید');
-      navigate('/');
     }
   };
 
@@ -103,7 +146,7 @@ const Auth = () => {
     setIsSubmitting(false);
 
     if (error) {
-      toast.error('خطا در ورود با گوگل: ' + error.message);
+      toast.error('خطا در ورود با گوگل');
     }
   };
 
@@ -119,15 +162,15 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
       </div>
 
       <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl gradient-text">برنامه‌ریز مطالعه</CardTitle>
+          <CardTitle className="text-2xl gradient-text">استادیوم</CardTitle>
           <CardDescription className="text-muted-foreground">
-            به حساب کاربری خود وارد شوید
+            {inviteCode ? 'برای پیوستن به پانسیون ابتدا وارد شوید' : 'به حساب کاربری خود وارد شوید'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,9 +221,7 @@ const Auth = () => {
                   className="w-full"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                  ) : null}
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                   ورود
                 </Button>
               </form>
@@ -188,20 +229,51 @@ const Auth = () => {
 
             <TabsContent value="register">
               <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="register-firstName" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      نام
+                    </Label>
+                    <Input
+                      id="register-firstName"
+                      type="text"
+                      placeholder="نام"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      className="bg-white/5 border-white/10"
+                    />
+                    {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-lastName">نام خانوادگی</Label>
+                    <Input
+                      id="register-lastName"
+                      type="text"
+                      placeholder="نام خانوادگی"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      className="bg-white/5 border-white/10"
+                    />
+                    {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="register-name" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    نام کاربری
+                  <Label htmlFor="register-username" className="flex items-center gap-2">
+                    <AtSign className="h-4 w-4" />
+                    نام کاربری (یونیک)
                   </Label>
                   <Input
-                    id="register-name"
+                    id="register-username"
                     type="text"
-                    placeholder="نام شما"
-                    value={formData.displayName}
-                    onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                    placeholder="username123"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                     className="bg-white/5 border-white/10"
+                    dir="ltr"
                   />
-                  {errors.displayName && <p className="text-sm text-destructive">{errors.displayName}</p>}
+                  {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -243,9 +315,7 @@ const Auth = () => {
                   className="w-full"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                  ) : null}
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                   ثبت‌نام
                 </Button>
               </form>
@@ -268,25 +338,18 @@ const Auth = () => {
             disabled={isSubmitting}
           >
             <svg className="h-5 w-5 ml-2" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="currentColor"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              />
-              <path
-                fill="currentColor"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              />
+              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
             ورود با گوگل
           </Button>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            طراح سایت: پارسا عیدی‌دهنه
+          </p>
         </CardContent>
       </Card>
     </div>

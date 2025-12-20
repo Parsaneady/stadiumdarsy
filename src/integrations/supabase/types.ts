@@ -154,6 +154,210 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_results: {
+        Row: {
+          average_percentage: number | null
+          blank_answers: number
+          correct_answers: number
+          created_at: string
+          exam_id: string | null
+          exam_type: string
+          id: string
+          lesson_name: string | null
+          lessons_data: Json | null
+          pension_id: string | null
+          percentage: number | null
+          total_questions: number
+          user_id: string
+          wrong_answers: number
+        }
+        Insert: {
+          average_percentage?: number | null
+          blank_answers?: number
+          correct_answers?: number
+          created_at?: string
+          exam_id?: string | null
+          exam_type: string
+          id?: string
+          lesson_name?: string | null
+          lessons_data?: Json | null
+          pension_id?: string | null
+          percentage?: number | null
+          total_questions?: number
+          user_id: string
+          wrong_answers?: number
+        }
+        Update: {
+          average_percentage?: number | null
+          blank_answers?: number
+          correct_answers?: number
+          created_at?: string
+          exam_id?: string | null
+          exam_type?: string
+          id?: string
+          lesson_name?: string | null
+          lessons_data?: Json | null
+          pension_id?: string | null
+          percentage?: number | null
+          total_questions?: number
+          user_id?: string
+          wrong_answers?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_results_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_exam_results_pension"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          created_at: string
+          created_by: string
+          exam_type: string
+          id: string
+          lessons: Json | null
+          pension_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          exam_type: string
+          id?: string
+          lessons?: Json | null
+          pension_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          exam_type?: string
+          id?: string
+          lessons?: Json | null
+          pension_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_exams_pension"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pension_invites: {
+        Row: {
+          created_at: string
+          id: string
+          invited_user_id: string
+          pension_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invited_user_id: string
+          pension_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invited_user_id?: string
+          pension_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pension_invites_pension_id_fkey"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pension_members: {
+        Row: {
+          id: string
+          joined_at: string
+          pension_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          pension_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          pension_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pension_members_pension_id_fkey"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pensions: {
+        Row: {
+          created_at: string
+          id: string
+          invite_code: string | null
+          invite_enabled: boolean | null
+          leader_id: string
+          max_members: number | null
+          member_count: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_code?: string | null
+          invite_enabled?: boolean | null
+          leader_id: string
+          max_members?: number | null
+          member_count?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_code?: string | null
+          invite_enabled?: boolean | null
+          leader_id?: string
+          max_members?: number | null
+          member_count?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pomodoro_sessions: {
         Row: {
           completed_at: string
@@ -184,27 +388,42 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
+          total_study_minutes: number | null
+          total_tests: number | null
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
+          total_study_minutes?: number | null
+          total_tests?: number | null
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
+          total_study_minutes?: number | null
+          total_tests?: number | null
           updated_at?: string
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }
