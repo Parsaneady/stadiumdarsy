@@ -305,6 +305,7 @@ export type Database = {
           is_active: boolean | null
           lessons: Json | null
           pension_id: string
+          question_count: number
           start_time: string
           title: string
         }
@@ -319,6 +320,7 @@ export type Database = {
           is_active?: boolean | null
           lessons?: Json | null
           pension_id: string
+          question_count?: number
           start_time: string
           title: string
         }
@@ -333,6 +335,7 @@ export type Database = {
           is_active?: boolean | null
           lessons?: Json | null
           pension_id?: string
+          question_count?: number
           start_time?: string
           title?: string
         }
