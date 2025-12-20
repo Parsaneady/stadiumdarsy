@@ -276,11 +276,12 @@ export const useCloudSync = () => {
     }
   }, [user]);
 
-  // Add pomodoro session to cloud
+  // Add pomodoro session to cloud and update profile stats
   const addPomodoroSession = useCallback(async (subject: string, minutes: number) => {
     if (!user) return;
 
     try {
+      // Save pomodoro session
       await supabase
         .from('pomodoro_sessions')
         .insert({
@@ -288,9 +289,47 @@ export const useCloudSync = () => {
           subject,
           minutes,
         });
+
+      // Update profile total_study_minutes
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_study_minutes')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const currentMinutes = profile?.total_study_minutes || 0;
+      await supabase
+        .from('profiles')
+        .update({ total_study_minutes: currentMinutes + minutes })
+        .eq('user_id', user.id);
+
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[Debug] Error saving pomodoro session:', error);
+      }
+    }
+  }, [user]);
+
+  // Update profile test count
+  const updateProfileTests = useCallback(async (testsCount: number) => {
+    if (!user || testsCount <= 0) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_tests')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const currentTests = profile?.total_tests || 0;
+      await supabase
+        .from('profiles')
+        .update({ total_tests: currentTests + testsCount })
+        .eq('user_id', user.id);
+
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error updating profile tests:', error);
       }
     }
   }, [user]);
@@ -311,6 +350,7 @@ export const useCloudSync = () => {
     savePomodoroSettings,
     saveStreak,
     addPomodoroSession,
+    updateProfileTests,
     isInitialLoad: isInitialLoad.current,
   };
 };

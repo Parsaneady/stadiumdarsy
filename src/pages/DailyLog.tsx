@@ -8,9 +8,11 @@ import { Progress } from '@/components/ui/progress';
 import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { toast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/AppLayout';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 const DailyLog = () => {
   const { weeklyPlan, initializeWeek, updateSession, logDaily, getTodayIndex, toggleSessionComplete } = useStudyStore();
+  const { updateProfileTests } = useCloudSync();
   const [selectedSession, setSelectedSession] = useState<{ dayId: string; session: StudySession } | null>(null);
 
   useEffect(() => {
@@ -35,6 +37,14 @@ const DailyLog = () => {
 
   const handleSaveDay = () => {
     if (todayPlan) {
+      // Calculate total tests for today
+      const totalActualTests = todayPlan.sessions.reduce((sum, s) => sum + s.actualTests, 0);
+      
+      // Update profile with test count
+      if (totalActualTests > 0) {
+        updateProfileTests(totalActualTests);
+      }
+      
       logDaily(todayPlan.id);
       toast({
         title: "ذخیره شد! ✨",
