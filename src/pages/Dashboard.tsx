@@ -10,6 +10,7 @@ import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { useNavigate } from 'react-router-dom';
 import { getTodayQuote } from '@/lib/quotes';
 import { cn } from '@/lib/utils';
+import { AppLayout } from '@/components/AppLayout';
 
 // Lazy load charts
 const LazyCharts = lazy(() => import('@/components/DashboardCharts'));
@@ -181,6 +182,7 @@ const Dashboard = () => {
   const navigateToHistory = useCallback(() => navigate('/history'), [navigate]);
 
   return (
+    <AppLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in">
@@ -364,6 +366,7 @@ const Dashboard = () => {
         />
       </Suspense>
     </div>
+    </AppLayout>
   );
 };
 
