@@ -17,6 +17,7 @@ const TestExam = lazy(() => import("./pages/TestExam"));
 const PerformanceHistory = lazy(() => import("./pages/PerformanceHistory"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Challenges = lazy(() => import("./pages/Challenges"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/test-exam" element={<TestExam />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/history" element={<PerformanceHistory />} />
+                <Route path="/challenges" element={<Challenges />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

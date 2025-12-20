@@ -9,7 +9,9 @@ import {
   BookOpen,
   Sparkles,
   FileText,
-  History
+  History,
+  Trophy,
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTodayQuote } from '@/lib/quotes';
@@ -20,8 +22,10 @@ const navItems = [
   { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
   { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
   { path: '/test-exam', icon: FileText, label: 'پنل آزمون' },
+  { path: '/challenges', icon: Trophy, label: 'چالش‌ها' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
   { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
+  { path: '/profile', icon: User, label: 'پروفایل' },
 ];
 
 export const Sidebar = () => {
