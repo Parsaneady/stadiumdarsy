@@ -383,7 +383,7 @@ const Pension = () => {
             </TabsTrigger>
             <TabsTrigger value="exams">
               <FileText className="w-4 h-4 ml-1" />
-              آزمون‌ها
+              تست‌ها
             </TabsTrigger>
             <TabsTrigger value="tasks">
               <ClipboardList className="w-4 h-4 ml-1" />
@@ -444,7 +444,7 @@ const Pension = () => {
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <FileText className="w-4 h-4" />
-                        <span>{member.profile?.total_tests || 0} آزمون</span>
+                        <span>{member.profile?.total_tests || 0} تست</span>
                       </div>
                     </div>
                   </div>
@@ -459,19 +459,19 @@ const Pension = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
-                  <h2 className="font-bold text-lg">آزمون‌های پانسیون</h2>
+                  <h2 className="font-bold text-lg">تست‌های پانسیون</h2>
                 </div>
                 {isLeader && (
                   <Button size="sm" className="gap-1">
                     <Plus className="w-4 h-4" />
-                    ایجاد آزمون
+                    ایجاد تست
                   </Button>
                 )}
               </div>
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p>هنوز آزمونی ایجاد نشده است</p>
-                {isLeader && <p className="text-sm">برای ایجاد آزمون روی دکمه بالا کلیک کنید</p>}
+                <p>هنوز تستی ایجاد نشده است</p>
+                {isLeader && <p className="text-sm">برای ایجاد تست روی دکمه بالا کلیک کنید</p>}
               </div>
             </GlassCard>
           </TabsContent>

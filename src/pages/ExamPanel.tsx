@@ -167,7 +167,7 @@ const ExamPanel = () => {
     if (examTimerRef.current) clearInterval(examTimerRef.current);
     setIsExamTimerRunning(false);
     setShowAnswerSheet(true);
-    toast.info('زمان آزمون تمام شد! پاسخنامه را وارد کنید');
+    toast.info('زمان تست تمام شد! پاسخنامه را وارد کنید');
   };
 
   const submitSimpleExam = async () => {
@@ -185,7 +185,7 @@ const ExamPanel = () => {
       await supabase.from('exam_results').insert({
         user_id: user?.id as string,
         exam_type: 'simple',
-        lesson_name: pdfFile?.name || 'آزمون',
+        lesson_name: pdfFile?.name || 'تست',
         correct_answers: correct,
         wrong_answers: wrong,
         blank_answers: blank,
@@ -312,7 +312,7 @@ const ExamPanel = () => {
       await supabase.from('exam_results').insert({
         user_id: user?.id as string,
         exam_type: 'simulator',
-        lesson_name: 'شبیه‌ساز آزمون',
+        lesson_name: 'شبیه‌ساز تست',
         correct_answers: updatedLessons.reduce((sum, l) => sum + (l.correct || 0), 0),
         wrong_answers: updatedLessons.reduce((sum, l) => sum + (l.wrong || 0), 0),
         blank_answers: updatedLessons.reduce((sum, l) => sum + (l.blank || 0), 0),
@@ -362,14 +362,14 @@ const ExamPanel = () => {
             <FileText className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">پنل آزمون</h1>
+            <h1 className="text-xl font-bold">پنل تست</h1>
             <p className="text-muted-foreground text-xs">آپلود فایل، زمان‌بندی و پاسخنامه</p>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="simple">آزمون معمولی</TabsTrigger>
+            <TabsTrigger value="simple">تست معمولی</TabsTrigger>
             <TabsTrigger value="simulator">شبیه‌ساز</TabsTrigger>
           </TabsList>
 
@@ -380,7 +380,7 @@ const ExamPanel = () => {
                 <div className="space-y-4">
                   {/* PDF Upload */}
                   <div>
-                    <Label className="mb-2 block">آپلود فایل آزمون (PDF)</Label>
+                    <Label className="mb-2 block">آپلود فایل تست (PDF)</Label>
                     <div 
                       className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -433,7 +433,7 @@ const ExamPanel = () => {
 
                   <Button onClick={startExam} className="w-full gap-2">
                     <Play className="w-4 h-4" />
-                    شروع آزمون
+                    شروع تست
                   </Button>
                 </div>
               ) : !showAnswerSheet ? (
@@ -443,7 +443,7 @@ const ExamPanel = () => {
                     {formatTime(examTimeRemaining)}
                   </div>
                   <p className="text-muted-foreground">
-                    {pdfFile?.name || 'آزمون'} - {questionCount} سوال
+                    {pdfFile?.name || 'تست'} - {questionCount} سوال
                   </p>
                   
                   <div className="flex justify-center gap-2">
@@ -551,7 +551,7 @@ const ExamPanel = () => {
 
                   {lessons.length === 0 ? (
                     <p className="text-center text-muted-foreground py-6 text-sm">
-                      دروس آزمون را اضافه کنید
+                      دروس تست را اضافه کنید
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -661,7 +661,7 @@ const ExamPanel = () => {
                     </div>
                   </div>
                   <Button onClick={nextLesson} className="w-full mt-3" size="sm">
-                    {currentLessonIndex! < lessons.length - 1 ? 'درس بعدی' : 'پایان آزمون'}
+                    {currentLessonIndex! < lessons.length - 1 ? 'درس بعدی' : 'پایان تست'}
                   </Button>
                 </GlassCard>
 
@@ -708,7 +708,7 @@ const ExamPanel = () => {
         {/* Results History */}
         {results.length > 0 && (
           <GlassCard>
-            <h3 className="font-semibold mb-3 text-sm">تاریخچه آزمون‌ها</h3>
+            <h3 className="font-semibold mb-3 text-sm">تاریخچه تست‌ها</h3>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {results.map(result => (
                 <div key={result.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg text-sm">
