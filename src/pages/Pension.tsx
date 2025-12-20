@@ -487,6 +487,11 @@ const Pension = () => {
       return;
     }
 
+    if (!examPdfFile) {
+      toast.error('فایل سوالات (PDF) اجباری است');
+      return;
+    }
+
     const qCount = parseInt(examQuestionCount) || 60;
     if (qCount < 1 || qCount > 200) {
       toast.error('تعداد سوالات باید بین ۱ تا ۲۰۰ باشد');
@@ -505,25 +510,36 @@ const Pension = () => {
 
     try {
       setUploadingPdf(true);
-      let pdfUrl: string | null = null;
+      
+      // Upload PDF
+      const fileExt = examPdfFile.name.split('.').pop();
+      const fileName = `${pension.id}/${Date.now()}.${fileExt}`;
+      
+      console.log('[Exam] Uploading PDF:', fileName);
+      
+      const { error: uploadError } = await supabase.storage
+        .from('pension-exams')
+        .upload(fileName, examPdfFile);
 
-      // Upload PDF if provided
-      if (examPdfFile) {
-        const fileExt = examPdfFile.name.split('.').pop();
-        const fileName = `${pension.id}/${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('pension-exams')
-          .upload(fileName, examPdfFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('pension-exams')
-          .getPublicUrl(fileName);
-
-        pdfUrl = urlData.publicUrl;
+      if (uploadError) {
+        console.error('[Exam] Upload error:', uploadError);
+        toast.error('خطا در آپلود فایل: ' + uploadError.message);
+        return;
       }
+
+      const { data: urlData } = supabase.storage
+        .from('pension-exams')
+        .getPublicUrl(fileName);
+
+      const pdfUrl = urlData.publicUrl;
+      console.log('[Exam] PDF URL:', pdfUrl);
+
+      console.log('[Exam] Creating exam with data:', {
+        pension_id: pension.id,
+        title: examTitle,
+        question_count: qCount,
+        pdf_url: pdfUrl,
+      });
 
       const { data, error } = await supabase
         .from('pension_exams')
@@ -544,8 +560,13 @@ const Pension = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Exam] Insert error:', error);
+        toast.error('خطا در ذخیره آزمون: ' + error.message);
+        return;
+      }
 
+      console.log('[Exam] Created successfully:', data);
       setExams([...exams, data as PensionExam]);
       setIsExamDialogOpen(false);
       setExamTitle('');
@@ -558,9 +579,9 @@ const Pension = () => {
       setExamQuestionCount('60');
       setExamPdfFile(null);
       toast.success('آزمون ایجاد شد');
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('[Debug]', error);
-      toast.error('خطا در ایجاد آزمون');
+    } catch (error: any) {
+      console.error('[Exam] Error:', error);
+      toast.error('خطا در ایجاد آزمون: ' + (error?.message || 'خطای ناشناخته'));
     } finally {
       setUploadingPdf(false);
     }
@@ -1258,16 +1279,19 @@ const Pension = () => {
                           </div>
                         </div>
                         <div>
-                          <label className="text-sm text-muted-foreground mb-1 block">فایل سوالات (PDF - اختیاری)</label>
+                          <label className="text-sm text-muted-foreground mb-1 block">
+                            فایل سوالات (PDF) <span className="text-destructive">*</span>
+                          </label>
                           <Input
                             type="file"
                             accept=".pdf"
                             onChange={(e) => setExamPdfFile(e.target.files?.[0] || null)}
                             className="bg-white/5"
+                            required
                           />
                           {examPdfFile && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              فایل انتخاب شده: {examPdfFile.name}
+                            <p className="text-xs text-success mt-1">
+                              ✓ فایل انتخاب شده: {examPdfFile.name}
                             </p>
                           )}
                         </div>
