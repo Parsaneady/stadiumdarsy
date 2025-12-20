@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { PdfViewer } from '@/components/exam/PdfViewer';
+import { AnswerSheet } from '@/components/exam/AnswerSheet';
+import { CorrectAnswerSheet } from '@/components/exam/CorrectAnswerSheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,24 +20,21 @@ import {
   Pause,
   Clock,
   CheckCircle,
-  XCircle,
-  Minus,
-  RotateCcw,
   Upload,
-  FileUp
+  FileUp,
+  RotateCcw,
+  Eye,
+  Edit3,
+  Save,
+  Lock
 } from 'lucide-react';
 
-interface Lesson {
+interface SimulatorLesson {
   id: string;
   name: string;
-  questionCount: number;
+  questionStart: number;
+  questionEnd: number;
   timeMinutes: number;
-  correct?: number;
-  wrong?: number;
-  blank?: number;
-  percentage?: number;
-  completed?: boolean;
-  locked?: boolean;
 }
 
 interface ExamResult {
@@ -48,67 +47,54 @@ interface ExamResult {
   examType: string;
 }
 
+type ExamPhase = 'setup' | 'answering' | 'correcting' | 'results';
+type ViewMode = 'pdf' | 'answers';
+
 const ExamPanel = () => {
   const { user, profile, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('simple');
   const [results, setResults] = useState<ExamResult[]>([]);
   
-  // Simple exam state - with PDF upload
+  // Simple exam state
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [questionCount, setQuestionCount] = useState('');
   const [timeMinutes, setTimeMinutes] = useState('');
-  const [examStarted, setExamStarted] = useState(false);
-  const [examTimeRemaining, setExamTimeRemaining] = useState(0);
-  const [isExamTimerRunning, setIsExamTimerRunning] = useState(false);
-  const [showAnswerSheet, setShowAnswerSheet] = useState(false);
-  const [answers, setAnswers] = useState<{ correct: number; wrong: number; blank: number }>({
-    correct: 0,
-    wrong: 0,
-    blank: 0,
-  });
-  
-  // Simulator state
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [currentLessonIndex, setCurrentLessonIndex] = useState<number | null>(null);
+  const [examPhase, setExamPhase] = useState<ExamPhase>('setup');
+  const [viewMode, setViewMode] = useState<ViewMode>('pdf');
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [correctAnswers, setCorrectAnswers] = useState<Record<number, number>>({});
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [simulatorStarted, setSimulatorStarted] = useState(false);
-  const [simulatorCompleted, setSimulatorCompleted] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const examTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Simulator state
+  const [simLessons, setSimLessons] = useState<SimulatorLesson[]>([]);
+  const [simCurrentLessonIndex, setSimCurrentLessonIndex] = useState(0);
+  const [simPhase, setSimPhase] = useState<ExamPhase>('setup');
+  const [simAnswers, setSimAnswers] = useState<Record<number, number>>({});
+  const [simCorrectAnswers, setSimCorrectAnswers] = useState<Record<number, number>>({});
+  const [simLockedQuestions, setSimLockedQuestions] = useState<Set<number>>(new Set());
+  const [simTimeRemaining, setSimTimeRemaining] = useState(0);
+  const [simIsTimerRunning, setSimIsTimerRunning] = useState(false);
+  const [simPdfFile, setSimPdfFile] = useState<File | null>(null);
+  const [simTotalQuestions, setSimTotalQuestions] = useState('');
+  const [simViewMode, setSimViewMode] = useState<ViewMode>('pdf');
+  const simTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const simFileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
-    if (user) {
-      fetchResults();
-    }
+    if (user) fetchResults();
   }, [user]);
 
   // Simple exam timer
-  useEffect(() => {
-    if (isExamTimerRunning && examTimeRemaining > 0) {
-      examTimerRef.current = setInterval(() => {
-        setExamTimeRemaining(prev => {
-          if (prev <= 1) {
-            handleExamTimeEnd();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (examTimerRef.current) clearInterval(examTimerRef.current);
-    };
-  }, [isExamTimerRunning]);
-
-  // Simulator timer
   useEffect(() => {
     if (isTimerRunning && timeRemaining > 0) {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            handleTimerEnd();
+            setIsTimerRunning(false);
+            toast.info('زمان تمام شد!');
             return 0;
           }
           return prev - 1;
@@ -120,9 +106,26 @@ const ExamPanel = () => {
     };
   }, [isTimerRunning]);
 
+  // Simulator timer
+  useEffect(() => {
+    if (simIsTimerRunning && simTimeRemaining > 0) {
+      simTimerRef.current = setInterval(() => {
+        setSimTimeRemaining(prev => {
+          if (prev <= 1) {
+            handleSimLessonTimeEnd();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (simTimerRef.current) clearInterval(simTimerRef.current);
+    };
+  }, [simIsTimerRunning]);
+
   const fetchResults = async () => {
     if (!user) return;
-    
     const { data } = await supabase
       .from('exam_results')
       .select('*')
@@ -133,7 +136,7 @@ const ExamPanel = () => {
     if (data) {
       setResults(data.map(r => ({
         id: r.id,
-        lessonName: r.lesson_name || 'شبیه‌ساز',
+        lessonName: r.lesson_name || 'تست',
         correct: r.correct_answers,
         total: r.total_questions,
         percentage: Number(r.percentage),
@@ -143,6 +146,13 @@ const ExamPanel = () => {
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // ========== SIMPLE EXAM ==========
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === 'application/pdf') {
@@ -154,43 +164,65 @@ const ExamPanel = () => {
   };
 
   const startExam = () => {
-    if (!questionCount || !timeMinutes) {
-      toast.error('تعداد سوال و زمان را وارد کنید');
+    if (!questionCount) {
+      toast.error('تعداد سوال را وارد کنید');
       return;
     }
-    setExamStarted(true);
-    setExamTimeRemaining(parseInt(timeMinutes) * 60);
-    setIsExamTimerRunning(true);
+    setExamPhase('answering');
+    setAnswers({});
+    setCorrectAnswers({});
+    if (timeMinutes) {
+      setTimeRemaining(parseInt(timeMinutes) * 60);
+      setIsTimerRunning(true);
+    }
   };
 
-  const handleExamTimeEnd = () => {
-    if (examTimerRef.current) clearInterval(examTimerRef.current);
-    setIsExamTimerRunning(false);
-    setShowAnswerSheet(true);
-    toast.info('زمان تست تمام شد! پاسخنامه را وارد کنید');
+  const handleAnswerSelect = useCallback((qIndex: number, option: number) => {
+    setAnswers(prev => ({ ...prev, [qIndex]: option }));
+  }, []);
+
+  const handleCorrectAnswerSelect = useCallback((qIndex: number, option: number) => {
+    setCorrectAnswers(prev => ({ ...prev, [qIndex]: option }));
+  }, []);
+
+  const finishAnswering = () => {
+    setIsTimerRunning(false);
+    setExamPhase('correcting');
+    setViewMode('answers');
   };
 
-  const submitSimpleExam = async () => {
+  const calculateResults = () => {
     const total = parseInt(questionCount);
-    const { correct, wrong, blank } = answers;
-    
-    if (correct + wrong + blank !== total) {
-      toast.error(`مجموع باید ${total} باشد (الان: ${correct + wrong + blank})`);
-      return;
+    let correct = 0;
+    let wrong = 0;
+    let blank = 0;
+
+    for (let i = 0; i < total; i++) {
+      if (!answers[i]) {
+        blank++;
+      } else if (answers[i] === correctAnswers[i]) {
+        correct++;
+      } else {
+        wrong++;
+      }
     }
 
-    const percentage = ((correct / total) * 100).toFixed(2);
+    return { correct, wrong, blank, total, percentage: (correct / total) * 100 };
+  };
 
+  const submitExam = async () => {
+    const result = calculateResults();
+    
     try {
       await supabase.from('exam_results').insert({
-        user_id: user?.id as string,
+        user_id: user?.id,
         exam_type: 'simple',
         lesson_name: pdfFile?.name || 'تست',
-        correct_answers: correct,
-        wrong_answers: wrong,
-        blank_answers: blank,
-        total_questions: total,
-        percentage: parseFloat(percentage),
+        correct_answers: result.correct,
+        wrong_answers: result.wrong,
+        blank_answers: result.blank,
+        total_questions: result.total,
+        percentage: result.percentage,
       } as any);
 
       if (profile) {
@@ -201,125 +233,152 @@ const ExamPanel = () => {
         refreshProfile();
       }
 
-      toast.success(`درصد شما: ${percentage}%`);
-      resetSimpleExam();
+      setExamPhase('results');
       fetchResults();
+      toast.success(`درصد شما: ${result.percentage.toFixed(1)}%`);
     } catch (error) {
       toast.error('خطا در ثبت نتیجه');
     }
   };
 
-  const resetSimpleExam = () => {
+  const resetExam = () => {
     setPdfFile(null);
     setQuestionCount('');
     setTimeMinutes('');
-    setExamStarted(false);
-    setExamTimeRemaining(0);
-    setIsExamTimerRunning(false);
-    setShowAnswerSheet(false);
-    setAnswers({ correct: 0, wrong: 0, blank: 0 });
+    setExamPhase('setup');
+    setViewMode('pdf');
+    setAnswers({});
+    setCorrectAnswers({});
+    setTimeRemaining(0);
+    setIsTimerRunning(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const addLesson = () => {
-    setLessons([...lessons, {
+  // ========== SIMULATOR ==========
+  const handleSimFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setSimPdfFile(file);
+      toast.success(`فایل "${file.name}" آپلود شد`);
+    } else {
+      toast.error('لطفاً فایل PDF انتخاب کنید');
+    }
+  };
+
+  const addSimLesson = () => {
+    const lastEnd = simLessons.length > 0 
+      ? simLessons[simLessons.length - 1].questionEnd 
+      : 0;
+    
+    setSimLessons([...simLessons, {
       id: crypto.randomUUID(),
       name: '',
-      questionCount: 0,
+      questionStart: lastEnd + 1,
+      questionEnd: lastEnd + 10,
       timeMinutes: 45,
     }]);
   };
 
-  const updateLesson = (id: string, field: keyof Lesson, value: any) => {
-    setLessons(lessons.map(l => l.id === id ? { ...l, [field]: value } : l));
+  const updateSimLesson = (id: string, field: keyof SimulatorLesson, value: any) => {
+    setSimLessons(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
   };
 
-  const removeLesson = (id: string) => {
-    setLessons(lessons.filter(l => l.id !== id));
+  const removeSimLesson = (id: string) => {
+    setSimLessons(prev => prev.filter(l => l.id !== id));
   };
 
   const startSimulator = () => {
-    if (lessons.length === 0) {
+    if (simLessons.length === 0) {
       toast.error('حداقل یک درس اضافه کنید');
       return;
     }
-    if (lessons.some(l => !l.name || !l.timeMinutes)) {
-      toast.error('همه فیلدها را پر کنید');
+    if (simLessons.some(l => !l.name)) {
+      toast.error('نام درس‌ها را وارد کنید');
       return;
     }
 
-    setSimulatorStarted(true);
-    setCurrentLessonIndex(0);
-    setTimeRemaining(lessons[0].timeMinutes * 60);
-    setIsTimerRunning(true);
+    const total = simLessons[simLessons.length - 1].questionEnd;
+    setSimTotalQuestions(total.toString());
+    setSimPhase('answering');
+    setSimCurrentLessonIndex(0);
+    setSimTimeRemaining(simLessons[0].timeMinutes * 60);
+    setSimIsTimerRunning(true);
+    setSimAnswers({});
+    setSimCorrectAnswers({});
+    setSimLockedQuestions(new Set());
   };
 
-  const handleTimerEnd = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setIsTimerRunning(false);
-    
-    // Lock current lesson and mark as completed
-    if (currentLessonIndex !== null) {
-      setLessons(prev => prev.map((l, i) => 
-        i === currentLessonIndex ? { ...l, completed: true, locked: true } : l
-      ));
-    }
+  const handleSimLessonTimeEnd = () => {
+    if (simTimerRef.current) clearInterval(simTimerRef.current);
+    setSimIsTimerRunning(false);
 
-    toast.info('زمان این درس تمام شد! درس قفل شد.');
+    // Lock questions for current lesson
+    const currentLesson = simLessons[simCurrentLessonIndex];
+    const newLocked = new Set(simLockedQuestions);
+    for (let i = currentLesson.questionStart - 1; i < currentLesson.questionEnd; i++) {
+      newLocked.add(i);
+    }
+    setSimLockedQuestions(newLocked);
     
-    // Auto advance to next
-    const nextIndex = (currentLessonIndex ?? 0) + 1;
-    if (nextIndex < lessons.length) {
-      setTimeout(() => {
-        setCurrentLessonIndex(nextIndex);
-        setTimeRemaining(lessons[nextIndex].timeMinutes * 60);
-        setIsTimerRunning(true);
-      }, 1000);
-    } else {
-      setSimulatorCompleted(true);
+    toast.info(`زمان ${currentLesson.name} تمام شد! سوالات ${currentLesson.questionStart} تا ${currentLesson.questionEnd} قفل شدند.`);
+
+    // Move to next lesson or finish
+    if (simCurrentLessonIndex < simLessons.length - 1) {
+      const nextIndex = simCurrentLessonIndex + 1;
+      setSimCurrentLessonIndex(nextIndex);
+      setSimTimeRemaining(simLessons[nextIndex].timeMinutes * 60);
+      setSimIsTimerRunning(true);
     }
   };
 
-  const nextLesson = () => {
-    if (currentLessonIndex === null) return;
-    
-    // Mark current as completed and locked
-    setLessons(prev => prev.map((l, i) => 
-      i === currentLessonIndex ? { ...l, completed: true, locked: true } : l
-    ));
+  const handleSimAnswerSelect = useCallback((qIndex: number, option: number) => {
+    if (simLockedQuestions.has(qIndex)) return;
+    setSimAnswers(prev => ({ ...prev, [qIndex]: option }));
+  }, [simLockedQuestions]);
 
-    const nextIndex = currentLessonIndex + 1;
-    if (nextIndex < lessons.length) {
-      setCurrentLessonIndex(nextIndex);
-      setTimeRemaining(lessons[nextIndex].timeMinutes * 60);
-      setIsTimerRunning(true);
-    } else {
-      setSimulatorCompleted(true);
-      setIsTimerRunning(false);
+  const handleSimCorrectAnswerSelect = useCallback((qIndex: number, option: number) => {
+    setSimCorrectAnswers(prev => ({ ...prev, [qIndex]: option }));
+  }, []);
+
+  const finishSimulator = () => {
+    setSimIsTimerRunning(false);
+    setSimPhase('correcting');
+    setSimViewMode('answers');
+  };
+
+  const calculateSimResults = () => {
+    const total = parseInt(simTotalQuestions);
+    let correct = 0;
+    let wrong = 0;
+    let blank = 0;
+
+    for (let i = 0; i < total; i++) {
+      if (!simAnswers[i]) {
+        blank++;
+      } else if (simAnswers[i] === simCorrectAnswers[i]) {
+        correct++;
+      } else {
+        wrong++;
+      }
     }
+
+    return { correct, wrong, blank, total, percentage: (correct / total) * 100 };
   };
 
   const submitSimulator = async () => {
-    const updatedLessons = lessons.map(l => {
-      const total = (l.correct || 0) + (l.wrong || 0) + (l.blank || 0);
-      const percentage = total > 0 ? ((l.correct || 0) / total) * 100 : 0;
-      return { ...l, percentage, totalQuestions: total };
-    });
-
-    const avgPercentage = updatedLessons.reduce((sum, l) => sum + (l.percentage || 0), 0) / updatedLessons.length;
-
+    const result = calculateSimResults();
+    
     try {
       await supabase.from('exam_results').insert({
-        user_id: user?.id as string,
+        user_id: user?.id,
         exam_type: 'simulator',
-        lesson_name: 'شبیه‌ساز تست',
-        correct_answers: updatedLessons.reduce((sum, l) => sum + (l.correct || 0), 0),
-        wrong_answers: updatedLessons.reduce((sum, l) => sum + (l.wrong || 0), 0),
-        blank_answers: updatedLessons.reduce((sum, l) => sum + (l.blank || 0), 0),
-        total_questions: updatedLessons.reduce((sum, l) => sum + ((l.correct || 0) + (l.wrong || 0) + (l.blank || 0)), 0),
-        percentage: parseFloat(avgPercentage.toFixed(2)),
-        average_percentage: parseFloat(avgPercentage.toFixed(2)),
-        lessons_data: updatedLessons as any,
+        lesson_name: 'شبیه‌ساز',
+        correct_answers: result.correct,
+        wrong_answers: result.wrong,
+        blank_answers: result.blank,
+        total_questions: result.total,
+        percentage: result.percentage,
+        lessons_data: simLessons as any,
       } as any);
 
       if (profile) {
@@ -330,32 +389,32 @@ const ExamPanel = () => {
         refreshProfile();
       }
 
-      toast.success(`میانگین درصد: ${avgPercentage.toFixed(2)}%`);
-      resetSimulator();
+      setSimPhase('results');
       fetchResults();
+      toast.success(`درصد شما: ${result.percentage.toFixed(1)}%`);
     } catch (error) {
       toast.error('خطا در ثبت نتیجه');
     }
   };
 
   const resetSimulator = () => {
-    setLessons([]);
-    setCurrentLessonIndex(null);
-    setTimeRemaining(0);
-    setIsTimerRunning(false);
-    setSimulatorStarted(false);
-    setSimulatorCompleted(false);
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    setSimPdfFile(null);
+    setSimLessons([]);
+    setSimPhase('setup');
+    setSimViewMode('pdf');
+    setSimAnswers({});
+    setSimCorrectAnswers({});
+    setSimLockedQuestions(new Set());
+    setSimTimeRemaining(0);
+    setSimIsTimerRunning(false);
+    setSimCurrentLessonIndex(0);
+    setSimTotalQuestions('');
+    if (simFileInputRef.current) simFileInputRef.current.value = '';
   };
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 animate-fade-in">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -363,7 +422,7 @@ const ExamPanel = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold">پنل تست</h1>
-            <p className="text-muted-foreground text-xs">آپلود فایل، زمان‌بندی و پاسخنامه</p>
+            <p className="text-muted-foreground text-xs">PDF + پاسخبرگ + تصحیح</p>
           </div>
         </div>
 
@@ -373,16 +432,16 @@ const ExamPanel = () => {
             <TabsTrigger value="simulator">شبیه‌ساز</TabsTrigger>
           </TabsList>
 
-          {/* Simple Exam with PDF Upload */}
-          <TabsContent value="simple">
-            <GlassCard>
-              {!examStarted ? (
+          {/* ========== SIMPLE EXAM ========== */}
+          <TabsContent value="simple" className="space-y-4">
+            {examPhase === 'setup' && (
+              <GlassCard>
                 <div className="space-y-4">
                   {/* PDF Upload */}
                   <div>
-                    <Label className="mb-2 block">آپلود فایل تست (PDF)</Label>
+                    <Label className="mb-2 block text-sm">آپلود PDF (اختیاری)</Label>
                     <div 
-                      className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <input
@@ -394,38 +453,38 @@ const ExamPanel = () => {
                       />
                       {pdfFile ? (
                         <div className="flex items-center justify-center gap-2 text-success">
-                          <FileUp className="w-5 h-5" />
-                          <span>{pdfFile.name}</span>
+                          <FileUp className="w-4 h-4" />
+                          <span className="text-sm">{pdfFile.name}</span>
                         </div>
                       ) : (
                         <div className="text-muted-foreground">
-                          <Upload className="w-8 h-8 mx-auto mb-2" />
-                          <p>کلیک کنید یا فایل را بکشید</p>
+                          <Upload className="w-6 h-6 mx-auto mb-1" />
+                          <p className="text-xs">کلیک کنید</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label>تعداد سوالات</Label>
+                      <Label className="text-sm">تعداد سوال</Label>
                       <Input
                         type="number"
                         value={questionCount}
                         onChange={(e) => setQuestionCount(e.target.value)}
-                        placeholder="مثلاً 30"
-                        className="bg-white/5 mt-1"
+                        placeholder="30"
+                        className="bg-white/5 mt-1 h-9"
                         dir="ltr"
                       />
                     </div>
                     <div>
-                      <Label>زمان (دقیقه)</Label>
+                      <Label className="text-sm">زمان (دقیقه - اختیاری)</Label>
                       <Input
                         type="number"
                         value={timeMinutes}
                         onChange={(e) => setTimeMinutes(e.target.value)}
-                        placeholder="مثلاً 45"
-                        className="bg-white/5 mt-1"
+                        placeholder="45"
+                        className="bg-white/5 mt-1 h-9"
                         dir="ltr"
                       />
                     </div>
@@ -436,153 +495,224 @@ const ExamPanel = () => {
                     شروع تست
                   </Button>
                 </div>
-              ) : !showAnswerSheet ? (
-                <div className="space-y-4 text-center">
-                  {/* Timer Display */}
-                  <div className={`text-5xl font-bold ${examTimeRemaining < 60 ? 'text-destructive animate-pulse' : 'text-primary'}`}>
-                    {formatTime(examTimeRemaining)}
-                  </div>
-                  <p className="text-muted-foreground">
-                    {pdfFile?.name || 'تست'} - {questionCount} سوال
-                  </p>
+              </GlassCard>
+            )}
+
+            {(examPhase === 'answering' || examPhase === 'correcting') && (
+              <div className="space-y-3">
+                {/* Timer & Controls */}
+                <div className="flex items-center justify-between glass-card rounded-lg p-3">
+                  {timeMinutes && examPhase === 'answering' && (
+                    <div className="flex items-center gap-2">
+                      <Clock className={`w-4 h-4 ${timeRemaining < 60 ? 'text-destructive' : 'text-primary'}`} />
+                      <span className={`font-mono font-bold ${timeRemaining < 60 ? 'text-destructive' : ''}`}>
+                        {formatTime(timeRemaining)}
+                      </span>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsTimerRunning(!isTimerRunning)}>
+                        {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                      </Button>
+                    </div>
+                  )}
                   
-                  <div className="flex justify-center gap-2">
-                    <Button 
-                      variant="outline"
-                      onClick={() => setIsExamTimerRunning(!isExamTimerRunning)}
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant={viewMode === 'pdf' ? 'default' : 'outline'}
+                      onClick={() => setViewMode('pdf')}
+                      className="gap-1 h-7 text-xs"
                     >
-                      {isExamTimerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      <Eye className="w-3 h-3" />
+                      PDF
                     </Button>
-                    <Button 
-                      onClick={() => {
-                        setIsExamTimerRunning(false);
-                        setShowAnswerSheet(true);
-                      }}
+                    <Button
+                      size="sm"
+                      variant={viewMode === 'answers' ? 'default' : 'outline'}
+                      onClick={() => setViewMode('answers')}
+                      className="gap-1 h-7 text-xs"
                     >
-                      اتمام و ورود پاسخنامه
+                      <Edit3 className="w-3 h-3" />
+                      پاسخبرگ
                     </Button>
                   </div>
+
+                  {examPhase === 'answering' && (
+                    <Button size="sm" onClick={finishAnswering} className="gap-1 h-7 text-xs">
+                      <CheckCircle className="w-3 h-3" />
+                      اتمام و تصحیح
+                    </Button>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-center">پاسخنامه</h3>
-                  <p className="text-center text-sm text-muted-foreground">
-                    مجموع باید {questionCount} شود
-                  </p>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="flex items-center gap-1 text-success">
-                        <CheckCircle className="w-4 h-4" /> صحیح
-                      </Label>
-                      <Input
-                        type="number"
-                        value={answers.correct || ''}
-                        onChange={(e) => setAnswers(prev => ({ ...prev, correct: parseInt(e.target.value) || 0 }))}
-                        className="bg-white/5 mt-1"
-                        dir="ltr"
-                      />
-                    </div>
-                    <div>
-                      <Label className="flex items-center gap-1 text-destructive">
-                        <XCircle className="w-4 h-4" /> غلط
-                      </Label>
-                      <Input
-                        type="number"
-                        value={answers.wrong || ''}
-                        onChange={(e) => setAnswers(prev => ({ ...prev, wrong: parseInt(e.target.value) || 0 }))}
-                        className="bg-white/5 mt-1"
-                        dir="ltr"
-                      />
-                    </div>
-                    <div>
-                      <Label className="flex items-center gap-1 text-muted-foreground">
-                        <Minus className="w-4 h-4" /> نزده
-                      </Label>
-                      <Input
-                        type="number"
-                        value={answers.blank || ''}
-                        onChange={(e) => setAnswers(prev => ({ ...prev, blank: parseInt(e.target.value) || 0 }))}
-                        className="bg-white/5 mt-1"
-                        dir="ltr"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="text-center py-3 bg-primary/10 rounded-lg">
-                    <span className="text-lg font-bold text-primary">
-                      درصد: {questionCount ? ((answers.correct / parseInt(questionCount)) * 100).toFixed(1) : 0}%
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {answers.correct + answers.wrong + answers.blank}/{questionCount}
-                    </p>
-                  </div>
+                {/* Main Content */}
+                <div className="glass-card rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 280px)' }}>
+                  {viewMode === 'pdf' ? (
+                    <PdfViewer file={pdfFile} />
+                  ) : examPhase === 'answering' ? (
+                    <AnswerSheet
+                      questionCount={parseInt(questionCount) || 0}
+                      answers={answers}
+                      onAnswerSelect={handleAnswerSelect}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 h-full divide-x divide-white/10">
+                      <div className="overflow-auto">
+                        <div className="text-center text-xs font-medium text-muted-foreground py-2 border-b border-white/10">
+                          پاسخ‌های شما
+                        </div>
+                        <AnswerSheet
+                          questionCount={parseInt(questionCount) || 0}
+                          answers={answers}
+                          onAnswerSelect={() => {}}
+                          correctAnswers={correctAnswers}
+                          showResults={Object.keys(correctAnswers).length > 0}
+                        />
+                      </div>
+                      <div className="overflow-auto">
+                        <CorrectAnswerSheet
+                          questionCount={parseInt(questionCount) || 0}
+                          correctAnswers={correctAnswers}
+                          onCorrectAnswerSelect={handleCorrectAnswerSelect}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
 
+                {/* Submit / Reset */}
+                {examPhase === 'correcting' && (
                   <div className="flex gap-2">
-                    <Button onClick={resetSimpleExam} variant="outline" className="flex-1">
-                      <RotateCcw className="w-4 h-4 ml-1" />
+                    <Button variant="outline" onClick={resetExam} className="flex-1 gap-1">
+                      <RotateCcw className="w-4 h-4" />
                       شروع مجدد
                     </Button>
-                    <Button onClick={submitSimpleExam} className="flex-1">
+                    <Button onClick={submitExam} className="flex-1 gap-1">
+                      <Save className="w-4 h-4" />
                       ثبت نتیجه
                     </Button>
                   </div>
+                )}
+              </div>
+            )}
+
+            {examPhase === 'results' && (
+              <GlassCard>
+                <div className="text-center space-y-4">
+                  <CheckCircle className="w-16 h-16 mx-auto text-success" />
+                  <div>
+                    <h3 className="text-2xl font-bold text-success">{calculateResults().percentage.toFixed(1)}%</h3>
+                    <p className="text-muted-foreground">
+                      {calculateResults().correct} صحیح از {calculateResults().total}
+                    </p>
+                  </div>
+                  <Button onClick={resetExam} className="gap-1">
+                    <RotateCcw className="w-4 h-4" />
+                    تست جدید
+                  </Button>
                 </div>
-              )}
-            </GlassCard>
+              </GlassCard>
+            )}
           </TabsContent>
 
-          {/* Simulator - with timed locked answer sheets */}
-          <TabsContent value="simulator">
-            {!simulatorStarted ? (
+          {/* ========== SIMULATOR ========== */}
+          <TabsContent value="simulator" className="space-y-4">
+            {simPhase === 'setup' && (
               <GlassCard>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-sm">دروس (با قفل زمانی)</h3>
-                    <Button size="sm" onClick={addLesson} className="gap-1 text-xs">
-                      <Plus className="w-3 h-3" />
-                      افزودن
-                    </Button>
+                  {/* PDF Upload */}
+                  <div>
+                    <Label className="mb-2 block text-sm">آپلود PDF (اختیاری)</Label>
+                    <div 
+                      className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => simFileInputRef.current?.click()}
+                    >
+                      <input
+                        ref={simFileInputRef}
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleSimFileUpload}
+                        className="hidden"
+                      />
+                      {simPdfFile ? (
+                        <div className="flex items-center justify-center gap-2 text-success">
+                          <FileUp className="w-4 h-4" />
+                          <span className="text-sm">{simPdfFile.name}</span>
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground">
+                          <Upload className="w-6 h-6 mx-auto mb-1" />
+                          <p className="text-xs">کلیک کنید</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    پس از اتمام زمان هر درس، پاسخنامه آن قفل می‌شود
-                  </p>
-
-                  {lessons.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-6 text-sm">
-                      دروس تست را اضافه کنید
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {lessons.map((lesson, index) => (
-                        <div key={lesson.id} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg text-sm">
-                          <span className="text-muted-foreground w-5">{index + 1}</span>
-                          <Input
-                            value={lesson.name}
-                            onChange={(e) => updateLesson(lesson.id, 'name', e.target.value)}
-                            placeholder="نام درس"
-                            className="flex-1 bg-white/5 h-8 text-sm"
-                          />
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={lesson.timeMinutes}
-                              onChange={(e) => updateLesson(lesson.id, 'timeMinutes', parseInt(e.target.value) || 0)}
-                              className="w-14 bg-white/5 h-8 text-sm"
-                              dir="ltr"
-                            />
-                            <span className="text-xs text-muted-foreground">د</span>
-                          </div>
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => removeLesson(lesson.id)}>
-                            <Trash2 className="w-3 h-3 text-destructive" />
-                          </Button>
-                        </div>
-                      ))}
+                  {/* Lessons */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm">دفترچه‌ها (با قفل زمانی)</Label>
+                      <Button size="sm" onClick={addSimLesson} className="gap-1 h-7 text-xs">
+                        <Plus className="w-3 h-3" />
+                        افزودن
+                      </Button>
                     </div>
-                  )}
+                    
+                    <p className="text-xs text-muted-foreground mb-2">
+                      پس از اتمام زمان هر دفترچه، سوالات آن قفل می‌شوند
+                    </p>
 
-                  {lessons.length > 0 && (
+                    {simLessons.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4 text-sm">
+                        دفترچه‌ها را اضافه کنید
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {simLessons.map((lesson, idx) => (
+                          <div key={lesson.id} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg text-sm">
+                            <span className="text-muted-foreground w-4">{idx + 1}</span>
+                            <Input
+                              value={lesson.name}
+                              onChange={(e) => updateSimLesson(lesson.id, 'name', e.target.value)}
+                              placeholder="نام درس"
+                              className="flex-1 bg-white/5 h-8 text-sm"
+                            />
+                            <div className="flex items-center gap-1 text-xs">
+                              <span>از</span>
+                              <Input
+                                type="number"
+                                value={lesson.questionStart}
+                                onChange={(e) => updateSimLesson(lesson.id, 'questionStart', parseInt(e.target.value) || 1)}
+                                className="w-12 bg-white/5 h-7 text-xs"
+                                dir="ltr"
+                              />
+                              <span>تا</span>
+                              <Input
+                                type="number"
+                                value={lesson.questionEnd}
+                                onChange={(e) => updateSimLesson(lesson.id, 'questionEnd', parseInt(e.target.value) || 1)}
+                                className="w-12 bg-white/5 h-7 text-xs"
+                                dir="ltr"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={lesson.timeMinutes}
+                                onChange={(e) => updateSimLesson(lesson.id, 'timeMinutes', parseInt(e.target.value) || 0)}
+                                className="w-12 bg-white/5 h-7 text-xs"
+                                dir="ltr"
+                              />
+                              <span className="text-xs text-muted-foreground">د</span>
+                            </div>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeSimLesson(lesson.id)}>
+                              <Trash2 className="w-3 h-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {simLessons.length > 0 && (
                     <Button onClick={startSimulator} className="w-full gap-2">
                       <Play className="w-4 h-4" />
                       شروع شبیه‌ساز
@@ -590,114 +720,134 @@ const ExamPanel = () => {
                   )}
                 </div>
               </GlassCard>
-            ) : !simulatorCompleted ? (
-              <div className="space-y-3">
-                {/* Timer */}
-                <GlassCard className="text-center py-4">
-                  <div className={`text-4xl font-bold ${timeRemaining < 60 ? 'text-destructive animate-pulse' : 'text-primary'}`}>
-                    {formatTime(timeRemaining)}
-                  </div>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    {lessons[currentLessonIndex!]?.name}
-                  </p>
-                  <div className="flex justify-center gap-2 mt-3">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setIsTimerRunning(!isTimerRunning)}
-                    >
-                      {isTimerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </GlassCard>
+            )}
 
-                {/* Current Lesson Input */}
-                <GlassCard>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-sm">{lessons[currentLessonIndex!]?.name}</h3>
-                    {lessons[currentLessonIndex!]?.locked && (
-                      <Badge variant="destructive" className="text-xs">قفل شده</Badge>
+            {(simPhase === 'answering' || simPhase === 'correcting') && (
+              <div className="space-y-3">
+                {/* Timer & Current Lesson */}
+                <div className="flex items-center justify-between glass-card rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className={`w-4 h-4 ${simTimeRemaining < 60 ? 'text-destructive animate-pulse' : 'text-primary'}`} />
+                      <span className={`font-mono font-bold ${simTimeRemaining < 60 ? 'text-destructive' : ''}`}>
+                        {formatTime(simTimeRemaining)}
+                      </span>
+                      {simPhase === 'answering' && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSimIsTimerRunning(!simIsTimerRunning)}>
+                          {simIsTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                        </Button>
+                      )}
+                    </div>
+                    {simPhase === 'answering' && (
+                      <Badge variant="secondary" className="text-xs">
+                        {simLessons[simCurrentLessonIndex]?.name}
+                      </Badge>
                     )}
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <Label className="flex items-center gap-1 text-success text-xs">
-                        <CheckCircle className="w-3 h-3" /> صحیح
-                      </Label>
-                      <Input
-                        type="number"
-                        value={lessons[currentLessonIndex!]?.correct || ''}
-                        onChange={(e) => updateLesson(lessons[currentLessonIndex!].id, 'correct', parseInt(e.target.value) || 0)}
-                        className="bg-white/5 mt-1 h-9"
-                        disabled={lessons[currentLessonIndex!]?.locked}
-                        dir="ltr"
-                      />
-                    </div>
-                    <div>
-                      <Label className="flex items-center gap-1 text-destructive text-xs">
-                        <XCircle className="w-3 h-3" /> غلط
-                      </Label>
-                      <Input
-                        type="number"
-                        value={lessons[currentLessonIndex!]?.wrong || ''}
-                        onChange={(e) => updateLesson(lessons[currentLessonIndex!].id, 'wrong', parseInt(e.target.value) || 0)}
-                        className="bg-white/5 mt-1 h-9"
-                        disabled={lessons[currentLessonIndex!]?.locked}
-                        dir="ltr"
-                      />
-                    </div>
-                    <div>
-                      <Label className="flex items-center gap-1 text-muted-foreground text-xs">
-                        <Minus className="w-3 h-3" /> نزده
-                      </Label>
-                      <Input
-                        type="number"
-                        value={lessons[currentLessonIndex!]?.blank || ''}
-                        onChange={(e) => updateLesson(lessons[currentLessonIndex!].id, 'blank', parseInt(e.target.value) || 0)}
-                        className="bg-white/5 mt-1 h-9"
-                        disabled={lessons[currentLessonIndex!]?.locked}
-                        dir="ltr"
-                      />
-                    </div>
+                  
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant={simViewMode === 'pdf' ? 'default' : 'outline'}
+                      onClick={() => setSimViewMode('pdf')}
+                      className="gap-1 h-7 text-xs"
+                    >
+                      <Eye className="w-3 h-3" />
+                      PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={simViewMode === 'answers' ? 'default' : 'outline'}
+                      onClick={() => setSimViewMode('answers')}
+                      className="gap-1 h-7 text-xs"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      پاسخبرگ
+                    </Button>
                   </div>
-                  <Button onClick={nextLesson} className="w-full mt-3" size="sm">
-                    {currentLessonIndex! < lessons.length - 1 ? 'درس بعدی' : 'پایان تست'}
-                  </Button>
-                </GlassCard>
 
-                {/* Progress */}
-                <GlassCard className="py-3">
-                  <div className="flex items-center justify-between text-xs mb-2">
-                    <span className="text-muted-foreground">پیشرفت</span>
-                    <span>{(currentLessonIndex || 0) + 1} از {lessons.length}</span>
-                  </div>
-                  <Progress value={(((currentLessonIndex || 0) + 1) / lessons.length) * 100} className="h-2" />
-                </GlassCard>
-              </div>
-            ) : (
-              <GlassCard>
-                <h3 className="font-semibold text-center mb-4">نتایج شبیه‌ساز</h3>
-                <div className="space-y-2">
-                  {lessons.map((lesson, idx) => {
-                    const total = (lesson.correct || 0) + (lesson.wrong || 0) + (lesson.blank || 0);
-                    const pct = total > 0 ? ((lesson.correct || 0) / total * 100).toFixed(1) : '0';
-                    return (
-                      <div key={lesson.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg text-sm">
-                        <span>{idx + 1}. {lesson.name}</span>
-                        <Badge variant={Number(pct) >= 60 ? 'default' : 'destructive'}>
-                          {pct}%
-                        </Badge>
-                      </div>
-                    );
-                  })}
+                  {simPhase === 'answering' && (
+                    <Button size="sm" onClick={finishSimulator} className="gap-1 h-7 text-xs">
+                      <CheckCircle className="w-3 h-3" />
+                      اتمام
+                    </Button>
+                  )}
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <Button onClick={resetSimulator} variant="outline" className="flex-1" size="sm">
-                    <RotateCcw className="w-4 h-4 ml-1" />
-                    شروع مجدد
-                  </Button>
-                  <Button onClick={submitSimulator} className="flex-1" size="sm">
-                    ثبت نتایج
+
+                {/* Locked Info */}
+                {simLockedQuestions.size > 0 && simPhase === 'answering' && (
+                  <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 rounded-lg p-2">
+                    <Lock className="w-3 h-3" />
+                    <span>{simLockedQuestions.size} سوال قفل شده</span>
+                  </div>
+                )}
+
+                {/* Main Content */}
+                <div className="glass-card rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 320px)' }}>
+                  {simViewMode === 'pdf' ? (
+                    <PdfViewer file={simPdfFile} />
+                  ) : simPhase === 'answering' ? (
+                    <AnswerSheet
+                      questionCount={parseInt(simTotalQuestions) || 0}
+                      answers={simAnswers}
+                      onAnswerSelect={handleSimAnswerSelect}
+                      lockedQuestions={simLockedQuestions}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 h-full divide-x divide-white/10">
+                      <div className="overflow-auto">
+                        <div className="text-center text-xs font-medium text-muted-foreground py-2 border-b border-white/10">
+                          پاسخ‌های شما
+                        </div>
+                        <AnswerSheet
+                          questionCount={parseInt(simTotalQuestions) || 0}
+                          answers={simAnswers}
+                          onAnswerSelect={() => {}}
+                          correctAnswers={simCorrectAnswers}
+                          showResults={Object.keys(simCorrectAnswers).length > 0}
+                          lockedQuestions={simLockedQuestions}
+                        />
+                      </div>
+                      <div className="overflow-auto">
+                        <CorrectAnswerSheet
+                          questionCount={parseInt(simTotalQuestions) || 0}
+                          correctAnswers={simCorrectAnswers}
+                          onCorrectAnswerSelect={handleSimCorrectAnswerSelect}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Submit / Reset */}
+                {simPhase === 'correcting' && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={resetSimulator} className="flex-1 gap-1">
+                      <RotateCcw className="w-4 h-4" />
+                      شروع مجدد
+                    </Button>
+                    <Button onClick={submitSimulator} className="flex-1 gap-1">
+                      <Save className="w-4 h-4" />
+                      ثبت نتیجه
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {simPhase === 'results' && (
+              <GlassCard>
+                <div className="text-center space-y-4">
+                  <CheckCircle className="w-16 h-16 mx-auto text-success" />
+                  <div>
+                    <h3 className="text-2xl font-bold text-success">{calculateSimResults().percentage.toFixed(1)}%</h3>
+                    <p className="text-muted-foreground">
+                      {calculateSimResults().correct} صحیح از {calculateSimResults().total}
+                    </p>
+                  </div>
+                  <Button onClick={resetSimulator} className="gap-1">
+                    <RotateCcw className="w-4 h-4" />
+                    شبیه‌ساز جدید
                   </Button>
                 </div>
               </GlassCard>
@@ -706,24 +856,21 @@ const ExamPanel = () => {
         </Tabs>
 
         {/* Results History */}
-        {results.length > 0 && (
+        {results.length > 0 && (examPhase === 'setup' || simPhase === 'setup') && (
           <GlassCard>
-            <h3 className="font-semibold mb-3 text-sm">تاریخچه تست‌ها</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {results.map(result => (
-                <div key={result.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg text-sm">
+            <h3 className="font-semibold mb-3 text-sm">تاریخچه</h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {results.slice(0, 5).map(result => (
+                <div key={result.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg text-xs">
                   <div>
-                    <p className="font-medium text-xs">{result.lessonName}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-medium">{result.lessonName}</p>
+                    <p className="text-muted-foreground">
                       {new Date(result.createdAt).toLocaleDateString('fa-IR')}
                     </p>
                   </div>
-                  <div className="text-left">
-                    <p className={`font-bold ${result.percentage >= 60 ? 'text-success' : 'text-destructive'}`}>
-                      {result.percentage.toFixed(1)}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">{result.correct}/{result.total}</p>
-                  </div>
+                  <Badge variant={result.percentage >= 60 ? 'default' : 'destructive'}>
+                    {result.percentage.toFixed(0)}%
+                  </Badge>
                 </div>
               ))}
             </div>
