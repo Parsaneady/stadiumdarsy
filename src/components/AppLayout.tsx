@@ -7,7 +7,12 @@ import {
   FileText,
   Users,
   LogOut,
-  Loader2
+  Loader2,
+  ClipboardList,
+  Timer,
+  BarChart3,
+  History,
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,8 +21,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
+  { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
+  { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
   { path: '/exam-panel', icon: FileText, label: 'پنل آزمون' },
+  { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
+  { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
   { path: '/pension', icon: Users, label: 'پانسیون' },
+  { path: '/profile', icon: User, label: 'پروفایل' },
 ];
 
 interface AppLayoutProps {
