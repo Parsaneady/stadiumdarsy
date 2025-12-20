@@ -295,6 +295,7 @@ export type Database = {
       }
       pension_exams: {
         Row: {
+          answer_key: Json | null
           created_at: string
           created_by: string
           description: string | null
@@ -304,12 +305,14 @@ export type Database = {
           id: string
           is_active: boolean | null
           lessons: Json | null
+          pdf_url: string | null
           pension_id: string
           question_count: number
           start_time: string
           title: string
         }
         Insert: {
+          answer_key?: Json | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -319,12 +322,14 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           lessons?: Json | null
+          pdf_url?: string | null
           pension_id: string
           question_count?: number
           start_time: string
           title: string
         }
         Update: {
+          answer_key?: Json | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -334,6 +339,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           lessons?: Json | null
+          pdf_url?: string | null
           pension_id?: string
           question_count?: number
           start_time?: string

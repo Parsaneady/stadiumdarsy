@@ -82,6 +82,8 @@ interface PensionExam {
   question_count: number;
   is_active: boolean;
   created_at: string;
+  pdf_url: string | null;
+  answer_key: Record<number, number> | null;
 }
 
 interface ExamResult {
@@ -228,8 +230,13 @@ const Pension = () => {
   const [examAnswers, setExamAnswers] = useState<{[key: number]: number | null}>({});
   const [examTimeLeft, setExamTimeLeft] = useState(0);
   const [isExamRunning, setIsExamRunning] = useState(false);
-  const [showExamResults, setShowExamResults] = useState(false);
-  const [correctAnswers, setCorrectAnswers] = useState<{[key: number]: number | null}>({});
+  
+  // Leader answer key editing
+  const [editingAnswerKey, setEditingAnswerKey] = useState<PensionExam | null>(null);
+  const [answerKeyData, setAnswerKeyData] = useState<{[key: number]: number | null}>({});
+  
+  // Uploading state
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -497,6 +504,27 @@ const Pension = () => {
     }
 
     try {
+      setUploadingPdf(true);
+      let pdfUrl: string | null = null;
+
+      // Upload PDF if provided
+      if (examPdfFile) {
+        const fileExt = examPdfFile.name.split('.').pop();
+        const fileName = `${pension.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('pension-exams')
+          .upload(fileName, examPdfFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('pension-exams')
+          .getPublicUrl(fileName);
+
+        pdfUrl = urlData.publicUrl;
+      }
+
       const { data, error } = await supabase
         .from('pension_exams')
         .insert({
@@ -510,6 +538,8 @@ const Pension = () => {
           duration_minutes: examDuration ? parseInt(examDuration) : 60,
           question_count: qCount,
           is_active: true,
+          pdf_url: pdfUrl,
+          answer_key: {},
         })
         .select()
         .single();
@@ -531,6 +561,8 @@ const Pension = () => {
     } catch (error) {
       if (import.meta.env.DEV) console.error('[Debug]', error);
       toast.error('خطا در ایجاد آزمون');
+    } finally {
+      setUploadingPdf(false);
     }
   };
 
@@ -541,8 +573,6 @@ const Pension = () => {
       initialAnswers[i] = null;
     }
     setExamAnswers(initialAnswers);
-    setCorrectAnswers({});
-    setShowExamResults(false);
     
     const duration = exam.duration_minutes || 60;
     setExamTimeLeft(duration * 60);
@@ -550,37 +580,28 @@ const Pension = () => {
   };
 
   const handleExamAnswerSelect = (questionIndex: number, option: number) => {
-    if (showExamResults) return;
     setExamAnswers(prev => ({
       ...prev,
       [questionIndex]: prev[questionIndex] === option ? null : option
     }));
   };
 
-  const handleCorrectAnswerSelect = (questionIndex: number, option: number) => {
-    setCorrectAnswers(prev => ({
-      ...prev,
-      [questionIndex]: prev[questionIndex] === option ? null : option
-    }));
-  };
-
-  const handleFinishExam = () => {
-    setIsExamRunning(false);
-    setShowExamResults(true);
-    toast.info('آزمون به پایان رسید - پاسخ‌های صحیح را مشخص کنید');
-  };
-
-  const handleSaveExamResults = async () => {
+  const handleFinishAndSaveExam = async () => {
     if (!takingExam || !user || !pension) return;
+    
+    setIsExamRunning(false);
 
     const qCount = takingExam.question_count;
+    const answerKey = takingExam.answer_key || {};
+    const hasAnswerKey = Object.keys(answerKey).length > 0;
+    
     let correctCount = 0;
     let wrongCount = 0;
     let blankCount = 0;
 
     for (let i = 0; i < qCount; i++) {
       const myAnswer = examAnswers[i];
-      const correct = correctAnswers[i];
+      const correct = hasAnswerKey ? answerKey[i] : null;
       
       if (myAnswer === null) {
         blankCount++;
@@ -593,7 +614,9 @@ const Pension = () => {
       }
     }
 
-    const percentage = qCount > 0 ? ((correctCount - (wrongCount / 3)) / qCount) * 100 : 0;
+    const percentage = hasAnswerKey && qCount > 0 
+      ? ((correctCount - (wrongCount / 3)) / qCount) * 100 
+      : 0;
 
     try {
       await supabase
@@ -609,25 +632,70 @@ const Pension = () => {
           wrong_answers: wrongCount,
           blank_answers: blankCount,
           percentage: Math.max(0, percentage),
+          lessons_data: examAnswers, // Store user answers for later scoring
         });
 
-      toast.success('نتایج ذخیره شد');
+      toast.success('پاسخ‌های شما ذخیره شد');
       setTakingExam(null);
       setExamAnswers({});
-      setCorrectAnswers({});
-      setShowExamResults(false);
     } catch (error) {
       if (import.meta.env.DEV) console.error('[Debug]', error);
-      toast.error('خطا در ذخیره نتایج');
+      toast.error('خطا در ذخیره پاسخ‌ها');
     }
   };
 
   const handleExitExam = () => {
     setTakingExam(null);
     setExamAnswers({});
-    setCorrectAnswers({});
-    setShowExamResults(false);
     setIsExamRunning(false);
+  };
+
+  // Answer key editing functions for leader
+  const handleEditAnswerKey = (exam: PensionExam) => {
+    setEditingAnswerKey(exam);
+    const initialKey: {[key: number]: number | null} = {};
+    const existingKey = exam.answer_key || {};
+    for (let i = 0; i < exam.question_count; i++) {
+      initialKey[i] = existingKey[i] ?? null;
+    }
+    setAnswerKeyData(initialKey);
+  };
+
+  const handleAnswerKeySelect = (questionIndex: number, option: number) => {
+    setAnswerKeyData(prev => ({
+      ...prev,
+      [questionIndex]: prev[questionIndex] === option ? null : option
+    }));
+  };
+
+  const handleSaveAnswerKey = async () => {
+    if (!editingAnswerKey || !pension) return;
+
+    try {
+      await supabase
+        .from('pension_exams')
+        .update({ answer_key: answerKeyData })
+        .eq('id', editingAnswerKey.id);
+
+      // Update local exams list
+      setExams(exams.map(e => 
+        e.id === editingAnswerKey.id 
+          ? { ...e, answer_key: answerKeyData as Record<number, number> } 
+          : e
+      ));
+
+      toast.success('پاسخنامه ذخیره شد');
+      setEditingAnswerKey(null);
+      setAnswerKeyData({});
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('[Debug]', error);
+      toast.error('خطا در ذخیره پاسخنامه');
+    }
+  };
+
+  const handleExitAnswerKey = () => {
+    setEditingAnswerKey(null);
+    setAnswerKeyData({});
   };
 
   // Timer effect
@@ -705,10 +773,84 @@ const Pension = () => {
     }
   };
 
+  // Leader editing answer key view
+  if (editingAnswerKey) {
+    const markedCount = Object.values(answerKeyData).filter(a => a !== null).length;
+    
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={handleExitAnswerKey}>
+                <X className="w-5 h-5" />
+              </Button>
+              <div>
+                <h1 className="font-bold">پاسخنامه: {editingAnswerKey.title}</h1>
+                <p className="text-xs text-muted-foreground">کلید سوالات را وارد کنید</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                {markedCount}/{editingAnswerKey.question_count} کلید
+              </div>
+
+              <Button onClick={handleSaveAnswerKey} className="gap-2">
+                <Trophy className="w-4 h-4" />
+                ذخیره پاسخنامه
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main */}
+        <main className="flex-1 overflow-hidden flex">
+          {/* PDF Viewer */}
+          {editingAnswerKey.pdf_url && (
+            <div className="flex-1 border-l border-border/50 overflow-hidden">
+              <iframe src={editingAnswerKey.pdf_url} className="w-full h-full" />
+            </div>
+          )}
+          
+          {/* Answer Sheet */}
+          <div className={`h-full overflow-y-auto p-4 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-4xl mx-auto'}`}>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => {
+                const selectedKey = answerKeyData[idx];
+                
+                return (
+                  <div key={idx} className="p-2 rounded-lg text-center bg-white/5">
+                    <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
+                    <div className="grid grid-cols-4 gap-0.5">
+                      {[1, 2, 3, 4].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => handleAnswerKeySelect(idx, opt)}
+                          className={`w-5 h-5 rounded-full text-[10px] font-bold transition-all ${
+                            selectedKey === opt
+                              ? 'bg-green-500 text-white'
+                              : 'bg-white/10 hover:bg-white/20'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // Taking exam view
   if (takingExam) {
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
-    const markedCount = Object.values(correctAnswers).filter(a => a !== null).length;
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -734,72 +876,44 @@ const Pension = () => {
                 {answeredCount}/{takingExam.question_count}
               </div>
 
-              {!showExamResults ? (
-                <Button onClick={handleFinishExam} className="gap-2">
-                  <Trophy className="w-4 h-4" />
-                  پایان و تصحیح
-                </Button>
-              ) : (
-                <Button onClick={handleSaveExamResults} className="gap-2">
-                  <Trophy className="w-4 h-4" />
-                  ذخیره نتایج
-                </Button>
-              )}
+              <Button onClick={handleFinishAndSaveExam} className="gap-2">
+                <Trophy className="w-4 h-4" />
+                پایان آزمون
+              </Button>
             </div>
           </div>
         </header>
 
         {/* Main */}
         <main className="flex-1 overflow-hidden flex">
+          {/* PDF Viewer */}
+          {takingExam.pdf_url && (
+            <div className="flex-1 border-l border-border/50 overflow-hidden">
+              <iframe src={takingExam.pdf_url} className="w-full h-full" />
+            </div>
+          )}
+          
           {/* Answer Sheet */}
-          <div className="w-full max-w-4xl mx-auto p-4 overflow-y-auto">
-            {showExamResults && (
-              <div className="mb-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
-                <p className="text-sm text-muted-foreground mb-2">
-                  کلید سوالات را وارد کنید تا نتایج محاسبه شود
-                </p>
-                <div className="flex gap-4 text-sm">
-                  <span>پاسخ داده: {answeredCount}</span>
-                  <span>کلید وارد شده: {markedCount}</span>
-                </div>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
+          <div className={`h-full overflow-y-auto p-4 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-4xl mx-auto'}`}>
+            <div className="grid grid-cols-5 gap-2">
               {Array.from({ length: takingExam.question_count }, (_, idx) => {
                 const myAnswer = examAnswers[idx];
-                const correct = correctAnswers[idx];
-                const isCorrect = showExamResults && myAnswer !== null && correct !== null && myAnswer === correct;
-                const isWrong = showExamResults && myAnswer !== null && correct !== null && myAnswer !== correct;
                 
                 return (
-                  <div key={idx} className={`p-2 rounded-lg text-center ${
-                    isCorrect ? 'bg-green-500/20 border border-green-500/30' :
-                    isWrong ? 'bg-red-500/20 border border-red-500/30' :
-                    'bg-white/5'
-                  }`}>
+                  <div key={idx} className="p-2 rounded-lg text-center bg-white/5">
                     <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
                     <div className="grid grid-cols-4 gap-0.5">
                       {[1, 2, 3, 4].map((opt) => {
                         const isSelected = myAnswer === opt;
-                        const isCorrectAnswer = correct === opt;
                         
                         return (
                           <button
                             key={opt}
-                            onClick={() => {
-                              if (showExamResults) {
-                                handleCorrectAnswerSelect(idx, opt);
-                              } else {
-                                handleExamAnswerSelect(idx, opt);
-                              }
-                            }}
+                            onClick={() => handleExamAnswerSelect(idx, opt)}
                             className={`w-5 h-5 rounded-full text-[10px] font-bold transition-all ${
-                              showExamResults && isCorrectAnswer
-                                ? 'bg-green-500 text-white'
-                                : isSelected
-                                  ? 'bg-primary text-white'
-                                  : 'bg-white/10 hover:bg-white/20'
+                              isSelected
+                                ? 'bg-primary text-white'
+                                : 'bg-white/10 hover:bg-white/20'
                             }`}
                           >
                             {opt}
@@ -1213,8 +1327,8 @@ const Pension = () => {
                             <span>{exam.question_count} سوال</span>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          {canTake && !isLeader && (
+                        <div className="flex flex-wrap gap-2">
+                          {canTake && (
                             <Button 
                               size="sm" 
                               className="gap-1"
@@ -1225,35 +1339,57 @@ const Pension = () => {
                             </Button>
                           )}
                           {isLeader && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  حذف
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>حذف آزمون</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="gap-2">
-                                  <AlertDialogCancel>انصراف</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => handleDeleteExam(exam.id)}
-                                    className="bg-destructive hover:bg-destructive/90"
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="gap-1"
+                                onClick={() => handleEditAnswerKey(exam)}
+                              >
+                                <Edit className="w-4 h-4" />
+                                {exam.answer_key && Object.keys(exam.answer_key).length > 0 ? 'ویرایش پاسخنامه' : 'افزودن پاسخنامه'}
+                              </Button>
+                              {exam.pdf_url && (
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                                  <FileText className="w-3 h-3 ml-1" />
+                                  PDF
+                                </Badge>
+                              )}
+                              {exam.answer_key && Object.keys(exam.answer_key).length > 0 && (
+                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                                  کلید: {Object.keys(exam.answer_key).length} سوال
+                                </Badge>
+                              )}
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                                   >
+                                    <Trash2 className="w-4 h-4" />
                                     حذف
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>حذف آزمون</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter className="gap-2">
+                                    <AlertDialogCancel>انصراف</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeleteExam(exam.id)}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                    >
+                                      حذف
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
                           )}
                         </div>
                       </div>
