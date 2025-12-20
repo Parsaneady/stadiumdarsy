@@ -8,16 +8,9 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { SeasonProvider } from "./contexts/SeasonContext";
 
 // Lazy load pages for code splitting
-const Index = lazy(() => import("./pages/Index"));
-const WeeklyPlan = lazy(() => import("./pages/WeeklyPlan"));
-const DailyLog = lazy(() => import("./pages/DailyLog"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const Pomodoro = lazy(() => import("./pages/Pomodoro"));
-const TestExam = lazy(() => import("./pages/TestExam"));
-const PerformanceHistory = lazy(() => import("./pages/PerformanceHistory"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const WeeklyProgram = lazy(() => import("./pages/WeeklyProgram"));
 const Auth = lazy(() => import("./pages/Auth"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Challenges = lazy(() => import("./pages/Challenges"));
 const Pension = lazy(() => import("./pages/Pension"));
 const PensionInvite = lazy(() => import("./pages/PensionInvite"));
 const ExamPanel = lazy(() => import("./pages/ExamPanel"));
@@ -53,16 +46,9 @@ const App = () => (
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/" element={<Index />} />
-                <Route path="/weekly-plan" element={<WeeklyPlan />} />
-                <Route path="/daily-log" element={<DailyLog />} />
-                <Route path="/pomodoro" element={<Pomodoro />} />
-                <Route path="/test-exam" element={<TestExam />} />
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/weekly-plan" element={<WeeklyProgram />} />
                 <Route path="/exam-panel" element={<ExamPanel />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/history" element={<PerformanceHistory />} />
-                <Route path="/challenges" element={<Challenges />} />
                 <Route path="/pension" element={<Pension />} />
                 <Route path="/pension/invite/:code" element={<PensionInvite />} />
                 <Route path="*" element={<NotFound />} />

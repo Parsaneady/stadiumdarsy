@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
+import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +30,9 @@ interface PensionMember {
   profile?: {
     username: string | null;
     display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
     total_study_minutes: number;
     total_tests: number;
   };
@@ -97,10 +101,10 @@ const Pension = () => {
               membersData.map(async (member) => {
                 const { data: profileData } = await supabase
                   .from('profiles')
-                  .select('username, display_name, total_study_minutes, total_tests')
+                  .select('username, display_name, first_name, last_name, avatar_url, total_study_minutes, total_tests')
                   .eq('user_id', member.user_id)
                   .maybeSingle();
-                return { ...member, profile: profileData };
+                return { ...member, profile: profileData } as PensionMember;
               })
             );
             
@@ -214,18 +218,18 @@ const Pension = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-      </Layout>
+      </AppLayout>
     );
   }
 
   // No pension - show create option
   if (!pension) {
     return (
-      <Layout>
+      <AppLayout>
         <div className="space-y-6 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -270,13 +274,13 @@ const Pension = () => {
             </Dialog>
           </GlassCard>
         </div>
-      </Layout>
+      </AppLayout>
     );
   }
 
   // Show pension
   return (
-    <Layout>
+    <AppLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -367,6 +371,12 @@ const Pension = () => {
                   }`}>
                     {index + 1}
                   </div>
+                  <Avatar className="w-10 h-10 border border-white/10">
+                    <AvatarImage src={member.profile?.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                      {member.profile?.first_name?.[0] || member.profile?.username?.[0] || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="font-medium flex items-center gap-2">
                       @{member.profile?.username || 'بدون نام'}
@@ -375,7 +385,7 @@ const Pension = () => {
                       )}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {member.profile?.display_name}
+                      {member.profile?.first_name} {member.profile?.last_name}
                     </p>
                   </div>
                 </div>
@@ -406,7 +416,7 @@ const Pension = () => {
           </Button>
         )}
       </div>
-    </Layout>
+    </AppLayout>
   );
 };
 

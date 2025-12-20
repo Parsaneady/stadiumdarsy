@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Layout } from '@/components/Layout';
+import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -276,7 +276,7 @@ const ExamPanel = () => {
   };
 
   return (
-    <Layout>
+    <AppLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -554,7 +554,7 @@ const ExamPanel = () => {
           )}
         </GlassCard>
       </div>
-    </Layout>
+    </AppLayout>
   );
 };
 
