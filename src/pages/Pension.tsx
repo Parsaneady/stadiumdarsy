@@ -34,8 +34,6 @@ import {
 import { format } from 'date-fns-jalali';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
 import { formatHoursDisplay } from '@/lib/timeUtils';
-import { AnswerSheet } from '@/components/exam/AnswerSheet';
-import { CorrectAnswerSheet } from '@/components/exam/CorrectAnswerSheet';
 
 // Import student avatars for display
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -882,15 +880,9 @@ const Pension = () => {
     }
   };
 
-  // Leader editing answer key view - exactly like ExamPanel
+  // Leader editing answer key view - exactly like ExamPanel (copy-paste)
   if (editingAnswerKey) {
     const markedCount = Object.values(answerKeyData).filter(a => a !== null).length;
-    const correctAnswersRecord: Record<number, number> = {};
-    Object.entries(answerKeyData).forEach(([key, value]) => {
-      if (value !== null) {
-        correctAnswersRecord[parseInt(key)] = value;
-      }
-    });
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -920,7 +912,7 @@ const Pension = () => {
           </div>
         </header>
 
-        {/* Main - Split View like ExamPanel */}
+        {/* Main - Split View exactly like ExamPanel */}
         <main className="flex-1 overflow-hidden flex">
           {/* PDF Viewer */}
           {editingAnswerKey.pdf_url && (
@@ -929,27 +921,43 @@ const Pension = () => {
             </div>
           )}
           
-          {/* Answer Key Sheet - Using CorrectAnswerSheet component */}
-          <div className={`h-full bg-card/50 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-md mx-auto'}`}>
-            <CorrectAnswerSheet
-              questionCount={editingAnswerKey.question_count}
-              correctAnswers={correctAnswersRecord}
-              onCorrectAnswerSelect={handleAnswerKeySelect}
-            />
+          {/* Answer Sheet - exactly like ExamPanel grid */}
+          <div className={`h-full overflow-y-auto p-4 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => (
+                <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[1, 2, 3, 4].map((opt) => {
+                      const isSelected = answerKeyData[idx] === opt;
+                      
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => handleAnswerKeySelect(idx, opt)}
+                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
+                            isSelected 
+                              ? "bg-success text-white" 
+                              : "bg-white/10 hover:bg-white/20"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
-  // Taking exam view - exactly like ExamPanel
+  // Taking exam view - exactly like ExamPanel (copy-paste)
   if (takingExam) {
-    const userAnswersRecord: Record<number, number> = {};
-    Object.entries(examAnswers).forEach(([key, value]) => {
-      if (value !== null) {
-        userAnswersRecord[parseInt(key)] = value;
-      }
-    });
+    const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -972,7 +980,7 @@ const Pension = () => {
               )}
               
               <div className="text-sm text-muted-foreground">
-                {Object.keys(userAnswersRecord).length}/{takingExam.question_count}
+                {answeredCount}/{takingExam.question_count}
               </div>
 
               <Button onClick={handleFinishAndSaveExam} className="gap-2">
@@ -983,7 +991,7 @@ const Pension = () => {
           </div>
         </header>
 
-        {/* Main - Split View like ExamPanel */}
+        {/* Main - Split View exactly like ExamPanel */}
         <main className="flex-1 overflow-hidden flex">
           {/* PDF Viewer */}
           {takingExam.pdf_url && (
@@ -992,13 +1000,34 @@ const Pension = () => {
             </div>
           )}
           
-          {/* Answer Sheet - Using AnswerSheet component */}
-          <div className={`h-full bg-card/50 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-md mx-auto'}`}>
-            <AnswerSheet
-              questionCount={takingExam.question_count}
-              answers={userAnswersRecord}
-              onAnswerSelect={handleExamAnswerSelect}
-            />
+          {/* Answer Sheet - exactly like ExamPanel grid */}
+          <div className={`h-full overflow-y-auto p-4 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: takingExam.question_count }, (_, idx) => (
+                <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[1, 2, 3, 4].map((opt) => {
+                      const isSelected = examAnswers[idx] === opt;
+                      
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => handleExamAnswerSelect(idx, opt)}
+                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
+                            isSelected 
+                              ? "bg-primary text-white" 
+                              : "bg-white/10 hover:bg-white/20"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </main>
       </div>
