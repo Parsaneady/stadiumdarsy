@@ -265,6 +265,10 @@ const Pension = () => {
   const [examAnswers, setExamAnswers] = useState<{[key: number]: number | null}>({});
   const [examTimeLeft, setExamTimeLeft] = useState(0);
   const [isExamRunning, setIsExamRunning] = useState(false);
+  const [examViewMode, setExamViewMode] = useState<'questions' | 'answers'>('questions');
+  
+  // Answer key editing view mode
+  const [answerKeyViewMode, setAnswerKeyViewMode] = useState<'questions' | 'answers'>('questions');
   
   // Leader answer key editing
   const [editingAnswerKey, setEditingAnswerKey] = useState<PensionExam | null>(null);
@@ -900,6 +904,28 @@ const Pension = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg">
+                <Button
+                  variant={answerKeyViewMode === 'questions' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setAnswerKeyViewMode('questions')}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  سوالات
+                </Button>
+                <Button
+                  variant={answerKeyViewMode === 'answers' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setAnswerKeyViewMode('answers')}
+                  className="gap-2"
+                >
+                  <Target className="w-4 h-4" />
+                  پاسخنامه
+                </Button>
+              </div>
+
               <div className="text-sm text-muted-foreground">
                 {markedCount}/{editingAnswerKey.question_count} کلید
               </div>
@@ -912,22 +938,26 @@ const Pension = () => {
           </div>
         </header>
 
-        {/* Main - Split View */}
-        <main className="flex-1 overflow-hidden flex">
-          {/* PDF Viewer - Right Side */}
-          {editingAnswerKey.pdf_url && (
-            <div className="flex-1 border-l border-border/50 overflow-hidden bg-muted/20">
-              <iframe 
-                src={editingAnswerKey.pdf_url} 
-                className="w-full h-full" 
-                title="سوالات آزمون"
-              />
-            </div>
-          )}
-          
-          {/* Answer Key Sheet - Left Side */}
-          <div className={`h-full overflow-y-auto bg-card/50 ${editingAnswerKey.pdf_url ? 'w-[400px] min-w-[400px]' : 'w-full max-w-4xl mx-auto'}`}>
-            <div className="h-full overflow-hidden flex flex-col">
+        {/* Main - Single View Based on Toggle */}
+        <main className="flex-1 overflow-hidden">
+          {answerKeyViewMode === 'questions' ? (
+            /* PDF Viewer */
+            editingAnswerKey.pdf_url ? (
+              <div className="w-full h-full bg-muted/20">
+                <iframe 
+                  src={editingAnswerKey.pdf_url} 
+                  className="w-full h-full" 
+                  title="سوالات آزمون"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <p>فایل PDF موجود نیست</p>
+              </div>
+            )
+          ) : (
+            /* Answer Key Sheet */
+            <div className="h-full overflow-hidden flex flex-col max-w-4xl mx-auto">
               {/* Answer Sheet Header */}
               <div className="flex items-center justify-between text-xs text-muted-foreground py-3 px-4 border-b border-white/10 bg-white/5 sticky top-0 z-10">
                 <div className="flex items-center gap-6">
@@ -995,7 +1025,7 @@ const Pension = () => {
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     );
@@ -1004,10 +1034,6 @@ const Pension = () => {
   // Taking exam view
   if (takingExam) {
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
-    const answersRecord: Record<number, number> = {};
-    Object.entries(examAnswers).forEach(([key, val]) => {
-      if (val !== null) answersRecord[Number(key)] = val;
-    });
     
     return (
       <div className="min-h-screen bg-background flex flex-col" dir="rtl">
@@ -1022,6 +1048,28 @@ const Pension = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg">
+                <Button
+                  variant={examViewMode === 'questions' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setExamViewMode('questions')}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  سوالات
+                </Button>
+                <Button
+                  variant={examViewMode === 'answers' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setExamViewMode('answers')}
+                  className="gap-2"
+                >
+                  <Target className="w-4 h-4" />
+                  پاسخبرگ
+                </Button>
+              </div>
+
               {isExamRunning && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full">
                   <Clock className="w-4 h-4 text-primary" />
@@ -1041,22 +1089,26 @@ const Pension = () => {
           </div>
         </header>
 
-        {/* Main - Split View */}
-        <main className="flex-1 overflow-hidden flex">
-          {/* PDF Viewer - Right Side */}
-          {takingExam.pdf_url && (
-            <div className="flex-1 border-l border-border/50 overflow-hidden bg-muted/20">
-              <iframe 
-                src={takingExam.pdf_url} 
-                className="w-full h-full" 
-                title="سوالات آزمون"
-              />
-            </div>
-          )}
-          
-          {/* Answer Sheet - Left Side */}
-          <div className={`h-full overflow-y-auto bg-card/50 ${takingExam.pdf_url ? 'w-[400px] min-w-[400px]' : 'w-full max-w-4xl mx-auto'}`}>
-            <div className="h-full overflow-hidden flex flex-col">
+        {/* Main - Single View Based on Toggle */}
+        <main className="flex-1 overflow-hidden">
+          {examViewMode === 'questions' ? (
+            /* PDF Viewer */
+            takingExam.pdf_url ? (
+              <div className="w-full h-full bg-muted/20">
+                <iframe 
+                  src={takingExam.pdf_url} 
+                  className="w-full h-full" 
+                  title="سوالات آزمون"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <p>فایل PDF موجود نیست</p>
+              </div>
+            )
+          ) : (
+            /* Answer Sheet */
+            <div className="h-full overflow-hidden flex flex-col max-w-4xl mx-auto">
               {/* Answer Sheet Header */}
               <div className="flex items-center justify-between text-xs text-muted-foreground py-3 px-4 border-b border-white/10 bg-white/5 sticky top-0 z-10">
                 <div className="flex items-center gap-6">
@@ -1124,7 +1176,7 @@ const Pension = () => {
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     );
