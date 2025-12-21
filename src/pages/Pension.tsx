@@ -890,30 +890,10 @@ const Pension = () => {
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Header - exactly like reference */}
+        {/* Header - exactly like reference image */}
         <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between flex-row-reverse">
-            {/* Right side - exit button */}
-            <button 
-              onClick={handleExitAnswerKey}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span className="text-sm">خروج از ویرایش</span>
-              <FileText className="w-5 h-5" />
-            </button>
-
-            {/* Center - title and progress */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                <span className="font-bold">پاسخنامه: {editingAnswerKey.title}</span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                پیشرفت: <span className="font-bold">{markedCount}/{editingAnswerKey.question_count}</span>
-              </div>
-            </div>
-
-            {/* Left side - tabs and save button */}
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            {/* Left side - save button and tabs */}
             <div className="flex items-center gap-3">
               <Button 
                 onClick={handleSaveAnswerKey}
@@ -947,6 +927,26 @@ const Pension = () => {
                 </button>
               </div>
             </div>
+
+            {/* Center - progress and title */}
+            <div className="flex items-center gap-6">
+              <div className="text-sm text-muted-foreground">
+                پیشرفت: <span className="font-bold">{markedCount}/{editingAnswerKey.question_count}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold">پاسخنامه: {editingAnswerKey.title}</span>
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+
+            {/* Right side - exit button */}
+            <button 
+              onClick={handleExitAnswerKey}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <FileText className="w-5 h-5" />
+              <span className="text-sm">خروج از ویرایش</span>
+            </button>
           </div>
         </header>
 
@@ -1031,36 +1031,10 @@ const Pension = () => {
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Header - exactly like reference */}
+        {/* Header - exactly like reference image */}
         <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between flex-row-reverse">
-            {/* Right side - exit button */}
-            <button 
-              onClick={handleExitExam}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span className="text-sm">خروج از آزمون</span>
-              <FileText className="w-5 h-5" />
-            </button>
-
-            {/* Center - title, progress, timer */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                <span className="font-bold">آزمون درحال برگزاری</span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                پیشرفت: <span className="font-bold">{answeredCount}/{takingExam.question_count}</span>
-              </div>
-              {isExamRunning && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-                  <Clock className="w-4 h-4" />
-                  <span className="font-mono font-bold text-lg">{formatExamTime(examTimeLeft)}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Left side - tabs and finish button */}
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            {/* Left side - finish button and tabs */}
             <div className="flex items-center gap-3">
               <Button 
                 onClick={handleFinishAndSaveExam}
@@ -1094,6 +1068,32 @@ const Pension = () => {
                 </button>
               </div>
             </div>
+
+            {/* Center - timer, progress, title */}
+            <div className="flex items-center gap-6">
+              {isExamRunning && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+                  <span className="font-mono font-bold text-lg">{formatExamTime(examTimeLeft)}</span>
+                  <Clock className="w-4 h-4" />
+                </div>
+              )}
+              <div className="text-sm text-muted-foreground">
+                پیشرفت: <span className="font-bold">{answeredCount}/{takingExam.question_count}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold">آزمون درحال برگزاری</span>
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+
+            {/* Right side - exit button */}
+            <button 
+              onClick={handleExitExam}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <FileText className="w-5 h-5" />
+              <span className="text-sm">خروج از آزمون</span>
+            </button>
           </div>
         </header>
 
