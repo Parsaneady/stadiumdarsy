@@ -34,6 +34,8 @@ import {
 import { format } from 'date-fns-jalali';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
 import { formatHoursDisplay } from '@/lib/timeUtils';
+import { AnswerSheet } from '@/components/exam/AnswerSheet';
+import { CorrectAnswerSheet } from '@/components/exam/CorrectAnswerSheet';
 
 // Import student avatars for display
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -883,6 +885,12 @@ const Pension = () => {
   // Leader editing answer key view - exactly like ExamPanel
   if (editingAnswerKey) {
     const markedCount = Object.values(answerKeyData).filter(a => a !== null).length;
+    const correctAnswersRecord: Record<number, number> = {};
+    Object.entries(answerKeyData).forEach(([key, value]) => {
+      if (value !== null) {
+        correctAnswersRecord[parseInt(key)] = value;
+      }
+    });
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -921,35 +929,13 @@ const Pension = () => {
             </div>
           )}
           
-          {/* Answer Key Sheet */}
-          <div className={`h-full overflow-y-auto p-4 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
-            <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => {
-                const selectedKey = answerKeyData[idx];
-                const isSelected = (opt: number) => selectedKey === opt;
-                
-                return (
-                  <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
-                    <div className="grid grid-cols-4 gap-1">
-                      {[1, 2, 3, 4].map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => handleAnswerKeySelect(idx, opt)}
-                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
-                            isSelected(opt) 
-                              ? 'bg-green-500 text-white' 
-                              : 'bg-white/10 hover:bg-white/20'
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Answer Key Sheet - Using CorrectAnswerSheet component */}
+          <div className={`h-full bg-card/50 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-md mx-auto'}`}>
+            <CorrectAnswerSheet
+              questionCount={editingAnswerKey.question_count}
+              correctAnswers={correctAnswersRecord}
+              onCorrectAnswerSelect={handleAnswerKeySelect}
+            />
           </div>
         </main>
       </div>
@@ -958,7 +944,12 @@ const Pension = () => {
 
   // Taking exam view - exactly like ExamPanel
   if (takingExam) {
-    const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
+    const userAnswersRecord: Record<number, number> = {};
+    Object.entries(examAnswers).forEach(([key, value]) => {
+      if (value !== null) {
+        userAnswersRecord[parseInt(key)] = value;
+      }
+    });
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -981,7 +972,7 @@ const Pension = () => {
               )}
               
               <div className="text-sm text-muted-foreground">
-                {answeredCount}/{takingExam.question_count}
+                {Object.keys(userAnswersRecord).length}/{takingExam.question_count}
               </div>
 
               <Button onClick={handleFinishAndSaveExam} className="gap-2">
@@ -1001,35 +992,13 @@ const Pension = () => {
             </div>
           )}
           
-          {/* Answer Sheet */}
-          <div className={`h-full overflow-y-auto p-4 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
-            <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: takingExam.question_count }, (_, idx) => {
-                const myAnswer = examAnswers[idx];
-                const isSelected = (opt: number) => myAnswer === opt;
-                
-                return (
-                  <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
-                    <div className="grid grid-cols-4 gap-1">
-                      {[1, 2, 3, 4].map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => handleExamAnswerSelect(idx, opt)}
-                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
-                            isSelected(opt) 
-                              ? 'bg-primary text-white' 
-                              : 'bg-white/10 hover:bg-white/20'
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Answer Sheet - Using AnswerSheet component */}
+          <div className={`h-full bg-card/50 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-md mx-auto'}`}>
+            <AnswerSheet
+              questionCount={takingExam.question_count}
+              answers={userAnswersRecord}
+              onAnswerSelect={handleExamAnswerSelect}
+            />
           </div>
         </main>
       </div>
