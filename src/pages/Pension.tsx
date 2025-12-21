@@ -76,6 +76,10 @@ interface PensionMember {
     total_study_minutes: number;
     total_tests: number;
   };
+  weeklyStats?: {
+    totalHours: number;
+    totalTests: number;
+  };
 }
 
 interface Pension {
@@ -309,21 +313,48 @@ const Pension = () => {
             .order('joined_at');
 
           if (membersData) {
-            // Fetch profiles for each member
+            // Fetch profiles and weekly plans for each member
             const membersWithProfiles = await Promise.all(
               membersData.map(async (member) => {
-                const { data: profileData } = await supabase
-                  .from('profiles')
-                  .select('username, display_name, first_name, last_name, avatar_url, total_study_minutes, total_tests')
-                  .eq('user_id', member.user_id)
-                  .maybeSingle();
-                return { ...member, profile: profileData } as PensionMember;
+                const [profileRes, weeklyPlansRes] = await Promise.all([
+                  supabase
+                    .from('profiles')
+                    .select('username, display_name, first_name, last_name, avatar_url, total_study_minutes, total_tests')
+                    .eq('user_id', member.user_id)
+                    .maybeSingle(),
+                  supabase
+                    .from('weekly_plans')
+                    .select('sessions')
+                    .eq('user_id', member.user_id)
+                ]);
+
+                // Calculate weekly stats from weekly_plans
+                let weeklyHours = 0;
+                let weeklyTests = 0;
+                if (weeklyPlansRes.data) {
+                  weeklyPlansRes.data.forEach((plan: any) => {
+                    const sessions = plan.sessions || [];
+                    sessions.forEach((session: any) => {
+                      weeklyHours += session.actualHours || 0;
+                      weeklyTests += session.actualTests || 0;
+                    });
+                  });
+                }
+
+                return { 
+                  ...member, 
+                  profile: profileRes.data,
+                  weeklyStats: {
+                    totalHours: weeklyHours,
+                    totalTests: weeklyTests
+                  }
+                } as PensionMember;
               })
             );
             
-            // Sort by total study minutes (leaderboard)
+            // Sort by weekly study hours (leaderboard)
             membersWithProfiles.sort((a, b) => 
-              (b.profile?.total_study_minutes || 0) - (a.profile?.total_study_minutes || 0)
+              (b.weeklyStats?.totalHours || 0) - (a.weeklyStats?.totalHours || 0)
             );
             
             setMembers(membersWithProfiles);
@@ -1193,11 +1224,11 @@ const Pension = () => {
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="w-4 h-4" />
-                        <span>{formatStudyTime(member.profile?.total_study_minutes || 0)}</span>
+                        <span>{(member.weeklyStats?.totalHours || 0).toFixed(1)} ساعت</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <FileText className="w-4 h-4" />
-                        <span>{member.profile?.total_tests || 0} تست</span>
+                        <span>{member.weeklyStats?.totalTests || 0} تست</span>
                       </div>
                     </div>
                   </div>
@@ -1635,6 +1666,7 @@ const Pension = () => {
             setSelectedMemberRank(undefined);
           }}
           profile={selectedMember?.profile || null}
+          weeklyStats={selectedMember?.weeklyStats}
           rank={selectedMemberRank}
         />
       </div>

@@ -29,18 +29,26 @@ interface MemberProfile {
   total_tests: number;
 }
 
+interface WeeklyStats {
+  totalHours: number;
+  totalTests: number;
+}
+
 interface MemberProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   profile: MemberProfile | null;
+  weeklyStats?: WeeklyStats;
   rank?: number;
 }
 
-export const MemberProfileModal = ({ isOpen, onClose, profile, rank }: MemberProfileModalProps) => {
+export const MemberProfileModal = ({ isOpen, onClose, profile, weeklyStats, rank }: MemberProfileModalProps) => {
   if (!profile) return null;
 
   const displayName = profile.display_name || profile.username || profile.first_name || 'کاربر';
-  const studyHours = Math.round((profile.total_study_minutes || 0) / 60 * 10) / 10;
+  // Use weekly stats for display (same as dashboard)
+  const studyHours = Math.round((weeklyStats?.totalHours || 0) * 10) / 10;
+  const tests = weeklyStats?.totalTests || 0;
   
   const getAvatarContent = () => {
     if (!profile.avatar_url) return null;
@@ -105,12 +113,12 @@ export const MemberProfileModal = ({ isOpen, onClose, profile, rank }: MemberPro
             <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
               <Clock className="w-6 h-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">{studyHours}</p>
-              <p className="text-xs text-muted-foreground">ساعت مطالعه</p>
+              <p className="text-xs text-muted-foreground">ساعت مطالعه (هفته)</p>
             </div>
             <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-center">
               <Target className="w-6 h-6 text-accent mx-auto mb-2" />
-              <p className="text-2xl font-bold">{profile.total_tests || 0}</p>
-              <p className="text-xs text-muted-foreground">تست حل شده</p>
+              <p className="text-2xl font-bold">{tests}</p>
+              <p className="text-xs text-muted-foreground">تست حل شده (هفته)</p>
             </div>
           </div>
 
