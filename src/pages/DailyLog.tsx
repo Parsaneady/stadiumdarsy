@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ClipboardList, Save, Clock, FileText, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
-import { useStudyStore, StudySession } from '@/stores/studyStore';
+import { useStudyStore, StudySession, DailyLog as DailyLogType } from '@/stores/studyStore';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { LogSessionModal } from '@/components/LogSessionModal';
@@ -8,9 +8,11 @@ import { Progress } from '@/components/ui/progress';
 import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
 import { toast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/AppLayout';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 const DailyLog = () => {
-  const { weeklyPlan, initializeWeek, updateSession, logDaily, getTodayIndex, toggleSessionComplete } = useStudyStore();
+  const { weeklyPlan, dailyLogs, initializeWeek, updateSession, logDaily, getTodayIndex, toggleSessionComplete } = useStudyStore();
+  const { saveDailyLog, saveWeeklyPlan } = useCloudSync();
   const [selectedSession, setSelectedSession] = useState<{ dayId: string; session: StudySession } | null>(null);
 
   useEffect(() => {
@@ -25,6 +27,11 @@ const DailyLog = () => {
   const handleSaveSession = (updates: Partial<StudySession>) => {
     if (selectedSession) {
       updateSession(selectedSession.dayId, selectedSession.session.id, updates);
+      // Save to cloud
+      const updatedSessions = todayPlan?.sessions.map(s => 
+        s.id === selectedSession.session.id ? { ...s, ...updates } : s
+      ) || [];
+      saveWeeklyPlan(selectedSession.dayId, updatedSessions);
       setSelectedSession(null);
       toast({
         title: "✅ ذخیره شد",
@@ -36,6 +43,11 @@ const DailyLog = () => {
   const handleSaveDay = () => {
     if (todayPlan) {
       logDaily(todayPlan.id);
+      // Save the latest log to cloud
+      const latestLog = dailyLogs.find(log => log.date.split('T')[0] === new Date().toISOString().split('T')[0]);
+      if (latestLog) {
+        saveDailyLog(latestLog);
+      }
       toast({
         title: "ذخیره شد! ✨",
         description: "عملکرد امروز با موفقیت ثبت شد.",

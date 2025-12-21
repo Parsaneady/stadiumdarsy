@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
+import { useCloudSync } from '@/hooks/useCloudSync';
 import {
   Dialog,
   DialogContent,
@@ -147,6 +148,8 @@ const Pomodoro = () => {
     resetTimer,
   } = usePomodoroStore();
   
+  const { savePomodoroSettings, addPomodoroSession } = useCloudSync();
+  
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [subjectSelectOpen, setSubjectSelectOpen] = useState(false);
@@ -199,6 +202,7 @@ const Pomodoro = () => {
       
       if (mode === 'study' && pomodoroSubject) {
         addPomodoroTime(pomodoroSettings.studyDuration, pomodoroSubject);
+        addPomodoroSession(pomodoroSubject, pomodoroSettings.studyDuration); // Save to cloud
         incrementCompletedPomodoros();
         
         toast({
@@ -274,6 +278,7 @@ const Pomodoro = () => {
 
   const saveSettings = useCallback(() => {
     setPomodoroSettings(tempSettings);
+    savePomodoroSettings(tempSettings); // Save to cloud
     setTimeLeft(tempSettings.studyDuration * 60);
     setMode('study');
     setIsRunning(false);
@@ -282,7 +287,7 @@ const Pomodoro = () => {
       title: "✅ تنظیمات ذخیره شد",
       description: "تنظیمات پومودورو با موفقیت به‌روزرسانی شد.",
     });
-  }, [tempSettings, setPomodoroSettings, setTimeLeft, setMode, setIsRunning]);
+  }, [tempSettings, setPomodoroSettings, savePomodoroSettings, setTimeLeft, setMode, setIsRunning]);
 
   const testAlarm = useCallback(() => {
     createAlarmSound();
