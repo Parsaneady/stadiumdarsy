@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { DayPlan, StudySession, useStudyStore } from '@/stores/studyStore';
 import { SessionCard } from './SessionCard';
@@ -6,6 +6,7 @@ import { AddSessionModal } from './AddSessionModal';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from './GlassCard';
 import { formatHoursShort } from '@/lib/timeUtils';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 interface DayCardProps {
   day: DayPlan;
@@ -18,6 +19,14 @@ export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
   const [editingSession, setEditingSession] = useState<StudySession | null>(null);
 
   const { addSession, updateSession, deleteSession, toggleSessionComplete } = useStudyStore();
+  const { saveWeeklyPlan } = useCloudSync();
+
+  // Save to cloud whenever sessions change
+  useEffect(() => {
+    if (day.sessions.length >= 0) {
+      saveWeeklyPlan(day.id, day.sessions);
+    }
+  }, [day.sessions, day.id, saveWeeklyPlan]);
 
   const { completedCount, totalHours, completionPercent } = useMemo(() => {
     const completed = day.sessions.filter((s) => s.completed).length;

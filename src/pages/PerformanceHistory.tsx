@@ -8,6 +8,7 @@ import { useStudyStore, DailyLog, CalendarEvent } from '@/stores/studyStore';
 import { formatHoursDisplay } from '@/lib/timeUtils';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/AppLayout';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 // Persian calendar utilities
 const PERSIAN_MONTHS = [
@@ -158,6 +159,7 @@ CalendarDay.displayName = 'CalendarDay';
 
 const PerformanceHistory = () => {
   const { dailyLogs, calendarEvents, addCalendarEvent, deleteCalendarEvent } = useStudyStore();
+  const { saveCalendarEvent, deleteCalendarEventFromCloud } = useCloudSync();
   
   const today = new Date();
   const [currentPersianYear, currentPersianMonth, currentPersianDay] = gregorianToPersian(
@@ -223,11 +225,25 @@ const PerformanceHistory = () => {
     const [gy, gm, gd] = persianToGregorian(viewYear, viewMonth, selectedDay);
     const date = new Date(gy, gm - 1, gd);
     
-    addCalendarEvent({
+    const newEvent = {
       title: eventTitle.trim(),
       date: date.toISOString(),
       persianDate: { year: viewYear, month: viewMonth, day: selectedDay },
-    });
+    };
+    
+    addCalendarEvent(newEvent);
+    // Save to cloud - need to get the ID after adding
+    setTimeout(() => {
+      const addedEvent = calendarEvents.find(e => 
+        e.title === newEvent.title && 
+        e.persianDate.year === viewYear && 
+        e.persianDate.month === viewMonth && 
+        e.persianDate.day === selectedDay
+      );
+      if (addedEvent) {
+        saveCalendarEvent(addedEvent);
+      }
+    }, 100);
     
     setEventTitle('');
     setIsAddEventOpen(false);
@@ -235,6 +251,7 @@ const PerformanceHistory = () => {
   
   const handleDeleteEvent = (eventId: string) => {
     deleteCalendarEvent(eventId);
+    deleteCalendarEventFromCloud(eventId);
   };
   
   const goToPrevMonth = () => {

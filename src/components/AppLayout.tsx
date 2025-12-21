@@ -1,9 +1,10 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCloudSync } from '@/hooks/useCloudSync';
 import { 
   LayoutDashboard, 
-  Calendar, 
+  Calendar,
   FileText,
   Users,
   LogOut,
@@ -38,6 +39,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Enable cloud sync for logged in users - automatically loads and saves data
+  useCloudSync();
 
   useEffect(() => {
     if (!loading && !user) {
