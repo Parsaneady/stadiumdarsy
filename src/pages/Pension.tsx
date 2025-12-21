@@ -81,6 +81,7 @@ interface PensionMember {
     totalHours: number;
     totalTests: number;
   };
+  wakeTime?: string | null;
 }
 
 interface Pension {
@@ -275,6 +276,10 @@ const Pension = () => {
   // Member profile modal state
   const [selectedMember, setSelectedMember] = useState<PensionMember | null>(null);
   const [selectedMemberRank, setSelectedMemberRank] = useState<number | undefined>(undefined);
+  
+  // Wake up log state
+  const [myWakeTime, setMyWakeTime] = useState<string | null>(null);
+  const [loggingWakeUp, setLoggingWakeUp] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -314,10 +319,13 @@ const Pension = () => {
             .order('joined_at');
 
           if (membersData) {
-            // Fetch profiles and weekly plans for each member
+            // Get today's date for wake up logs
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Fetch profiles, weekly plans, and wake up logs for each member
             const membersWithProfiles = await Promise.all(
               membersData.map(async (member) => {
-                const [profileRes, weeklyPlansRes] = await Promise.all([
+                const [profileRes, weeklyPlansRes, wakeLogRes] = await Promise.all([
                   supabase
                     .from('profiles')
                     .select('username, display_name, first_name, last_name, avatar_url, total_study_minutes, total_tests')
@@ -326,7 +334,14 @@ const Pension = () => {
                   supabase
                     .from('weekly_plans')
                     .select('sessions')
+                    .eq('user_id', member.user_id),
+                  supabase
+                    .from('wake_up_logs')
+                    .select('wake_time')
                     .eq('user_id', member.user_id)
+                    .eq('pension_id', pensionData.id)
+                    .eq('logged_date', today)
+                    .maybeSingle()
                 ]);
 
                 // Calculate weekly stats from weekly_plans
@@ -341,6 +356,11 @@ const Pension = () => {
                     });
                   });
                 }
+                
+                // Check if this is current user's wake time
+                if (member.user_id === user?.id && wakeLogRes.data?.wake_time) {
+                  setMyWakeTime(wakeLogRes.data.wake_time);
+                }
 
                 return { 
                   ...member, 
@@ -348,7 +368,8 @@ const Pension = () => {
                   weeklyStats: {
                     totalHours: weeklyHours,
                     totalTests: weeklyTests
-                  }
+                  },
+                  wakeTime: wakeLogRes.data?.wake_time || null
                 } as PensionMember;
               })
             );
@@ -1171,9 +1192,57 @@ const Pension = () => {
           {/* Leaderboard Tab */}
           <TabsContent value="leaderboard">
             <GlassCard>
-              <div className="flex items-center gap-2 mb-4">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                <h2 className="font-bold text-lg">جدول امتیازات</h2>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <h2 className="font-bold text-lg">جدول امتیازات</h2>
+                </div>
+                
+                {/* Wake Up Button */}
+                <Button
+                  size="sm"
+                  variant={myWakeTime ? "outline" : "default"}
+                  disabled={loggingWakeUp || !!myWakeTime}
+                  onClick={async () => {
+                    if (!user || !pension || myWakeTime) return;
+                    
+                    setLoggingWakeUp(true);
+                    try {
+                      const now = new Date();
+                      const wakeTime = now.toTimeString().split(' ')[0].substring(0, 5);
+                      const today = now.toISOString().split('T')[0];
+                      
+                      const { error } = await supabase
+                        .from('wake_up_logs')
+                        .upsert({
+                          user_id: user.id,
+                          pension_id: pension.id,
+                          wake_time: wakeTime,
+                          logged_date: today
+                        }, {
+                          onConflict: 'user_id,pension_id,logged_date'
+                        });
+                      
+                      if (error) throw error;
+                      
+                      setMyWakeTime(wakeTime);
+                      // Update local members list
+                      setMembers(prev => prev.map(m => 
+                        m.user_id === user.id ? { ...m, wakeTime } : m
+                      ));
+                      toast.success(`ساعت بیداری ثبت شد: ${wakeTime}`);
+                    } catch (error) {
+                      console.error('Error logging wake up:', error);
+                      toast.error('خطا در ثبت ساعت بیداری');
+                    } finally {
+                      setLoggingWakeUp(false);
+                    }
+                  }}
+                  className="gap-1"
+                >
+                  <Clock className="w-4 h-4" />
+                  {myWakeTime ? `بیداری: ${myWakeTime}` : 'ثبت بیداری'}
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -1223,6 +1292,12 @@ const Pension = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
+                      {member.wakeTime && (
+                        <div className="flex items-center gap-1 text-green-500">
+                          <Clock className="w-4 h-4" />
+                          <span>{member.wakeTime}</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="w-4 h-4" />
                         <span>{formatHoursDisplay(member.weeklyStats?.totalHours || 0)} ساعت</span>

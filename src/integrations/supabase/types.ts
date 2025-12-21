@@ -584,6 +584,41 @@ export type Database = {
         }
         Relationships: []
       }
+      wake_up_logs: {
+        Row: {
+          created_at: string
+          id: string
+          logged_date: string
+          pension_id: string
+          user_id: string
+          wake_time: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logged_date?: string
+          pension_id: string
+          user_id: string
+          wake_time: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logged_date?: string
+          pension_id?: string
+          user_id?: string
+          wake_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wake_up_logs_pension_id_fkey"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_plans: {
         Row: {
           created_at: string
