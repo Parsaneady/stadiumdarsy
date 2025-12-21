@@ -265,10 +265,6 @@ const Pension = () => {
   const [examAnswers, setExamAnswers] = useState<{[key: number]: number | null}>({});
   const [examTimeLeft, setExamTimeLeft] = useState(0);
   const [isExamRunning, setIsExamRunning] = useState(false);
-  const [examViewMode, setExamViewMode] = useState<'questions' | 'answers'>('questions');
-  
-  // Answer key editing view mode
-  const [answerKeyViewMode, setAnswerKeyViewMode] = useState<'questions' | 'answers'>('questions');
   
   // Leader answer key editing
   const [editingAnswerKey, setEditingAnswerKey] = useState<PensionExam | null>(null);
@@ -884,12 +880,12 @@ const Pension = () => {
     }
   };
 
-  // Leader editing answer key view
+  // Leader editing answer key view - exactly like ExamPanel
   if (editingAnswerKey) {
     const markedCount = Object.values(answerKeyData).filter(a => a !== null).length;
     
     return (
-      <div className="min-h-screen bg-background flex flex-col" dir="rtl">
+      <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
         <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -904,28 +900,6 @@ const Pension = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* View Toggle */}
-              <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg">
-                <Button
-                  variant={answerKeyViewMode === 'questions' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setAnswerKeyViewMode('questions')}
-                  className="gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  سوالات
-                </Button>
-                <Button
-                  variant={answerKeyViewMode === 'answers' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setAnswerKeyViewMode('answers')}
-                  className="gap-2"
-                >
-                  <Target className="w-4 h-4" />
-                  پاسخنامه
-                </Button>
-              </div>
-
               <div className="text-sm text-muted-foreground">
                 {markedCount}/{editingAnswerKey.question_count} کلید
               </div>
@@ -938,105 +912,56 @@ const Pension = () => {
           </div>
         </header>
 
-        {/* Main - Single View Based on Toggle */}
-        <main className="flex-1 overflow-hidden">
-          {answerKeyViewMode === 'questions' ? (
-            /* PDF Viewer */
-            editingAnswerKey.pdf_url ? (
-              <div className="w-full h-full bg-muted/20">
-                <iframe 
-                  src={editingAnswerKey.pdf_url} 
-                  className="w-full h-full" 
-                  title="سوالات آزمون"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p>فایل PDF موجود نیست</p>
-              </div>
-            )
-          ) : (
-            /* Answer Key Sheet */
-            <div className="h-full overflow-hidden flex flex-col max-w-4xl mx-auto">
-              {/* Answer Sheet Header */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground py-3 px-4 border-b border-white/10 bg-white/5 sticky top-0 z-10">
-                <div className="flex items-center gap-6">
-                  <span className="w-8 font-medium">سوال</span>
-                </div>
-                <div className="flex gap-3">
-                  {['۱', '۲', '۳', '۴'].map((opt, idx) => (
-                    <span key={idx} className="w-10 text-center font-medium">
-                      {opt}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Questions Grid */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => {
-                  const selectedKey = answerKeyData[idx];
-                  const hasAnswer = selectedKey !== null;
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
-                        hasAnswer ? 'bg-green-500/10' : 'hover:bg-white/5'
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500/20 to-accent/20 flex items-center justify-center">
-                        <span className="text-sm font-bold text-green-500">{idx + 1}</span>
-                      </div>
-                      <div className="flex gap-3">
-                        {[1, 2, 3, 4].map((opt) => {
-                          const isSelected = selectedKey === opt;
-                          
-                          return (
-                            <button
-                              key={opt}
-                              onClick={() => handleAnswerKeySelect(idx, opt)}
-                              className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer transform hover:scale-105 active:scale-95 ${
-                                isSelected
-                                  ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/40'
-                                  : 'border-white/20 text-foreground/70 hover:border-green-500/50 hover:bg-green-500/10 hover:text-green-500'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Footer Stats */}
-              <div className="flex items-center justify-around py-3 px-4 border-t border-white/10 bg-white/5 text-xs">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-green-500">{markedCount}</div>
-                  <div className="text-muted-foreground">کلید وارد شده</div>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-lg font-bold text-muted-foreground">{editingAnswerKey.question_count - markedCount}</div>
-                  <div className="text-muted-foreground">باقی‌مانده</div>
-                </div>
-              </div>
+        {/* Main - Split View like ExamPanel */}
+        <main className="flex-1 overflow-hidden flex">
+          {/* PDF Viewer */}
+          {editingAnswerKey.pdf_url && (
+            <div className="flex-1 border-l border-border/50 overflow-hidden">
+              <iframe src={editingAnswerKey.pdf_url} className="w-full h-full" />
             </div>
           )}
+          
+          {/* Answer Key Sheet */}
+          <div className={`h-full overflow-y-auto p-4 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => {
+                const selectedKey = answerKeyData[idx];
+                const isSelected = (opt: number) => selectedKey === opt;
+                
+                return (
+                  <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[1, 2, 3, 4].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => handleAnswerKeySelect(idx, opt)}
+                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
+                            isSelected(opt) 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-white/10 hover:bg-white/20'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </main>
       </div>
     );
   }
 
-  // Taking exam view
+  // Taking exam view - exactly like ExamPanel
   if (takingExam) {
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
     
     return (
-      <div className="min-h-screen bg-background flex flex-col" dir="rtl">
+      <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
         <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -1048,28 +973,6 @@ const Pension = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* View Toggle */}
-              <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg">
-                <Button
-                  variant={examViewMode === 'questions' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setExamViewMode('questions')}
-                  className="gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  سوالات
-                </Button>
-                <Button
-                  variant={examViewMode === 'answers' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setExamViewMode('answers')}
-                  className="gap-2"
-                >
-                  <Target className="w-4 h-4" />
-                  پاسخبرگ
-                </Button>
-              </div>
-
               {isExamRunning && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full">
                   <Clock className="w-4 h-4 text-primary" />
@@ -1089,94 +992,45 @@ const Pension = () => {
           </div>
         </header>
 
-        {/* Main - Single View Based on Toggle */}
-        <main className="flex-1 overflow-hidden">
-          {examViewMode === 'questions' ? (
-            /* PDF Viewer */
-            takingExam.pdf_url ? (
-              <div className="w-full h-full bg-muted/20">
-                <iframe 
-                  src={takingExam.pdf_url} 
-                  className="w-full h-full" 
-                  title="سوالات آزمون"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <p>فایل PDF موجود نیست</p>
-              </div>
-            )
-          ) : (
-            /* Answer Sheet */
-            <div className="h-full overflow-hidden flex flex-col max-w-4xl mx-auto">
-              {/* Answer Sheet Header */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground py-3 px-4 border-b border-white/10 bg-white/5 sticky top-0 z-10">
-                <div className="flex items-center gap-6">
-                  <span className="w-8 font-medium">سوال</span>
-                </div>
-                <div className="flex gap-3">
-                  {['۱', '۲', '۳', '۴'].map((opt, idx) => (
-                    <span key={idx} className="w-10 text-center font-medium">
-                      {opt}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Questions Grid */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                {Array.from({ length: takingExam.question_count }, (_, idx) => {
-                  const myAnswer = examAnswers[idx];
-                  const hasAnswer = myAnswer !== null;
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
-                        hasAnswer ? 'bg-primary/5' : 'hover:bg-white/5'
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                      </div>
-                      <div className="flex gap-3">
-                        {[1, 2, 3, 4].map((opt) => {
-                          const isSelected = myAnswer === opt;
-                          
-                          return (
-                            <button
-                              key={opt}
-                              onClick={() => handleExamAnswerSelect(idx, opt)}
-                              className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer transform hover:scale-105 active:scale-95 ${
-                                isSelected
-                                  ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/40'
-                                  : 'border-white/20 text-foreground/70 hover:border-primary/50 hover:bg-primary/10 hover:text-primary'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Footer Stats */}
-              <div className="flex items-center justify-around py-3 px-4 border-t border-white/10 bg-white/5 text-xs">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-primary">{answeredCount}</div>
-                  <div className="text-muted-foreground">پاسخ داده</div>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-lg font-bold text-muted-foreground">{takingExam.question_count - answeredCount}</div>
-                  <div className="text-muted-foreground">نزده</div>
-                </div>
-              </div>
+        {/* Main - Split View like ExamPanel */}
+        <main className="flex-1 overflow-hidden flex">
+          {/* PDF Viewer */}
+          {takingExam.pdf_url && (
+            <div className="flex-1 border-l border-border/50 overflow-hidden">
+              <iframe src={takingExam.pdf_url} className="w-full h-full" />
             </div>
           )}
+          
+          {/* Answer Sheet */}
+          <div className={`h-full overflow-y-auto p-4 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: takingExam.question_count }, (_, idx) => {
+                const myAnswer = examAnswers[idx];
+                const isSelected = (opt: number) => myAnswer === opt;
+                
+                return (
+                  <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[1, 2, 3, 4].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => handleExamAnswerSelect(idx, opt)}
+                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
+                            isSelected(opt) 
+                              ? 'bg-primary text-white' 
+                              : 'bg-white/10 hover:bg-white/20'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </main>
       </div>
     );
