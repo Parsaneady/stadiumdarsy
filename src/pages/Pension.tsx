@@ -132,6 +132,7 @@ interface ExamResult {
   blank_answers: number;
   percentage: number | null;
   created_at: string;
+  lessons_data?: Record<number, number | null> | null;
 }
 
 // Member Results Section Component
@@ -266,6 +267,13 @@ const Pension = () => {
   const [examTimeLeft, setExamTimeLeft] = useState(0);
   const [isExamRunning, setIsExamRunning] = useState(false);
   const [examViewMode, setExamViewMode] = useState<'exam' | 'answer'>('exam');
+  
+  // User's exam results for checking if already taken
+  const [userExamResults, setUserExamResults] = useState<ExamResult[]>([]);
+  
+  // Viewing result/report card state
+  const [viewingReportCard, setViewingReportCard] = useState<ExamResult | null>(null);
+  const [viewingAnswerSheet, setViewingAnswerSheet] = useState<{exam: PensionExam, result: ExamResult} | null>(null);
   
   // Leader answer key editing
   const [editingAnswerKey, setEditingAnswerKey] = useState<PensionExam | null>(null);
@@ -404,6 +412,20 @@ const Pension = () => {
 
           if (examsData) {
             setExams(examsData as PensionExam[]);
+          }
+
+          // Fetch user's exam results to check which exams they've already taken
+          if (user) {
+            const { data: resultsData } = await supabase
+              .from('exam_results')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('pension_id', pensionData.id)
+              .eq('exam_type', 'pension');
+
+            if (resultsData) {
+              setUserExamResults(resultsData as ExamResult[]);
+            }
           }
         }
       }
@@ -712,13 +734,14 @@ const Pension = () => {
       const myAnswer = examAnswers[i];
       const correct = hasAnswerKey ? answerKey[i] : null;
       
-      if (myAnswer === null) {
+      if (myAnswer === null || myAnswer === undefined) {
         blankCount++;
-      } else if (correct !== null && myAnswer === correct) {
+      } else if (correct !== null && correct !== undefined && myAnswer === correct) {
         correctCount++;
-      } else if (correct !== null && myAnswer !== correct) {
+      } else if (correct !== null && correct !== undefined && myAnswer !== correct) {
         wrongCount++;
       } else {
+        // No answer key yet, count as blank for now
         blankCount++;
       }
     }
@@ -728,7 +751,7 @@ const Pension = () => {
       : 0;
 
     try {
-      await supabase
+      const { data: insertedResult, error } = await supabase
         .from('exam_results')
         .insert({
           user_id: user.id,
@@ -742,7 +765,21 @@ const Pension = () => {
           blank_answers: blankCount,
           percentage: Math.max(0, percentage),
           lessons_data: examAnswers, // Store user answers for later scoring
-        });
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to local state
+      if (insertedResult) {
+        setUserExamResults(prev => [...prev, insertedResult as ExamResult]);
+        
+        // Show report card if answer key exists
+        if (hasAnswerKey) {
+          setViewingReportCard(insertedResult as ExamResult);
+        }
+      }
 
       toast.success('پاسخ‌های شما ذخیره شد');
       setTakingExam(null);
@@ -757,6 +794,24 @@ const Pension = () => {
     setTakingExam(null);
     setExamAnswers({});
     setIsExamRunning(false);
+  };
+
+  // Check if user has already taken this exam
+  const hasUserTakenExam = (examId: string) => {
+    return userExamResults.some(r => r.exam_id === examId);
+  };
+
+  // Get user's result for an exam
+  const getUserExamResult = (examId: string) => {
+    return userExamResults.find(r => r.exam_id === examId);
+  };
+
+  // View user's answer sheet
+  const handleViewAnswerSheet = (exam: PensionExam) => {
+    const result = getUserExamResult(exam.id);
+    if (result) {
+      setViewingAnswerSheet({ exam, result });
+    }
   };
 
   // Answer key editing functions for leader
@@ -1632,7 +1687,8 @@ const Pension = () => {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {canTake && (
+                          {/* User hasn't taken this exam yet and can take it */}
+                          {canTake && !hasUserTakenExam(exam.id) && (
                             <Button 
                               size="sm" 
                               className="gap-1"
@@ -1642,6 +1698,34 @@ const Pension = () => {
                               شرکت در آزمون
                             </Button>
                           )}
+                          
+                          {/* User has already taken this exam - show view answer sheet button */}
+                          {hasUserTakenExam(exam.id) && (
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="gap-1"
+                                onClick={() => handleViewAnswerSheet(exam)}
+                              >
+                                <FileText className="w-4 h-4" />
+                                مشاهده پاسخبرگ
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="gap-1"
+                                onClick={() => setViewingReportCard(getUserExamResult(exam.id) || null)}
+                              >
+                                <Trophy className="w-4 h-4" />
+                                مشاهده کارنامه
+                              </Button>
+                              <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                                آزمون داده شده ✓
+                              </Badge>
+                            </>
+                          )}
+                          
                           {isLeader && (
                             <>
                               <Button 
@@ -1877,6 +1961,165 @@ const Pension = () => {
           weeklyStats={selectedMember?.weeklyStats}
           rank={selectedMemberRank}
         />
+
+        {/* Report Card Modal */}
+        {viewingReportCard && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingReportCard(null)}>
+            <div className="bg-card rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-xl flex items-center gap-2">
+                  <Trophy className="w-6 h-6 text-primary" />
+                  کارنامه آزمون
+                </h3>
+                <Button variant="ghost" size="icon" onClick={() => setViewingReportCard(null)}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              
+              <div className="text-center mb-6">
+                <p className="text-lg font-medium text-muted-foreground">{viewingReportCard.lesson_name}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-success/20 rounded-xl">
+                  <p className="text-3xl font-bold text-success">{viewingReportCard.correct_answers}</p>
+                  <p className="text-sm text-muted-foreground">صحیح</p>
+                </div>
+                <div className="text-center p-4 bg-destructive/20 rounded-xl">
+                  <p className="text-3xl font-bold text-destructive">{viewingReportCard.wrong_answers}</p>
+                  <p className="text-sm text-muted-foreground">غلط</p>
+                </div>
+                <div className="text-center p-4 bg-muted rounded-xl">
+                  <p className="text-3xl font-bold">{viewingReportCard.blank_answers}</p>
+                  <p className="text-sm text-muted-foreground">نزده</p>
+                </div>
+              </div>
+
+              <div className="text-center p-6 bg-primary/20 rounded-xl mb-4">
+                <p className="text-5xl font-bold text-primary">{(viewingReportCard.percentage || 0).toFixed(1)}%</p>
+                <p className="text-sm text-muted-foreground mt-2">درصد کل (با احتساب نمره منفی)</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 bg-white/5 rounded-lg text-center">
+                  <p className="text-lg font-bold">{viewingReportCard.total_questions}</p>
+                  <p className="text-muted-foreground">تعداد سوالات</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg text-center">
+                  <p className="text-lg font-bold">{new Date(viewingReportCard.created_at).toLocaleDateString('fa-IR')}</p>
+                  <p className="text-muted-foreground">تاریخ آزمون</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Answer Sheet View Modal */}
+        {viewingAnswerSheet && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingAnswerSheet(null)}>
+            <div className="bg-card rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-xl flex items-center gap-2">
+                  <FileText className="w-6 h-6 text-primary" />
+                  پاسخبرگ شما - {viewingAnswerSheet.exam.title}
+                </h3>
+                <Button variant="ghost" size="icon" onClick={() => setViewingAnswerSheet(null)}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              
+              {/* Stats Summary */}
+              <div className="grid grid-cols-4 gap-3 mb-6">
+                <div className="text-center p-3 bg-success/20 rounded-xl">
+                  <p className="text-2xl font-bold text-success">{viewingAnswerSheet.result.correct_answers}</p>
+                  <p className="text-xs text-muted-foreground">صحیح</p>
+                </div>
+                <div className="text-center p-3 bg-destructive/20 rounded-xl">
+                  <p className="text-2xl font-bold text-destructive">{viewingAnswerSheet.result.wrong_answers}</p>
+                  <p className="text-xs text-muted-foreground">غلط</p>
+                </div>
+                <div className="text-center p-3 bg-muted rounded-xl">
+                  <p className="text-2xl font-bold">{viewingAnswerSheet.result.blank_answers}</p>
+                  <p className="text-xs text-muted-foreground">نزده</p>
+                </div>
+                <div className="text-center p-3 bg-primary/20 rounded-xl">
+                  <p className="text-2xl font-bold text-primary">{(viewingAnswerSheet.result.percentage || 0).toFixed(1)}%</p>
+                  <p className="text-xs text-muted-foreground">درصد</p>
+                </div>
+              </div>
+
+              {/* Answer Grid */}
+              <div className="grid grid-cols-5 gap-3" style={{ direction: 'rtl' }}>
+                {Array.from({ length: viewingAnswerSheet.exam.question_count }, (_, idx) => {
+                  const userAnswers = (viewingAnswerSheet.result.lessons_data || {}) as Record<number, number | null>;
+                  const answerKey = viewingAnswerSheet.exam.answer_key || {};
+                  const userAnswer = userAnswers[idx];
+                  const correctAnswer = answerKey[idx];
+                  const hasAnswerKey = Object.keys(answerKey).length > 0;
+                  
+                  let status = 'blank'; // blank, correct, wrong
+                  if (userAnswer !== null && userAnswer !== undefined) {
+                    if (hasAnswerKey && correctAnswer !== null && correctAnswer !== undefined) {
+                      status = userAnswer === correctAnswer ? 'correct' : 'wrong';
+                    } else {
+                      status = 'answered';
+                    }
+                  }
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`p-3 rounded-xl text-center border ${
+                        status === 'correct' ? 'bg-success/10 border-success/30' :
+                        status === 'wrong' ? 'bg-destructive/10 border-destructive/30' :
+                        status === 'answered' ? 'bg-primary/10 border-primary/30' :
+                        'bg-card/50 border-border/50'
+                      }`}
+                    >
+                      <p className="text-sm font-bold mb-2">سوال {idx + 1}</p>
+                      <div className="flex justify-center gap-1" style={{ direction: 'ltr' }}>
+                        {[1, 2, 3, 4].map((opt) => {
+                          const isUserAnswer = userAnswer === opt;
+                          const isCorrectAnswer = hasAnswerKey && correctAnswer === opt;
+                          
+                          return (
+                            <div
+                              key={opt}
+                              className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
+                                isCorrectAnswer && isUserAnswer ? 'bg-success text-success-foreground' :
+                                isCorrectAnswer ? 'bg-success/50 text-success-foreground ring-2 ring-success' :
+                                isUserAnswer && !isCorrectAnswer ? 'bg-destructive text-destructive-foreground' :
+                                'bg-muted/50 text-muted-foreground'
+                              }`}
+                            >
+                              {opt}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-6 mt-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-success"></div>
+                  <span>پاسخ صحیح</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-destructive"></div>
+                  <span>پاسخ غلط</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-muted/50 ring-2 ring-success"></div>
+                  <span>کلید صحیح</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
