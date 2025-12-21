@@ -12,7 +12,7 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 
 const DailyLog = () => {
   const { weeklyPlan, dailyLogs, initializeWeek, updateSession, logDaily, getTodayIndex, toggleSessionComplete } = useStudyStore();
-  const { saveDailyLog, saveWeeklyPlan } = useCloudSync();
+  const { saveDailyLog, saveWeeklyPlan, updateProfileStats } = useCloudSync();
   const [selectedSession, setSelectedSession] = useState<{ dayId: string; session: StudySession } | null>(null);
 
   useEffect(() => {
@@ -40,14 +40,34 @@ const DailyLog = () => {
     }
   };
 
-  const handleSaveDay = () => {
+  const handleSaveDay = async () => {
     if (todayPlan) {
+      const todayKey = new Date().toISOString().split('T')[0];
+      const existingLog = dailyLogs.find(log => log.date.split('T')[0] === todayKey);
+      
+      // Calculate today's study hours and tests
+      const todayStudyMinutes = Math.round(todayPlan.sessions.reduce((sum, s) => sum + s.actualHours, 0) * 60);
+      const todayTests = todayPlan.sessions.reduce((sum, s) => sum + s.actualTests, 0);
+      
+      // Calculate delta (only add the difference if updating)
+      const prevStudyMinutes = existingLog ? Math.round(existingLog.totalStudyHours * 60) : 0;
+      const prevTests = existingLog ? existingLog.totalTests : 0;
+      const deltaMinutes = todayStudyMinutes - prevStudyMinutes;
+      const deltaTests = todayTests - prevTests;
+      
       logDaily(todayPlan.id);
+      
       // Save the latest log to cloud
-      const latestLog = dailyLogs.find(log => log.date.split('T')[0] === new Date().toISOString().split('T')[0]);
+      const latestLog = dailyLogs.find(log => log.date.split('T')[0] === todayKey);
       if (latestLog) {
         saveDailyLog(latestLog);
       }
+      
+      // Update profile stats with delta only
+      if (deltaMinutes !== 0 || deltaTests !== 0) {
+        await updateProfileStats(deltaMinutes, deltaTests);
+      }
+      
       toast({
         title: "ذخیره شد! ✨",
         description: "عملکرد امروز با موفقیت ثبت شد.",

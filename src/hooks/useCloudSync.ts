@@ -288,9 +288,50 @@ export const useCloudSync = () => {
           subject,
           minutes,
         });
+      
+      // Update profile total study minutes
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_study_minutes')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({ total_study_minutes: (profile.total_study_minutes || 0) + minutes })
+          .eq('user_id', user.id);
+      }
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[Debug] Error saving pomodoro session:', error);
+      }
+    }
+  }, [user]);
+
+  // Update profile stats (study hours and tests)
+  const updateProfileStats = useCallback(async (studyMinutes: number, tests: number) => {
+    if (!user) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_study_minutes, total_tests')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({
+            total_study_minutes: (profile.total_study_minutes || 0) + studyMinutes,
+            total_tests: (profile.total_tests || 0) + tests,
+          })
+          .eq('user_id', user.id);
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error updating profile stats:', error);
       }
     }
   }, [user]);
@@ -311,6 +352,7 @@ export const useCloudSync = () => {
     savePomodoroSettings,
     saveStreak,
     addPomodoroSession,
+    updateProfileStats,
     isInitialLoad: isInitialLoad.current,
   };
 };
