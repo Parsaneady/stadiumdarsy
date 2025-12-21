@@ -32,6 +32,35 @@ import {
   Target
 } from 'lucide-react';
 import { format } from 'date-fns-jalali';
+import { MemberProfileModal } from '@/components/MemberProfileModal';
+
+// Import student avatars for display
+import studentAvatar1 from '@/assets/avatars/student-1.png';
+import studentAvatar2 from '@/assets/avatars/student-2.png';
+import studentAvatar3 from '@/assets/avatars/student-3.png';
+import studentAvatar4 from '@/assets/avatars/student-4.png';
+import studentAvatar5 from '@/assets/avatars/student-5.png';
+import studentAvatar6 from '@/assets/avatars/student-6.png';
+
+const AVATAR_IMAGES: Record<string, string> = {
+  'student-1': studentAvatar1,
+  'student-2': studentAvatar2,
+  'student-3': studentAvatar3,
+  'student-4': studentAvatar4,
+  'student-5': studentAvatar5,
+  'student-6': studentAvatar6,
+};
+
+const getAvatarSrc = (avatarUrl: string | null): string | undefined => {
+  if (!avatarUrl) return undefined;
+  if (avatarUrl.startsWith('student-')) {
+    return AVATAR_IMAGES[avatarUrl];
+  }
+  if (avatarUrl.length > 4) {
+    return avatarUrl;
+  }
+  return undefined;
+};
 
 interface PensionMember {
   id: string;
@@ -237,6 +266,10 @@ const Pension = () => {
   
   // Uploading state
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  
+  // Member profile modal state
+  const [selectedMember, setSelectedMember] = useState<PensionMember | null>(null);
+  const [selectedMemberRank, setSelectedMemberRank] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (user) {
@@ -1115,11 +1148,17 @@ const Pension = () => {
                 {members.map((member, index) => (
                   <div 
                     key={member.id}
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                      index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
-                      index === 2 ? 'bg-orange-500/10 border border-orange-500/20' :
-                      'bg-white/5'
+                    onClick={() => {
+                      if (member.profile) {
+                        setSelectedMember(member);
+                        setSelectedMemberRank(index + 1);
+                      }
+                    }}
+                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all hover:scale-[1.01] ${
+                      index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20' :
+                      index === 1 ? 'bg-gray-400/10 border border-gray-400/20 hover:bg-gray-400/20' :
+                      index === 2 ? 'bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20' :
+                      'bg-white/5 hover:bg-white/10'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -1132,20 +1171,22 @@ const Pension = () => {
                         {index + 1}
                       </div>
                       <Avatar className="w-10 h-10 border border-white/10">
-                        <AvatarImage src={member.profile?.avatar_url || ''} />
+                        <AvatarImage src={getAvatarSrc(member.profile?.avatar_url || null)} />
                         <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                          {member.profile?.first_name?.[0] || member.profile?.username?.[0] || 'U'}
+                          {member.profile?.avatar_url && member.profile.avatar_url.length <= 4 && !member.profile.avatar_url.startsWith('student-')
+                            ? member.profile.avatar_url
+                            : member.profile?.first_name?.[0] || member.profile?.username?.[0] || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <p className="font-medium flex items-center gap-2">
-                          @{member.profile?.username || 'بدون نام'}
+                          {member.profile?.display_name || member.profile?.username || 'بدون نام'}
                           {member.role === 'leader' && (
                             <Crown className="w-4 h-4 text-yellow-500" />
                           )}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {member.profile?.first_name} {member.profile?.last_name}
+                          {member.profile?.username ? `@${member.profile.username}` : ''}
                         </p>
                       </div>
                     </div>
@@ -1585,6 +1626,17 @@ const Pension = () => {
             </AlertDialog>
           )}
         </div>
+        
+        {/* Member Profile Modal */}
+        <MemberProfileModal
+          isOpen={!!selectedMember}
+          onClose={() => {
+            setSelectedMember(null);
+            setSelectedMemberRank(undefined);
+          }}
+          profile={selectedMember?.profile || null}
+          rank={selectedMemberRank}
+        />
       </div>
     </AppLayout>
   );

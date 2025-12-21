@@ -25,6 +25,14 @@ import {
   Flame
 } from 'lucide-react';
 
+// Import student avatars
+import studentAvatar1 from '@/assets/avatars/student-1.png';
+import studentAvatar2 from '@/assets/avatars/student-2.png';
+import studentAvatar3 from '@/assets/avatars/student-3.png';
+import studentAvatar4 from '@/assets/avatars/student-4.png';
+import studentAvatar5 from '@/assets/avatars/student-5.png';
+import studentAvatar6 from '@/assets/avatars/student-6.png';
+
 interface Stats {
   totalStudyHours: number;
   totalTests: number;
@@ -33,10 +41,18 @@ interface Stats {
   streak: number;
 }
 
-// Default avatar options
-const DEFAULT_AVATARS = [
-  '🧑‍🎓', '👨‍💻', '👩‍💻', '📚', '🎯', '🚀', '⭐', '🌟', '💡', '🔥',
-  '🎨', '🏆', '💪', '🧠', '📖', '✏️'
+// Default avatar options - images and emojis
+const AVATAR_IMAGES = [
+  { url: studentAvatar1, name: 'student-1' },
+  { url: studentAvatar2, name: 'student-2' },
+  { url: studentAvatar3, name: 'student-3' },
+  { url: studentAvatar4, name: 'student-4' },
+  { url: studentAvatar5, name: 'student-5' },
+  { url: studentAvatar6, name: 'student-6' },
+];
+
+const AVATAR_EMOJIS = [
+  '🧑‍🎓', '👨‍💻', '👩‍💻', '📚', '🎯', '🚀', '⭐', '🌟', '💡', '🔥'
 ];
 
 const Profile = () => {
@@ -180,32 +196,58 @@ const Profile = () => {
               <div className="flex flex-col items-center justify-center mb-6">
                 <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
                   <DialogTrigger asChild>
-                    <button className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl font-bold text-white hover:opacity-80 transition-opacity cursor-pointer">
-                      {selectedAvatar || (profile?.display_name || user?.email || 'U')[0].toUpperCase()}
+                    <button className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl font-bold text-white hover:opacity-80 transition-opacity cursor-pointer overflow-hidden">
+                      {selectedAvatar?.startsWith('student-') ? (
+                        <img 
+                          src={AVATAR_IMAGES.find(a => a.name === selectedAvatar)?.url} 
+                          alt="Avatar" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : selectedAvatar ? (
+                        selectedAvatar
+                      ) : (
+                        (profile?.display_name || user?.email || 'U')[0].toUpperCase()
+                      )}
                     </button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-md">
                     <DialogHeader>
                       <DialogTitle>انتخاب آواتار</DialogTitle>
                     </DialogHeader>
-                    <div className="grid grid-cols-4 gap-3 mt-4">
-                      {DEFAULT_AVATARS.map((emoji, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleAvatarSelect(emoji)}
-                          className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl hover:bg-primary/20 transition-colors ${
-                            selectedAvatar === emoji ? 'bg-primary/30 ring-2 ring-primary' : 'bg-white/5'
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
+                    <div className="space-y-4 mt-4">
+                      <p className="text-sm text-muted-foreground">آواتار تصویری</p>
+                      <div className="grid grid-cols-6 gap-2">
+                        {AVATAR_IMAGES.map((avatar) => (
+                          <button
+                            key={avatar.name}
+                            onClick={() => handleAvatarSelect(avatar.name)}
+                            className={`w-12 h-12 rounded-xl overflow-hidden hover:ring-2 hover:ring-primary transition-all ${
+                              selectedAvatar === avatar.name ? 'ring-2 ring-primary' : ''
+                            }`}
+                          >
+                            <img src={avatar.url} alt={avatar.name} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">ایموجی</p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {AVATAR_EMOJIS.map((emoji, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleAvatarSelect(emoji)}
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl hover:bg-primary/20 transition-colors ${
+                              selectedAvatar === emoji ? 'bg-primary/30 ring-2 ring-primary' : 'bg-white/5'
+                            }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
                 <p className="text-xs text-muted-foreground mt-2">برای تغییر آواتار کلیک کنید</p>
               </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
