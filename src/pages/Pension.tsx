@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns-jalali';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
+import { formatHoursDisplay } from '@/lib/timeUtils';
 
 // Import student avatars for display
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -1224,7 +1225,7 @@ const Pension = () => {
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="w-4 h-4" />
-                        <span>{(member.weeklyStats?.totalHours || 0).toFixed(1)} ساعت</span>
+                        <span>{formatHoursDisplay(member.weeklyStats?.totalHours || 0)} ساعت</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <FileText className="w-4 h-4" />

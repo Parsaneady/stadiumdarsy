@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Clock, Target, Trophy } from 'lucide-react';
+import { formatHoursDisplay } from '@/lib/timeUtils';
 
 // Import student avatars
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -47,7 +48,7 @@ export const MemberProfileModal = ({ isOpen, onClose, profile, weeklyStats, rank
 
   const displayName = profile.display_name || profile.username || profile.first_name || 'کاربر';
   // Use weekly stats for display (same as dashboard)
-  const studyHours = Math.round((weeklyStats?.totalHours || 0) * 10) / 10;
+  const studyHoursFormatted = formatHoursDisplay(weeklyStats?.totalHours || 0);
   const tests = weeklyStats?.totalTests || 0;
   
   const getAvatarContent = () => {
@@ -112,7 +113,7 @@ export const MemberProfileModal = ({ isOpen, onClose, profile, weeklyStats, rank
           <div className="grid grid-cols-2 gap-4 mt-6 w-full">
             <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
               <Clock className="w-6 h-6 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold">{studyHours}</p>
+              <p className="text-2xl font-bold">{studyHoursFormatted}</p>
               <p className="text-xs text-muted-foreground">ساعت مطالعه (هفته)</p>
             </div>
             <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-center">

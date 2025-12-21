@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   Flame
 } from 'lucide-react';
+import { formatHoursDisplay } from '@/lib/timeUtils';
 
 // Import student avatars
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -299,7 +300,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{weeklyStats.totalHours.toFixed(1)}</p>
+                  <p className="text-2xl font-bold">{formatHoursDisplay(weeklyStats.totalHours)}</p>
                   <p className="text-sm text-muted-foreground">ساعت مطالعه (هفته)</p>
                 </div>
 
