@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSeason } from '@/contexts/SeasonContext';
+import { useStudyStore } from '@/stores/studyStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,14 +34,6 @@ import studentAvatar4 from '@/assets/avatars/student-4.png';
 import studentAvatar5 from '@/assets/avatars/student-5.png';
 import studentAvatar6 from '@/assets/avatars/student-6.png';
 
-interface Stats {
-  totalStudyHours: number;
-  totalTests: number;
-  totalSessions: number;
-  avgScore: number;
-  streak: number;
-}
-
 // Default avatar options - images and emojis
 const AVATAR_IMAGES = [
   { url: studentAvatar1, name: 'student-1' },
@@ -59,18 +52,17 @@ const Profile = () => {
   const navigate = useNavigate();
   const { user, profile, signOut, updateProfile, loading } = useAuth();
   const { season, seasonName } = useSeason();
+  const { getStats, streak, weeklyPlan } = useStudyStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
-  const [stats, setStats] = useState<Stats>({
-    totalStudyHours: 0,
-    totalTests: 0,
-    totalSessions: 0,
-    avgScore: 0,
-    streak: 0,
-  });
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [avgScore, setAvgScore] = useState(0);
+
+  // Get weekly stats from store (same as dashboard)
+  const weeklyStats = useMemo(() => getStats(), [getStats, weeklyPlan]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -86,41 +78,27 @@ const Profile = () => {
   }, [profile]);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchAdditionalStats = async () => {
       if (!user) return;
 
-      // Fetch daily logs for stats
+      // Fetch daily logs for total sessions and avg score only
       const { data: logs } = await supabase
         .from('daily_logs')
         .select('*')
         .eq('user_id', user.id);
 
-      // Fetch user settings for streak
-      const { data: settings } = await supabase
-        .from('user_settings')
-        .select('streak')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
       if (logs) {
-        const totalHours = logs.reduce((sum, log) => sum + Number(log.total_study_hours || 0), 0);
-        const totalTests = logs.reduce((sum, log) => sum + (log.total_tests || 0), 0);
-        const totalSessions = logs.reduce((sum, log) => sum + (log.total_sessions || 0), 0);
-        const avgScore = logs.length > 0 
+        const sessions = logs.reduce((sum, log) => sum + (log.total_sessions || 0), 0);
+        const score = logs.length > 0 
           ? logs.reduce((sum, log) => sum + Number(log.overall_score || 0), 0) / logs.length 
           : 0;
 
-        setStats({
-          totalStudyHours: totalHours,
-          totalTests,
-          totalSessions,
-          avgScore,
-          streak: settings?.streak || 0,
-        });
+        setTotalSessions(sessions);
+        setAvgScore(score);
       }
     };
 
-    fetchStats();
+    fetchAdditionalStats();
   }, [user]);
 
   const handleSave = async () => {
@@ -321,25 +299,25 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{stats.totalStudyHours.toFixed(1)}</p>
-                  <p className="text-sm text-muted-foreground">ساعت مطالعه</p>
+                  <p className="text-2xl font-bold">{weeklyStats.totalHours.toFixed(1)}</p>
+                  <p className="text-sm text-muted-foreground">ساعت مطالعه (هفته)</p>
                 </div>
 
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10 text-center">
                   <Target className="h-8 w-8 text-accent mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{stats.totalTests}</p>
-                  <p className="text-sm text-muted-foreground">تست حل شده</p>
+                  <p className="text-2xl font-bold">{weeklyStats.totalTests}</p>
+                  <p className="text-sm text-muted-foreground">تست حل شده (هفته)</p>
                 </div>
 
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10 text-center">
                   <BookOpen className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{stats.totalSessions}</p>
+                  <p className="text-2xl font-bold">{totalSessions}</p>
                   <p className="text-sm text-muted-foreground">جلسه مطالعه</p>
                 </div>
 
                 <div className="p-4 rounded-lg bg-white/5 border border-white/10 text-center">
                   <Flame className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{stats.streak}</p>
+                  <p className="text-2xl font-bold">{streak}</p>
                   <p className="text-sm text-muted-foreground">روز متوالی</p>
                 </div>
               </div>
@@ -350,7 +328,7 @@ const Profile = () => {
                     <CheckCircle2 className="h-5 w-5 text-primary" />
                     <span>میانگین امتیاز</span>
                   </div>
-                  <span className="text-2xl font-bold">{stats.avgScore.toFixed(0)}%</span>
+                  <span className="text-2xl font-bold">{avgScore.toFixed(0)}%</span>
                 </div>
               </div>
             </CardContent>
