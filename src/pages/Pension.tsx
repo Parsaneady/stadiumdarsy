@@ -265,10 +265,12 @@ const Pension = () => {
   const [examAnswers, setExamAnswers] = useState<{[key: number]: number | null}>({});
   const [examTimeLeft, setExamTimeLeft] = useState(0);
   const [isExamRunning, setIsExamRunning] = useState(false);
+  const [examViewMode, setExamViewMode] = useState<'exam' | 'answer'>('exam');
   
   // Leader answer key editing
   const [editingAnswerKey, setEditingAnswerKey] = useState<PensionExam | null>(null);
   const [answerKeyData, setAnswerKeyData] = useState<{[key: number]: number | null}>({});
+  const [answerKeyViewMode, setAnswerKeyViewMode] = useState<'exam' | 'answer'>('exam');
   
   // Uploading state
   const [uploadingPdf, setUploadingPdf] = useState(false);
@@ -880,155 +882,289 @@ const Pension = () => {
     }
   };
 
-  // Leader editing answer key view - exactly like ExamPanel (copy-paste)
+  // Leader editing answer key view - exactly like reference image
   if (editingAnswerKey) {
     const markedCount = Object.values(answerKeyData).filter(a => a !== null).length;
+    const unansweredCount = editingAnswerKey.question_count - markedCount;
+    const progressPercent = editingAnswerKey.question_count > 0 ? Math.round((markedCount / editingAnswerKey.question_count) * 100) : 0;
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={handleExitAnswerKey}>
-                <X className="w-5 h-5" />
-              </Button>
-              <div>
-                <h1 className="font-bold">پاسخنامه: {editingAnswerKey.title}</h1>
-                <p className="text-xs text-muted-foreground">کلید سوالات را وارد کنید</p>
+        {/* Header - exactly like reference */}
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between flex-row-reverse">
+            {/* Right side - exit button */}
+            <button 
+              onClick={handleExitAnswerKey}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span className="text-sm">خروج از ویرایش</span>
+              <FileText className="w-5 h-5" />
+            </button>
+
+            {/* Center - title and progress */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <span className="font-bold">پاسخنامه: {editingAnswerKey.title}</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                پیشرفت: <span className="font-bold">{markedCount}/{editingAnswerKey.question_count}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-muted-foreground">
-                {markedCount}/{editingAnswerKey.question_count} کلید
-              </div>
-
-              <Button onClick={handleSaveAnswerKey} className="gap-2">
-                <Trophy className="w-4 h-4" />
+            {/* Left side - tabs and save button */}
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={handleSaveAnswerKey}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6"
+              >
                 ذخیره پاسخنامه
               </Button>
+              
+              <div className="flex bg-muted/50 rounded-lg p-1">
+                <button
+                  onClick={() => setAnswerKeyViewMode('answer')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                    answerKeyViewMode === 'answer' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  پاسخنامه
+                </button>
+                <button
+                  onClick={() => setAnswerKeyViewMode('exam')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                    answerKeyViewMode === 'exam' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  آزمون
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Main - Split View exactly like ExamPanel */}
-        <main className="flex-1 overflow-hidden flex">
-          {/* PDF Viewer */}
-          {editingAnswerKey.pdf_url && (
-            <div className="flex-1 border-l border-border/50 overflow-hidden">
-              <iframe src={editingAnswerKey.pdf_url} className="w-full h-full" />
+        {/* Main content */}
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {answerKeyViewMode === 'exam' ? (
+            /* PDF View */
+            editingAnswerKey.pdf_url ? (
+              <div className="flex-1 overflow-hidden">
+                <iframe src={editingAnswerKey.pdf_url} className="w-full h-full" />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <p>فایل PDF موجود نیست</p>
+              </div>
+            )
+          ) : (
+            /* Answer Sheet View - exactly like reference image */
+            <div className="flex-1 overflow-y-auto p-6">
+              <h2 className="text-xl font-bold text-right mb-6">پاسخنامه</h2>
+              
+              {/* Questions Grid - RTL, 5 columns */}
+              <div className="grid grid-cols-5 gap-4 direction-rtl" style={{ direction: 'rtl' }}>
+                {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => (
+                  <div 
+                    key={idx} 
+                    className="p-4 bg-card/50 border border-border/50 rounded-xl text-center"
+                  >
+                    <p className="text-sm font-bold text-foreground mb-3">سوال {idx + 1}</p>
+                    <div className="flex justify-center gap-2" style={{ direction: 'ltr' }}>
+                      {[4, 3, 2, 1].map((opt) => {
+                        const isSelected = answerKeyData[idx] === opt;
+                        
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => handleAnswerKeySelect(idx, opt)}
+                            className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                              isSelected 
+                                ? "bg-success text-success-foreground shadow-lg shadow-success/30" 
+                                : "bg-muted/80 text-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          
-          {/* Answer Sheet - exactly like ExamPanel grid */}
-          <div className={`h-full overflow-y-auto p-4 ${editingAnswerKey.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
-            <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: editingAnswerKey.question_count }, (_, idx) => (
-                <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
-                  <div className="grid grid-cols-4 gap-1">
-                    {[1, 2, 3, 4].map((opt) => {
-                      const isSelected = answerKeyData[idx] === opt;
-                      
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => handleAnswerKeySelect(idx, opt)}
-                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
-                            isSelected 
-                              ? "bg-success text-white" 
-                              : "bg-white/10 hover:bg-white/20"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+
+          {/* Footer Stats - exactly like reference */}
+          {answerKeyViewMode === 'answer' && (
+            <div className="grid grid-cols-3 border-t border-border/50">
+              <div className="p-4 text-center bg-card/30">
+                <p className="text-2xl font-bold text-success">{progressPercent}%</p>
+                <p className="text-sm text-muted-foreground">پیشرفت</p>
+              </div>
+              <div className="p-4 text-center bg-primary/10 border-x border-border/50">
+                <p className="text-2xl font-bold text-primary">{unansweredCount}</p>
+                <p className="text-sm text-muted-foreground">بدون پاسخ</p>
+              </div>
+              <div className="p-4 text-center bg-card/30">
+                <p className="text-2xl font-bold text-foreground">{markedCount}</p>
+                <p className="text-sm text-muted-foreground">پاسخ داده شده</p>
+              </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     );
   }
 
-  // Taking exam view - exactly like ExamPanel (copy-paste)
+  // Taking exam view - exactly like reference image
   if (takingExam) {
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
+    const unansweredCount = takingExam.question_count - answeredCount;
+    const progressPercent = takingExam.question_count > 0 ? Math.round((answeredCount / takingExam.question_count) * 100) : 0;
     
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={handleExitExam}>
-                <X className="w-5 h-5" />
-              </Button>
-              <h1 className="font-bold">{takingExam.title}</h1>
-            </div>
+        {/* Header - exactly like reference */}
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between flex-row-reverse">
+            {/* Right side - exit button */}
+            <button 
+              onClick={handleExitExam}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span className="text-sm">خروج از آزمون</span>
+              <FileText className="w-5 h-5" />
+            </button>
 
-            <div className="flex items-center gap-4">
+            {/* Center - title, progress, timer */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <span className="font-bold">آزمون درحال برگزاری</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                پیشرفت: <span className="font-bold">{answeredCount}/{takingExam.question_count}</span>
+              </div>
               {isExamRunning && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span className="font-mono font-bold">{formatExamTime(examTimeLeft)}</span>
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono font-bold text-lg">{formatExamTime(examTimeLeft)}</span>
                 </div>
               )}
-              
-              <div className="text-sm text-muted-foreground">
-                {answeredCount}/{takingExam.question_count}
-              </div>
+            </div>
 
-              <Button onClick={handleFinishAndSaveExam} className="gap-2">
-                <Trophy className="w-4 h-4" />
+            {/* Left side - tabs and finish button */}
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={handleFinishAndSaveExam}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6"
+              >
                 پایان آزمون
               </Button>
+              
+              <div className="flex bg-muted/50 rounded-lg p-1">
+                <button
+                  onClick={() => setExamViewMode('answer')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                    examViewMode === 'answer' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  پاسخنامه
+                </button>
+                <button
+                  onClick={() => setExamViewMode('exam')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                    examViewMode === 'exam' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  آزمون
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Main - Split View exactly like ExamPanel */}
-        <main className="flex-1 overflow-hidden flex">
-          {/* PDF Viewer */}
-          {takingExam.pdf_url && (
-            <div className="flex-1 border-l border-border/50 overflow-hidden">
-              <iframe src={takingExam.pdf_url} className="w-full h-full" />
+        {/* Main content */}
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {examViewMode === 'exam' ? (
+            /* PDF View */
+            takingExam.pdf_url ? (
+              <div className="flex-1 overflow-hidden">
+                <iframe src={takingExam.pdf_url} className="w-full h-full" />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <p>فایل PDF موجود نیست</p>
+              </div>
+            )
+          ) : (
+            /* Answer Sheet View - exactly like reference image */
+            <div className="flex-1 overflow-y-auto p-6">
+              <h2 className="text-xl font-bold text-right mb-6">پاسخنامه</h2>
+              
+              {/* Questions Grid - RTL, 5 columns */}
+              <div className="grid grid-cols-5 gap-4 direction-rtl" style={{ direction: 'rtl' }}>
+                {Array.from({ length: takingExam.question_count }, (_, idx) => (
+                  <div 
+                    key={idx} 
+                    className="p-4 bg-card/50 border border-border/50 rounded-xl text-center"
+                  >
+                    <p className="text-sm font-bold text-foreground mb-3">سوال {idx + 1}</p>
+                    <div className="flex justify-center gap-2" style={{ direction: 'ltr' }}>
+                      {[4, 3, 2, 1].map((opt) => {
+                        const isSelected = examAnswers[idx] === opt;
+                        
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => handleExamAnswerSelect(idx, opt)}
+                            className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                              isSelected 
+                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" 
+                                : "bg-muted/80 text-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          
-          {/* Answer Sheet - exactly like ExamPanel grid */}
-          <div className={`h-full overflow-y-auto p-4 ${takingExam.pdf_url ? 'w-96' : 'w-full max-w-2xl mx-auto'}`}>
-            <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: takingExam.question_count }, (_, idx) => (
-                <div key={idx} className="p-2 bg-white/5 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground mb-2">{idx + 1}</p>
-                  <div className="grid grid-cols-4 gap-1">
-                    {[1, 2, 3, 4].map((opt) => {
-                      const isSelected = examAnswers[idx] === opt;
-                      
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => handleExamAnswerSelect(idx, opt)}
-                          className={`w-6 h-6 rounded-full text-xs font-bold transition-all ${
-                            isSelected 
-                              ? "bg-primary text-white" 
-                              : "bg-white/10 hover:bg-white/20"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+
+          {/* Footer Stats - exactly like reference */}
+          {examViewMode === 'answer' && (
+            <div className="grid grid-cols-3 border-t border-border/50">
+              <div className="p-4 text-center bg-card/30">
+                <p className="text-2xl font-bold text-success">{progressPercent}%</p>
+                <p className="text-sm text-muted-foreground">پیشرفت</p>
+              </div>
+              <div className="p-4 text-center bg-primary/10 border-x border-border/50">
+                <p className="text-2xl font-bold text-primary">{unansweredCount}</p>
+                <p className="text-sm text-muted-foreground">بدون پاسخ</p>
+              </div>
+              <div className="p-4 text-center bg-card/30">
+                <p className="text-2xl font-bold text-foreground">{answeredCount}</p>
+                <p className="text-sm text-muted-foreground">پاسخ داده شده</p>
+              </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     );
