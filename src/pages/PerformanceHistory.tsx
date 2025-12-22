@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, CheckCircle2, XCircle, Target, StickyNote, BookOpen, Star, Plus, Trash2 } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,9 @@ import { formatHoursDisplay } from '@/lib/timeUtils';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/AppLayout';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // Persian calendar utilities
 const PERSIAN_MONTHS = [
@@ -158,7 +161,8 @@ const CalendarDay = memo(({ day, isToday, log, event, onClick, isSelected }: Cal
 CalendarDay.displayName = 'CalendarDay';
 
 const PerformanceHistory = () => {
-  const { dailyLogs, calendarEvents, addCalendarEvent, deleteCalendarEvent } = useStudyStore();
+  const { user } = useAuth();
+  const { dailyLogs, calendarEvents, addCalendarEvent, deleteCalendarEvent, setCalendarEvents, setDailyLogs } = useStudyStore();
   const { saveCalendarEvent, deleteCalendarEventFromCloud } = useCloudSync();
   
   const today = new Date();
@@ -173,6 +177,62 @@ const PerformanceHistory = () => {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [eventTitle, setEventTitle] = useState('');
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Load data from cloud on mount
+  useEffect(() => {
+    const loadDataFromCloud = async () => {
+      if (!user) return;
+      
+      try {
+        // Load calendar events from cloud
+        const { data: events } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (events) {
+          const formattedEvents: CalendarEvent[] = events.map(event => ({
+            id: event.id,
+            title: event.title,
+            date: event.event_date,
+            persianDate: {
+              year: event.persian_year || 0,
+              month: event.persian_month || 0,
+              day: event.persian_day || 0,
+            },
+          }));
+          setCalendarEvents(formattedEvents);
+        }
+
+        // Load daily logs from cloud
+        const { data: logs } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false });
+
+        if (logs) {
+          const formattedLogs: DailyLog[] = logs.map(log => ({
+            id: log.id,
+            date: log.date,
+            totalStudyHours: Number(log.total_study_hours),
+            totalTests: log.total_tests,
+            completedSessions: log.completed_sessions,
+            totalSessions: log.total_sessions,
+            overallScore: Number(log.overall_score),
+            feedback: log.feedback || '',
+            sessions: (log.sessions as unknown as any) || [],
+          }));
+          setDailyLogs(formattedLogs);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadDataFromCloud();
+  }, [user, setCalendarEvents, setDailyLogs]);
   
   // Create a map of logs by date for quick lookup
   const logsByDate = useMemo(() => {
@@ -219,39 +279,72 @@ const PerformanceHistory = () => {
   const selectedLog = selectedDay ? getLogForDay(selectedDay) : null;
   const selectedEvent = selectedDay ? getEventForDay(selectedDay) : null;
   
-  const handleAddEvent = () => {
-    if (!selectedDay || !eventTitle.trim()) return;
+  const handleAddEvent = async () => {
+    if (!selectedDay || !eventTitle.trim() || !user) return;
+    
+    setIsSaving(true);
     
     const [gy, gm, gd] = persianToGregorian(viewYear, viewMonth, selectedDay);
-    const date = new Date(gy, gm - 1, gd);
+    const dateStr = `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
     
-    const newEvent = {
-      title: eventTitle.trim(),
-      date: date.toISOString(),
-      persianDate: { year: viewYear, month: viewMonth, day: selectedDay },
-    };
-    
-    addCalendarEvent(newEvent);
-    // Save to cloud - need to get the ID after adding
-    setTimeout(() => {
-      const addedEvent = calendarEvents.find(e => 
-        e.title === newEvent.title && 
-        e.persianDate.year === viewYear && 
-        e.persianDate.month === viewMonth && 
-        e.persianDate.day === selectedDay
-      );
-      if (addedEvent) {
-        saveCalendarEvent(addedEvent);
+    try {
+      // Save directly to cloud first
+      const { data: insertedEvent, error } = await supabase
+        .from('calendar_events')
+        .insert({
+          user_id: user.id,
+          title: eventTitle.trim(),
+          event_date: dateStr,
+          persian_year: viewYear,
+          persian_month: viewMonth,
+          persian_day: selectedDay,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to local store with the cloud-generated ID
+      if (insertedEvent) {
+        const newEvent: CalendarEvent = {
+          id: insertedEvent.id,
+          title: insertedEvent.title,
+          date: insertedEvent.event_date,
+          persianDate: { year: viewYear, month: viewMonth, day: selectedDay },
+        };
+        
+        // Update local store
+        setCalendarEvents([...calendarEvents, newEvent]);
+        toast.success('رویداد ذخیره شد');
       }
-    }, 100);
-    
-    setEventTitle('');
-    setIsAddEventOpen(false);
+    } catch (error) {
+      console.error('Error saving event:', error);
+      toast.error('خطا در ذخیره رویداد');
+    } finally {
+      setIsSaving(false);
+      setEventTitle('');
+      setIsAddEventOpen(false);
+    }
   };
   
-  const handleDeleteEvent = (eventId: string) => {
-    deleteCalendarEvent(eventId);
-    deleteCalendarEventFromCloud(eventId);
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!user) return;
+    
+    try {
+      // Delete from cloud first
+      await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', eventId)
+        .eq('user_id', user.id);
+      
+      // Then delete from local store
+      deleteCalendarEvent(eventId);
+      toast.success('رویداد حذف شد');
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast.error('خطا در حذف رویداد');
+    }
   };
   
   const goToPrevMonth = () => {
@@ -449,8 +542,8 @@ const PerformanceHistory = () => {
                         className="text-right"
                         dir="rtl"
                       />
-                      <Button onClick={handleAddEvent} className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                        ذخیره رویداد
+                      <Button onClick={handleAddEvent} disabled={isSaving} className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                        {isSaving ? 'در حال ذخیره...' : 'ذخیره رویداد'}
                       </Button>
                     </div>
                   </DialogContent>
