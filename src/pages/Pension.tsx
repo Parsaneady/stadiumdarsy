@@ -126,6 +126,7 @@ interface ExamResult {
   id: string;
   user_id: string;
   exam_id: string | null;
+  pension_exam_id?: string | null;
   lesson_name: string | null;
   total_questions: number;
   correct_answers: number;
@@ -942,7 +943,7 @@ const Pension = () => {
         user_id: user.id,
         exam_type: 'pension',
         pension_id: pension.id,
-        exam_id: takingExam.id,
+        pension_exam_id: takingExam.id, // Use pension_exam_id instead of exam_id
         lesson_name: takingExam.title,
         total_questions: qCount,
         correct_answers: hasAnswerKey ? correctCount : 0,
@@ -1001,12 +1002,12 @@ const Pension = () => {
 
   // Check if user has already taken this exam
   const hasUserTakenExam = (examId: string) => {
-    return userExamResults.some(r => r.exam_id === examId);
+    return userExamResults.some(r => r.pension_exam_id === examId || r.exam_id === examId);
   };
 
   // Get user's result for an exam
   const getUserExamResult = (examId: string) => {
-    return userExamResults.find(r => r.exam_id === examId);
+    return userExamResults.find(r => r.pension_exam_id === examId || r.exam_id === examId);
   };
 
   // View user's answer sheet

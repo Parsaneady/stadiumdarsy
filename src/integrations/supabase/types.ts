@@ -165,6 +165,7 @@ export type Database = {
           id: string
           lesson_name: string | null
           lessons_data: Json | null
+          pension_exam_id: string | null
           pension_id: string | null
           percentage: number | null
           total_questions: number
@@ -181,6 +182,7 @@ export type Database = {
           id?: string
           lesson_name?: string | null
           lessons_data?: Json | null
+          pension_exam_id?: string | null
           pension_id?: string | null
           percentage?: number | null
           total_questions?: number
@@ -197,6 +199,7 @@ export type Database = {
           id?: string
           lesson_name?: string | null
           lessons_data?: Json | null
+          pension_exam_id?: string | null
           pension_id?: string | null
           percentage?: number | null
           total_questions?: number
@@ -205,10 +208,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "exam_results_exam_id_fkey"
-            columns: ["exam_id"]
+            foreignKeyName: "exam_results_pension_exam_id_fkey"
+            columns: ["pension_exam_id"]
             isOneToOne: false
-            referencedRelation: "exams"
+            referencedRelation: "pension_exams"
             referencedColumns: ["id"]
           },
           {
