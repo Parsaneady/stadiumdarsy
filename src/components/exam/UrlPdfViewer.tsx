@@ -20,6 +20,8 @@ export interface PdfViewerState {
   pageNumber: number;
   scale: number;
   drawings: DrawingLine[];
+  scrollTop?: number;
+  scrollLeft?: number;
 }
 
 interface DrawingLine {
@@ -45,6 +47,7 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
   const [scale, setScale] = useState<number>(initialState?.scale || 1.2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [pageRendered, setPageRendered] = useState(false);
   
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
@@ -57,18 +60,30 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     getState: () => ({
       pageNumber,
       scale,
-      drawings
+      drawings,
+      scrollTop: scrollContainerRef.current?.scrollTop || 0,
+      scrollLeft: scrollContainerRef.current?.scrollLeft || 0
     }),
     setState: (state: PdfViewerState) => {
       setPageNumber(state.pageNumber);
       setScale(state.scale);
       setDrawings(state.drawings || []);
+      // Scroll position will be restored after render
+      if (scrollContainerRef.current && state.scrollTop !== undefined) {
+        setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = state.scrollTop || 0;
+            scrollContainerRef.current.scrollLeft = state.scrollLeft || 0;
+          }
+        }, 100);
+      }
     }
   }));
 
@@ -79,10 +94,17 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     }
   }, [pageNumber, scale, drawings, onStateChange]);
 
+  // Reset page rendered state when page changes
+  useEffect(() => {
+    setPageRendered(false);
+  }, [pageNumber]);
+
   // Redraw canvas when page or drawings change
   useEffect(() => {
-    redrawCanvas();
-  }, [pageNumber, drawings, scale]);
+    if (pageRendered) {
+      redrawCanvas();
+    }
+  }, [pageNumber, drawings, scale, pageRendered]);
 
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -357,7 +379,7 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
 
       {/* PDF Document with Canvas Overlay */}
       <div 
-        ref={containerRef}
+        ref={scrollContainerRef}
         className="flex-1 overflow-auto p-4 flex justify-center bg-muted/20"
       >
         <div className="relative" ref={pageRef}>
@@ -377,22 +399,28 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
               renderTextLayer={true}
               renderAnnotationLayer={true}
               className="shadow-lg"
+              onRenderSuccess={() => {
+                setPageRendered(true);
+                setTimeout(redrawCanvas, 50);
+              }}
             />
           </Document>
           
           {/* Drawing Canvas Overlay */}
-          <canvas
-            ref={canvasRef}
-            className={`absolute top-0 left-0 ${drawMode !== 'none' ? 'cursor-crosshair' : 'pointer-events-none'}`}
-            style={{ touchAction: 'none' }}
-            onMouseDown={handlePointerDown}
-            onMouseMove={handlePointerMove}
-            onMouseUp={handlePointerUp}
-            onMouseLeave={handlePointerUp}
-            onTouchStart={handlePointerDown}
-            onTouchMove={handlePointerMove}
-            onTouchEnd={handlePointerUp}
-          />
+          {pageRendered && (
+            <canvas
+              ref={canvasRef}
+              className={`absolute top-0 left-0 ${drawMode !== 'none' ? 'cursor-crosshair' : 'pointer-events-none'}`}
+              style={{ touchAction: 'none' }}
+              onMouseDown={handlePointerDown}
+              onMouseMove={handlePointerMove}
+              onMouseUp={handlePointerUp}
+              onMouseLeave={handlePointerUp}
+              onTouchStart={handlePointerDown}
+              onTouchMove={handlePointerMove}
+              onTouchEnd={handlePointerUp}
+            />
+          )}
         </div>
       </div>
     </div>
