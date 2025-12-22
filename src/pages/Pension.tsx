@@ -781,38 +781,41 @@ const Pension = () => {
       return;
     }
 
+    setUploadingPdf(true);
+    toast.loading('در حال آپلود فایل...', { id: 'upload-toast' });
+    
     try {
-      setUploadingPdf(true);
-      
-      // Upload PDF
-      const fileExt = examPdfFile.name.split('.').pop();
+      // Upload PDF - using pension.id as folder name to match RLS policy
+      const fileExt = examPdfFile.name.split('.').pop() || 'pdf';
       const fileName = `${pension.id}/${Date.now()}.${fileExt}`;
-      
-      console.log('[Exam] Uploading PDF:', fileName);
       
       const { error: uploadError } = await supabase.storage
         .from('pension-exams')
-        .upload(fileName, examPdfFile);
+        .upload(fileName, examPdfFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
+        toast.dismiss('upload-toast');
+        if (uploadError.message.includes('row-level security') || uploadError.message.includes('policy')) {
+          toast.error('فقط سرگروه می‌تواند فایل آپلود کند');
+        } else if (uploadError.message.includes('The resource already exists')) {
+          toast.error('فایلی با این نام وجود دارد');
+        } else {
+          toast.error('خطا در آپلود فایل');
+        }
         console.error('[Exam] Upload error:', uploadError);
-        toast.error('خطا در آپلود فایل: ' + uploadError.message);
         return;
       }
+
+      toast.loading('در حال ایجاد آزمون...', { id: 'upload-toast' });
 
       const { data: urlData } = supabase.storage
         .from('pension-exams')
         .getPublicUrl(fileName);
 
       const pdfUrl = urlData.publicUrl;
-      console.log('[Exam] PDF URL:', pdfUrl);
-
-      console.log('[Exam] Creating exam with data:', {
-        pension_id: pension.id,
-        title: examTitle,
-        question_count: qCount,
-        pdf_url: pdfUrl,
-      });
 
       const { data, error } = await supabase
         .from('pension_exams')
@@ -834,12 +837,12 @@ const Pension = () => {
         .single();
 
       if (error) {
+        toast.dismiss('upload-toast');
+        toast.error('خطا در ذخیره آزمون');
         console.error('[Exam] Insert error:', error);
-        toast.error('خطا در ذخیره آزمون: ' + error.message);
         return;
       }
 
-      console.log('[Exam] Created successfully:', data);
       setExams([...exams, data as PensionExam]);
       setIsExamDialogOpen(false);
       setExamTitle('');
@@ -851,10 +854,12 @@ const Pension = () => {
       setExamDuration('60');
       setExamQuestionCount('60');
       setExamPdfFile(null);
-      toast.success('آزمون ایجاد شد');
+      toast.dismiss('upload-toast');
+      toast.success('آزمون با موفقیت ایجاد شد');
     } catch (error: any) {
+      toast.dismiss('upload-toast');
+      toast.error('خطا در ایجاد آزمون');
       console.error('[Exam] Error:', error);
-      toast.error('خطا در ایجاد آزمون: ' + (error?.message || 'خطای ناشناخته'));
     } finally {
       setUploadingPdf(false);
     }
@@ -1793,8 +1798,19 @@ const Pension = () => {
                             </p>
                           )}
                         </div>
-                        <Button onClick={handleCreateExam} className="w-full">
-                          ایجاد آزمون
+                        <Button 
+                          onClick={handleCreateExam} 
+                          className="w-full"
+                          disabled={uploadingPdf}
+                        >
+                          {uploadingPdf ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2" />
+                              در حال آپلود...
+                            </>
+                          ) : (
+                            'ایجاد آزمون'
+                          )}
                         </Button>
                       </div>
                     </DialogContent>
