@@ -34,6 +34,7 @@ import {
 import { format } from 'date-fns-jalali';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
 import { formatHoursDisplay } from '@/lib/timeUtils';
+import { cn } from '@/lib/utils';
 
 // Import student avatars for display
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -228,6 +229,168 @@ const MemberResultsSection = ({ pensionId, members }: { pensionId: string; membe
           </p>
         </div>
       ))}
+    </div>
+  );
+};
+
+interface MemberWeeklyPlan {
+  userId: string;
+  displayName: string;
+  username: string | null;
+  avatarUrl: string | null;
+  plans: {
+    dayName: string;
+    sessions: {
+      subject: string;
+      targetHours: number;
+      actualHours: number;
+      color: string;
+    }[];
+  }[];
+}
+
+// Members Weekly Plans Component
+const MembersWeeklyPlans = ({ pensionId, members }: { pensionId: string; members: PensionMember[] }) => {
+  const [memberPlans, setMemberPlans] = useState<MemberWeeklyPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAllPlans = async () => {
+      setLoading(true);
+      try {
+        // Get all member user IDs
+        const userIds = members.map(m => m.user_id);
+        
+        // Fetch weekly plans for all members
+        const { data: allPlans } = await supabase
+          .from('weekly_plans')
+          .select('*')
+          .in('user_id', userIds)
+          .order('day_index');
+
+        if (allPlans) {
+          // Group plans by user_id
+          const plansByUser: Record<string, any[]> = {};
+          allPlans.forEach(plan => {
+            if (!plansByUser[plan.user_id]) {
+              plansByUser[plan.user_id] = [];
+            }
+            plansByUser[plan.user_id].push(plan);
+          });
+
+          // Format for display
+          const formattedPlans: MemberWeeklyPlan[] = members.map(member => {
+            const userPlans = plansByUser[member.user_id] || [];
+            return {
+              userId: member.user_id,
+              displayName: member.profile?.display_name || member.profile?.first_name || 'کاربر',
+              username: member.profile?.username || null,
+              avatarUrl: member.profile?.avatar_url || null,
+              plans: userPlans.map(p => ({
+                dayName: p.day_name,
+                sessions: (p.sessions || []).map((s: any) => ({
+                  subject: s.subject,
+                  targetHours: s.targetHours || 0,
+                  actualHours: s.actualHours || 0,
+                  color: s.color || '#8b5cf6',
+                })),
+              })),
+            };
+          });
+
+          setMemberPlans(formattedPlans);
+          
+          // Select first member by default
+          if (formattedPlans.length > 0 && !selectedMemberId) {
+            setSelectedMemberId(formattedPlans[0].userId);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching member plans:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (members.length > 0) {
+      fetchAllPlans();
+    }
+  }, [members, pensionId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const selectedPlan = memberPlans.find(p => p.userId === selectedMemberId);
+
+  return (
+    <div className="space-y-4">
+      {/* Member Selector */}
+      <div className="flex flex-wrap gap-2">
+        {memberPlans.map(plan => (
+          <button
+            key={plan.userId}
+            onClick={() => setSelectedMemberId(plan.userId)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg transition-all',
+              selectedMemberId === plan.userId
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-white/5 hover:bg-white/10'
+            )}
+          >
+            <Avatar className="w-6 h-6">
+              <AvatarImage src={getAvatarSrc(plan.avatarUrl)} />
+              <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                {plan.displayName[0]}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium">{plan.displayName}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Selected Member's Plan */}
+      {selectedPlan && (
+        <div className="space-y-3">
+          {selectedPlan.plans.length === 0 || selectedPlan.plans.every(p => p.sessions.length === 0) ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <Calendar className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">این کاربر هنوز برنامه‌ای تنظیم نکرده است</p>
+            </div>
+          ) : (
+            selectedPlan.plans.filter(day => day.sessions.length > 0).map((day, idx) => (
+              <div key={idx} className="p-3 rounded-lg bg-white/5 border border-white/10">
+                <h4 className="font-medium mb-2 text-sm">{day.dayName}</h4>
+                <div className="space-y-2">
+                  {day.sessions.map((session, sIdx) => (
+                    <div 
+                      key={sIdx} 
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: session.color }}
+                        />
+                        <span>{session.subject}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">هدف: {formatHoursDisplay(session.targetHours)}</span>
+                        <span className="text-primary">انجام: {formatHoursDisplay(session.actualHours)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -1496,6 +1659,15 @@ const Pension = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+              
+              {/* Weekly Plans Section - Show all members' programs */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  برنامه هفتگی اعضا
+                </h3>
+                <MembersWeeklyPlans pensionId={pension.id} members={members} />
               </div>
             </GlassCard>
           </TabsContent>
