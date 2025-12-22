@@ -1059,20 +1059,15 @@ const Pension = () => {
         .eq('id', editingAnswerKey.id);
 
       // Recalculate scores for all users who took this exam
-      // Check both pension_exam_id AND exam_id for legacy records
-      const { data: resultsByPensionExamId } = await supabase
+      // Use OR filter to check both pension_exam_id AND exam_id for legacy records
+      const { data: allResults } = await supabase
         .from('exam_results')
         .select('*')
-        .eq('pension_exam_id', editingAnswerKey.id);
+        .eq('pension_id', pension.id)
+        .or(`pension_exam_id.eq.${editingAnswerKey.id},exam_id.eq.${editingAnswerKey.id}`);
 
-      const { data: resultsByExamId } = await supabase
-        .from('exam_results')
-        .select('*')
-        .eq('exam_id', editingAnswerKey.id);
-
-      // Combine and deduplicate results
-      const allResults = [...(resultsByPensionExamId || []), ...(resultsByExamId || [])];
-      const uniqueResults = allResults.filter((result, index, self) => 
+      // Deduplicate by id
+      const uniqueResults = (allResults || []).filter((result, index, self) => 
         index === self.findIndex(r => r.id === result.id)
       );
 
