@@ -1053,60 +1053,90 @@ const Pension = () => {
 
     try {
       // Save answer key to exam
-      await supabase
+      const { error: updateError } = await supabase
         .from('pension_exams')
         .update({ answer_key: answerKeyData })
         .eq('id', editingAnswerKey.id);
 
-      // Recalculate scores for all users who took this exam
-      // Use OR filter to check both pension_exam_id AND exam_id for legacy records
-      const { data: allResults } = await supabase
+      if (updateError) {
+        console.error('Error updating answer key:', updateError);
+        toast.error('خطا در ذخیره پاسخنامه');
+        return;
+      }
+
+      // Fetch ALL exam results for this pension
+      const { data: allPensionResults, error: fetchError } = await supabase
         .from('exam_results')
         .select('*')
-        .eq('pension_id', pension.id)
-        .or(`pension_exam_id.eq.${editingAnswerKey.id},exam_id.eq.${editingAnswerKey.id}`);
+        .eq('pension_id', pension.id);
 
-      // Deduplicate by id
-      const uniqueResults = (allResults || []).filter((result, index, self) => 
-        index === self.findIndex(r => r.id === result.id)
+      if (fetchError) {
+        console.error('Error fetching results:', fetchError);
+      }
+
+      // Filter results that match this exam (by pension_exam_id OR exam_id)
+      const matchingResults = (allPensionResults || []).filter(result => 
+        result.pension_exam_id === editingAnswerKey.id || 
+        result.exam_id === editingAnswerKey.id
       );
 
-      if (uniqueResults.length > 0) {
+      console.log('Found matching results:', matchingResults.length, 'for exam:', editingAnswerKey.id);
+
+      if (matchingResults.length > 0) {
         const qCount = editingAnswerKey.question_count;
+        let updatedCount = 0;
         
-        for (const result of uniqueResults) {
+        for (const result of matchingResults) {
           const userAnswers = result.lessons_data || {};
           let correct = 0;
           let wrong = 0;
           let blank = 0;
 
+          console.log('Processing result:', result.id, 'userAnswers:', userAnswers);
+
           for (let i = 0; i < qCount; i++) {
-            const userAnswer = (userAnswers as any)[i] ?? (userAnswers as any)[String(i)] ?? null;
+            // Check both numeric and string keys
+            const userAnswer = (userAnswers as Record<string, number | null>)[String(i)] ?? 
+                               (userAnswers as Record<number, number | null>)[i] ?? null;
             const correctAnswer = answerKeyData[i];
+            
+            console.log(`Q${i}: user=${userAnswer}, correct=${correctAnswer}`);
             
             if (userAnswer === null || userAnswer === undefined) {
               blank++;
             } else if (correctAnswer !== null && correctAnswer !== undefined && userAnswer === correctAnswer) {
               correct++;
-            } else {
+            } else if (correctAnswer !== null && correctAnswer !== undefined) {
               wrong++;
+            } else {
+              // No correct answer defined yet
+              blank++;
             }
           }
 
+          // Calculate percentage: (correct * 3 - wrong) / (total * 3) * 100
           const rawScore = (correct * 3) - wrong;
           const maxScore = qCount * 3;
-          const percentage = maxScore > 0 ? (rawScore / maxScore) * 100 : 0;
+          const percentage = maxScore > 0 ? Math.max(0, (rawScore / maxScore) * 100) : 0;
 
-          await supabase
+          console.log(`Result ${result.id}: correct=${correct}, wrong=${wrong}, blank=${blank}, percentage=${percentage}`);
+
+          const { error: updateResultError } = await supabase
             .from('exam_results')
             .update({
               correct_answers: correct,
               wrong_answers: wrong,
               blank_answers: blank,
-              percentage: Math.max(0, percentage),
-              pension_exam_id: editingAnswerKey.id // Also fix legacy records
+              percentage: Math.round(percentage * 100) / 100,
+              pension_exam_id: editingAnswerKey.id // Fix legacy records
             })
             .eq('id', result.id);
+
+          if (updateResultError) {
+            console.error('Error updating result:', result.id, updateResultError);
+          } else {
+            updatedCount++;
+          }
         }
 
         // Refresh local exam results
@@ -1119,9 +1149,9 @@ const Pension = () => {
           setUserExamResults(updatedResults as ExamResult[]);
         }
 
-        toast.success(`پاسخنامه ذخیره شد و کارنامه ${uniqueResults.length} نفر به‌روز شد`);
+        toast.success(`پاسخنامه ذخیره شد و کارنامه ${updatedCount} نفر به‌روز شد`);
       } else {
-        toast.success('پاسخنامه ذخیره شد');
+        toast.success('پاسخنامه ذخیره شد (هنوز کسی آزمون نداده)');
       }
 
       // Update local exams list
@@ -1134,7 +1164,7 @@ const Pension = () => {
       setEditingAnswerKey(null);
       setAnswerKeyData({});
     } catch (error) {
-      if (import.meta.env.DEV) console.error('[Debug]', error);
+      console.error('handleSaveAnswerKey error:', error);
       toast.error('خطا در ذخیره پاسخنامه');
     }
   };
@@ -1241,7 +1271,13 @@ const Pension = () => {
               
               <div className="flex bg-muted/50 rounded-lg p-1">
                 <button
-                  onClick={() => setAnswerKeyViewMode('answer')}
+                  onClick={() => {
+                    // Save current state before switching
+                    if (answerKeyPdfRef.current && answerKeyViewMode === 'exam') {
+                      setAnswerKeyPdfState(answerKeyPdfRef.current.getState());
+                    }
+                    setAnswerKeyViewMode('answer');
+                  }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
                     answerKeyViewMode === 'answer' 
                       ? 'bg-primary text-primary-foreground' 
@@ -1252,7 +1288,13 @@ const Pension = () => {
                   پاسخنامه
                 </button>
                 <button
-                  onClick={() => setAnswerKeyViewMode('exam')}
+                  onClick={() => {
+                    // Save current state before switching
+                    if (answerKeyPdfRef.current && answerKeyViewMode === 'exam') {
+                      setAnswerKeyPdfState(answerKeyPdfRef.current.getState());
+                    }
+                    setAnswerKeyViewMode('exam');
+                  }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
                     answerKeyViewMode === 'exam' 
                       ? 'bg-primary text-primary-foreground' 
@@ -1415,7 +1457,13 @@ const Pension = () => {
                 <Button
                   variant={answerSheetViewMode === 'exam' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setAnswerSheetViewMode('exam')}
+                  onClick={() => {
+                    // Save current state before switching
+                    if (answerSheetPdfRef.current && answerSheetViewMode === 'exam') {
+                      setAnswerSheetPdfState(answerSheetPdfRef.current.getState());
+                    }
+                    setAnswerSheetViewMode('exam');
+                  }}
                   className="gap-2"
                 >
                   <FileText className="w-4 h-4" />
@@ -1425,7 +1473,13 @@ const Pension = () => {
               <Button
                 variant={answerSheetViewMode === 'answers' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setAnswerSheetViewMode('answers')}
+                onClick={() => {
+                  // Save current state before switching
+                  if (answerSheetPdfRef.current && answerSheetViewMode === 'exam') {
+                    setAnswerSheetPdfState(answerSheetPdfRef.current.getState());
+                  }
+                  setAnswerSheetViewMode('answers');
+                }}
                 className="gap-2"
               >
                 <FileText className="w-4 h-4" />
@@ -1647,7 +1701,13 @@ const Pension = () => {
               <Button
                 variant={examViewMode === 'exam' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setExamViewMode('exam')}
+                onClick={() => {
+                  // Save current state before switching
+                  if (examPdfRef.current && examViewMode === 'exam') {
+                    setExamPdfState(examPdfRef.current.getState());
+                  }
+                  setExamViewMode('exam');
+                }}
                 className="gap-2"
               >
                 <FileText className="w-4 h-4" />
@@ -1656,7 +1716,13 @@ const Pension = () => {
               <Button
                 variant={examViewMode === 'answer' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setExamViewMode('answer')}
+                onClick={() => {
+                  // Save current state before switching
+                  if (examPdfRef.current && examViewMode === 'exam') {
+                    setExamPdfState(examPdfRef.current.getState());
+                  }
+                  setExamViewMode('answer');
+                }}
                 className="gap-2"
               >
                 <FileText className="w-4 h-4" />
