@@ -109,9 +109,19 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const page = pageRef.current;
-    if (!canvas || !page) return;
+    if (!canvas || !page) {
+      console.log('redrawCanvas: canvas or page not ready');
+      return;
+    }
 
-    const rect = page.getBoundingClientRect();
+    // Get the actual rendered page dimensions
+    const pageElement = page.querySelector('.react-pdf__Page');
+    const targetElement = pageElement || page;
+    const rect = targetElement.getBoundingClientRect();
+    
+    console.log('redrawCanvas: setting canvas size to', rect.width, 'x', rect.height);
+    
+    // Set canvas size to match PDF page
     canvas.width = rect.width;
     canvas.height = rect.height;
     canvas.style.width = `${rect.width}px`;
@@ -124,8 +134,10 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
 
     // Draw all lines for current page
     const pageDrawings = drawings.filter(d => d.pageNumber === pageNumber);
+    console.log('redrawCanvas: drawing', pageDrawings.length, 'lines for page', pageNumber);
+    
     for (const line of pageDrawings) {
-      if (line.points.length < 2) continue;
+      if (line.points.length === 0) continue;
       
       ctx.beginPath();
       ctx.strokeStyle = line.color;
@@ -133,11 +145,19 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       
-      ctx.moveTo(line.points[0].x * scale, line.points[0].y * scale);
-      for (let i = 1; i < line.points.length; i++) {
-        ctx.lineTo(line.points[i].x * scale, line.points[i].y * scale);
+      if (line.points.length === 1) {
+        // Single point - draw a dot
+        ctx.fillStyle = line.color;
+        ctx.arc(line.points[0].x * scale, line.points[0].y * scale, line.width / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Multiple points - draw a line
+        ctx.moveTo(line.points[0].x * scale, line.points[0].y * scale);
+        for (let i = 1; i < line.points.length; i++) {
+          ctx.lineTo(line.points[i].x * scale, line.points[i].y * scale);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
     }
   }, [pageNumber, drawings, scale]);
 
@@ -149,6 +169,7 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     let clientX: number, clientY: number;
     
     if ('touches' in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
     } else {
@@ -156,66 +177,77 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
       clientY = e.clientY;
     }
     
-    return {
-      x: (clientX - rect.left) / scale,
-      y: (clientY - rect.top) / scale
-    };
+    // Get coordinates relative to canvas at base scale (1.0)
+    const x = (clientX - rect.left) / scale;
+    const y = (clientY - rect.top) / scale;
+    
+    console.log('Canvas coords:', { x, y, clientX, clientY, rectLeft: rect.left, rectTop: rect.top, scale });
+    
+    return { x, y };
   };
 
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     if (drawMode === 'none') return;
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Pointer down, drawMode:', drawMode);
     
     setIsDrawing(true);
     const coords = getCanvasCoords(e);
     setCurrentLine([coords]);
+    
+    // Draw initial point
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.fillStyle = drawMode === 'erase' ? '#1a1a2e' : drawColor;
+      ctx.arc(coords.x * scale, coords.y * scale, (drawMode === 'erase' ? 10 : drawWidth / 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
 
   const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || drawMode === 'none') return;
     e.preventDefault();
+    e.stopPropagation();
     
     const coords = getCanvasCoords(e);
-    setCurrentLine(prev => [...prev, coords]);
+    const newLine = [...currentLine, coords];
+    setCurrentLine(newLine);
 
-    // Draw current stroke
+    // Draw current stroke incrementally
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!ctx || currentLine.length < 1) return;
+    if (!ctx || newLine.length < 2) return;
 
-    const lastPoint = currentLine[currentLine.length - 1];
+    const prevPoint = newLine[newLine.length - 2];
+    const currPoint = newLine[newLine.length - 1];
+    
     ctx.beginPath();
     ctx.strokeStyle = drawMode === 'erase' ? '#1a1a2e' : drawColor;
     ctx.lineWidth = drawMode === 'erase' ? 20 : drawWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
-    ctx.lineTo(coords.x * scale, coords.y * scale);
+    ctx.moveTo(prevPoint.x * scale, prevPoint.y * scale);
+    ctx.lineTo(currPoint.x * scale, currPoint.y * scale);
     ctx.stroke();
   };
 
   const handlePointerUp = () => {
-    if (!isDrawing || currentLine.length < 2) {
-      setIsDrawing(false);
-      setCurrentLine([]);
+    if (!isDrawing) {
       return;
     }
+    
+    console.log('Pointer up, currentLine length:', currentLine.length);
 
-    if (drawMode === 'draw') {
+    if (currentLine.length >= 1) {
       const newLine: DrawingLine = {
         pageNumber,
         points: currentLine,
-        color: drawColor,
-        width: drawWidth
-      };
-      setDrawings(prev => [...prev, newLine]);
-    } else if (drawMode === 'erase') {
-      // For eraser, add a line with background color
-      const newLine: DrawingLine = {
-        pageNumber,
-        points: currentLine,
-        color: '#1a1a2e',
-        width: 20
+        color: drawMode === 'erase' ? '#1a1a2e' : drawColor,
+        width: drawMode === 'erase' ? 20 : drawWidth
       };
       setDrawings(prev => [...prev, newLine]);
     }
