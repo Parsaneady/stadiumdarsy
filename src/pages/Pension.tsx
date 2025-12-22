@@ -1660,15 +1660,6 @@ const Pension = () => {
                   </div>
                 ))}
               </div>
-              
-              {/* Weekly Plans Section - Show all members' programs */}
-              <div className="mt-6 pt-6 border-t border-white/10">
-                <h3 className="font-bold mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  برنامه هفتگی اعضا
-                </h3>
-                <MembersWeeklyPlans pensionId={pension.id} members={members} />
-              </div>
             </GlassCard>
           </TabsContent>
 
