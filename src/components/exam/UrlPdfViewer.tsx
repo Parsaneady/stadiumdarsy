@@ -100,20 +100,18 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     }
   }, [pageNumber, scale, drawings, onStateChange]);
 
-  // Restore scroll position from initialState on mount
+  // Restore scroll position from initialState after page renders
   useEffect(() => {
-    if (initialState?.scrollTop !== undefined || initialState?.scrollLeft !== undefined) {
-      const restoreScroll = () => {
+    if (pageRendered && initialState?.scrollTop !== undefined) {
+      // Use requestAnimationFrame for immediate, jank-free scroll restoration
+      requestAnimationFrame(() => {
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = initialState.scrollTop || 0;
           scrollContainerRef.current.scrollLeft = initialState.scrollLeft || 0;
         }
-      };
-      // Wait for PDF to render before restoring scroll
-      const timer = setTimeout(restoreScroll, 300);
-      return () => clearTimeout(timer);
+      });
     }
-  }, []); // Only run on mount
+  }, [pageRendered]); // Run when page finishes rendering
 
   // Reset page rendered state when page changes
   useEffect(() => {
@@ -484,8 +482,13 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
           {pageRendered && (
             <canvas
               ref={canvasRef}
-              className={`absolute top-0 left-0 ${drawMode !== 'none' ? 'cursor-crosshair' : 'pointer-events-none'}`}
-              style={{ touchAction: 'none' }}
+              className="absolute top-0 left-0"
+              style={{ 
+                touchAction: 'none',
+                zIndex: drawMode !== 'none' ? 100 : 1,
+                pointerEvents: drawMode !== 'none' ? 'auto' : 'none',
+                cursor: drawMode !== 'none' ? 'crosshair' : 'default'
+              }}
               onMouseDown={handlePointerDown}
               onMouseMove={handlePointerMove}
               onMouseUp={handlePointerUp}
