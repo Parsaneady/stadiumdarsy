@@ -90,9 +90,30 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
   // Notify parent of state changes
   useEffect(() => {
     if (onStateChange) {
-      onStateChange({ pageNumber, scale, drawings });
+      onStateChange({ 
+        pageNumber, 
+        scale, 
+        drawings,
+        scrollTop: scrollContainerRef.current?.scrollTop || 0,
+        scrollLeft: scrollContainerRef.current?.scrollLeft || 0
+      });
     }
   }, [pageNumber, scale, drawings, onStateChange]);
+
+  // Restore scroll position from initialState on mount
+  useEffect(() => {
+    if (initialState?.scrollTop !== undefined || initialState?.scrollLeft !== undefined) {
+      const restoreScroll = () => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = initialState.scrollTop || 0;
+          scrollContainerRef.current.scrollLeft = initialState.scrollLeft || 0;
+        }
+      };
+      // Wait for PDF to render before restoring scroll
+      const timer = setTimeout(restoreScroll, 300);
+      return () => clearTimeout(timer);
+    }
+  }, []); // Only run on mount
 
   // Reset page rendered state when page changes
   useEffect(() => {
@@ -110,51 +131,65 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     const canvas = canvasRef.current;
     const page = pageRef.current;
     if (!canvas || !page) {
-      console.log('redrawCanvas: canvas or page not ready');
       return;
     }
 
-    // Get the actual rendered page dimensions
-    const pageElement = page.querySelector('.react-pdf__Page');
-    const targetElement = pageElement || page;
-    const rect = targetElement.getBoundingClientRect();
-    
-    console.log('redrawCanvas: setting canvas size to', rect.width, 'x', rect.height);
-    
-    // Set canvas size to match PDF page
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+    // Get the actual rendered PDF canvas inside the Page component
+    const pdfCanvas = page.querySelector('canvas.react-pdf__Page__canvas') as HTMLCanvasElement;
+    if (!pdfCanvas) {
+      // Fallback to page element
+      const pageElement = page.querySelector('.react-pdf__Page');
+      if (!pageElement) return;
+      
+      const rect = pageElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+    } else {
+      // Match the PDF canvas exactly
+      canvas.width = pdfCanvas.width;
+      canvas.height = pdfCanvas.height;
+      canvas.style.width = pdfCanvas.style.width;
+      canvas.style.height = pdfCanvas.style.height;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Calculate the display scale factor (canvas pixels vs CSS pixels)
+    const displayScale = canvas.width / parseFloat(canvas.style.width || String(canvas.width));
+
     // Draw all lines for current page
     const pageDrawings = drawings.filter(d => d.pageNumber === pageNumber);
-    console.log('redrawCanvas: drawing', pageDrawings.length, 'lines for page', pageNumber);
     
     for (const line of pageDrawings) {
       if (line.points.length === 0) continue;
       
       ctx.beginPath();
       ctx.strokeStyle = line.color;
-      ctx.lineWidth = line.width;
+      ctx.lineWidth = line.width * displayScale;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       
       if (line.points.length === 1) {
         // Single point - draw a dot
         ctx.fillStyle = line.color;
-        ctx.arc(line.points[0].x * scale, line.points[0].y * scale, line.width / 2, 0, Math.PI * 2);
+        ctx.arc(
+          line.points[0].x * scale * displayScale, 
+          line.points[0].y * scale * displayScale, 
+          line.width * displayScale / 2, 
+          0, 
+          Math.PI * 2
+        );
         ctx.fill();
       } else {
         // Multiple points - draw a line
-        ctx.moveTo(line.points[0].x * scale, line.points[0].y * scale);
+        ctx.moveTo(line.points[0].x * scale * displayScale, line.points[0].y * scale * displayScale);
         for (let i = 1; i < line.points.length; i++) {
-          ctx.lineTo(line.points[i].x * scale, line.points[i].y * scale);
+          ctx.lineTo(line.points[i].x * scale * displayScale, line.points[i].y * scale * displayScale);
         }
         ctx.stroke();
       }
@@ -169,29 +204,35 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     let clientX: number, clientY: number;
     
     if ('touches' in e) {
-      if (e.touches.length === 0) return { x: 0, y: 0 };
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+      const touch = e.type === 'touchend' 
+        ? (e as React.TouchEvent).changedTouches[0] 
+        : (e as React.TouchEvent).touches[0];
+      if (!touch) return { x: 0, y: 0 };
+      clientX = touch.clientX;
+      clientY = touch.clientY;
     } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
     }
     
     // Get coordinates relative to canvas at base scale (1.0)
     const x = (clientX - rect.left) / scale;
     const y = (clientY - rect.top) / scale;
     
-    console.log('Canvas coords:', { x, y, clientX, clientY, rectLeft: rect.left, rectTop: rect.top, scale });
-    
     return { x, y };
+  };
+
+  const getDisplayScale = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !canvas.style.width) return 1;
+    const cssWidth = parseFloat(canvas.style.width);
+    return cssWidth > 0 ? canvas.width / cssWidth : 1;
   };
 
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     if (drawMode === 'none') return;
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('Pointer down, drawMode:', drawMode);
     
     setIsDrawing(true);
     const coords = getCanvasCoords(e);
@@ -200,10 +241,12 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     // Draw initial point
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (ctx) {
+    if (ctx && canvas) {
+      const displayScale = getDisplayScale();
       ctx.beginPath();
       ctx.fillStyle = drawMode === 'erase' ? '#1a1a2e' : drawColor;
-      ctx.arc(coords.x * scale, coords.y * scale, (drawMode === 'erase' ? 10 : drawWidth / 2), 0, Math.PI * 2);
+      const radius = (drawMode === 'erase' ? 10 : drawWidth / 2) * displayScale;
+      ctx.arc(coords.x * scale * displayScale, coords.y * scale * displayScale, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   };
@@ -220,27 +263,26 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     // Draw current stroke incrementally
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!ctx || newLine.length < 2) return;
+    if (!ctx || !canvas || newLine.length < 2) return;
 
+    const displayScale = getDisplayScale();
     const prevPoint = newLine[newLine.length - 2];
     const currPoint = newLine[newLine.length - 1];
     
     ctx.beginPath();
     ctx.strokeStyle = drawMode === 'erase' ? '#1a1a2e' : drawColor;
-    ctx.lineWidth = drawMode === 'erase' ? 20 : drawWidth;
+    ctx.lineWidth = (drawMode === 'erase' ? 20 : drawWidth) * displayScale;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.moveTo(prevPoint.x * scale, prevPoint.y * scale);
-    ctx.lineTo(currPoint.x * scale, currPoint.y * scale);
+    ctx.moveTo(prevPoint.x * scale * displayScale, prevPoint.y * scale * displayScale);
+    ctx.lineTo(currPoint.x * scale * displayScale, currPoint.y * scale * displayScale);
     ctx.stroke();
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e?: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) {
       return;
     }
-    
-    console.log('Pointer up, currentLine length:', currentLine.length);
 
     if (currentLine.length >= 1) {
       const newLine: DrawingLine = {
