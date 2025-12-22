@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
@@ -37,7 +37,7 @@ import { format } from 'date-fns-jalali';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
 import { formatHoursDisplay } from '@/lib/timeUtils';
 import { cn } from '@/lib/utils';
-import { UrlPdfViewer } from '@/components/exam/UrlPdfViewer';
+import { UrlPdfViewer, PdfViewerState, PdfViewerRef } from '@/components/exam/UrlPdfViewer';
 
 // Import student avatars for display
 import studentAvatar1 from '@/assets/avatars/student-1.png';
@@ -447,6 +447,14 @@ const Pension = () => {
   const [editingAnswerKey, setEditingAnswerKey] = useState<PensionExam | null>(null);
   const [answerKeyData, setAnswerKeyData] = useState<{[key: number]: number | null}>({});
   const [answerKeyViewMode, setAnswerKeyViewMode] = useState<'exam' | 'answer'>('exam');
+  
+  // PDF viewer state persistence
+  const [examPdfState, setExamPdfState] = useState<PdfViewerState | undefined>(undefined);
+  const [answerSheetPdfState, setAnswerSheetPdfState] = useState<PdfViewerState | undefined>(undefined);
+  const [answerKeyPdfState, setAnswerKeyPdfState] = useState<PdfViewerState | undefined>(undefined);
+  const examPdfRef = useRef<PdfViewerRef>(null);
+  const answerSheetPdfRef = useRef<PdfViewerRef>(null);
+  const answerKeyPdfRef = useRef<PdfViewerRef>(null);
   
   // Uploading state
   const [uploadingPdf, setUploadingPdf] = useState(false);
@@ -1051,15 +1059,27 @@ const Pension = () => {
         .eq('id', editingAnswerKey.id);
 
       // Recalculate scores for all users who took this exam
-      const { data: resultsToUpdate } = await supabase
+      // Check both pension_exam_id AND exam_id for legacy records
+      const { data: resultsByPensionExamId } = await supabase
         .from('exam_results')
         .select('*')
         .eq('pension_exam_id', editingAnswerKey.id);
 
-      if (resultsToUpdate && resultsToUpdate.length > 0) {
+      const { data: resultsByExamId } = await supabase
+        .from('exam_results')
+        .select('*')
+        .eq('exam_id', editingAnswerKey.id);
+
+      // Combine and deduplicate results
+      const allResults = [...(resultsByPensionExamId || []), ...(resultsByExamId || [])];
+      const uniqueResults = allResults.filter((result, index, self) => 
+        index === self.findIndex(r => r.id === result.id)
+      );
+
+      if (uniqueResults.length > 0) {
         const qCount = editingAnswerKey.question_count;
         
-        for (const result of resultsToUpdate) {
+        for (const result of uniqueResults) {
           const userAnswers = result.lessons_data || {};
           let correct = 0;
           let wrong = 0;
@@ -1088,12 +1108,23 @@ const Pension = () => {
               correct_answers: correct,
               wrong_answers: wrong,
               blank_answers: blank,
-              percentage: Math.max(0, percentage)
+              percentage: Math.max(0, percentage),
+              pension_exam_id: editingAnswerKey.id // Also fix legacy records
             })
             .eq('id', result.id);
         }
 
-        toast.success(`پاسخنامه ذخیره شد و کارنامه ${resultsToUpdate.length} نفر به‌روز شد`);
+        // Refresh local exam results
+        const { data: updatedResults } = await supabase
+          .from('exam_results')
+          .select('*')
+          .eq('pension_id', pension.id);
+        
+        if (updatedResults) {
+          setUserExamResults(updatedResults as ExamResult[]);
+        }
+
+        toast.success(`پاسخنامه ذخیره شد و کارنامه ${uniqueResults.length} نفر به‌روز شد`);
       } else {
         toast.success('پاسخنامه ذخیره شد');
       }
@@ -1267,7 +1298,12 @@ const Pension = () => {
             /* PDF View */
             editingAnswerKey.pdf_url ? (
               <div className="flex-1 overflow-hidden">
-                <UrlPdfViewer url={editingAnswerKey.pdf_url} />
+                <UrlPdfViewer 
+                  ref={answerKeyPdfRef}
+                  url={editingAnswerKey.pdf_url}
+                  initialState={answerKeyPdfState}
+                  onStateChange={setAnswerKeyPdfState}
+                />
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -1425,7 +1461,12 @@ const Pension = () => {
           {/* PDF Viewer */}
           {answerSheetViewMode === 'exam' && viewingAnswerSheet.exam.pdf_url && (
             <div className="w-full h-full bg-card/30">
-              <UrlPdfViewer url={viewingAnswerSheet.exam.pdf_url} />
+              <UrlPdfViewer 
+                ref={answerSheetPdfRef}
+                url={viewingAnswerSheet.exam.pdf_url}
+                initialState={answerSheetPdfState}
+                onStateChange={setAnswerSheetPdfState}
+              />
             </div>
           )}
 
@@ -1642,7 +1683,12 @@ const Pension = () => {
           {/* PDF Viewer - Full Screen when in exam mode */}
           {examViewMode === 'exam' && takingExam.pdf_url && (
             <div className="w-full h-full bg-card/30">
-              <UrlPdfViewer url={takingExam.pdf_url} />
+              <UrlPdfViewer 
+                ref={examPdfRef}
+                url={takingExam.pdf_url}
+                initialState={examPdfState}
+                onStateChange={setExamPdfState}
+              />
             </div>
           )}
 

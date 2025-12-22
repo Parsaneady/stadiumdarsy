@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Pencil, Eraser, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -10,18 +11,212 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 interface UrlPdfViewerProps {
   url: string;
+  viewerId?: string;
+  onStateChange?: (state: PdfViewerState) => void;
+  initialState?: PdfViewerState;
 }
 
-export const UrlPdfViewer = ({ url }: UrlPdfViewerProps) => {
+export interface PdfViewerState {
+  pageNumber: number;
+  scale: number;
+  drawings: DrawingLine[];
+}
+
+interface DrawingLine {
+  pageNumber: number;
+  points: { x: number; y: number }[];
+  color: string;
+  width: number;
+}
+
+export interface PdfViewerRef {
+  getState: () => PdfViewerState;
+  setState: (state: PdfViewerState) => void;
+}
+
+export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({ 
+  url, 
+  viewerId,
+  onStateChange,
+  initialState 
+}, ref) => {
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.2);
+  const [pageNumber, setPageNumber] = useState<number>(initialState?.pageNumber || 1);
+  const [scale, setScale] = useState<number>(initialState?.scale || 1.2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  
+  // Drawing state
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawMode, setDrawMode] = useState<'none' | 'draw' | 'erase'>('none');
+  const [drawings, setDrawings] = useState<DrawingLine[]>(initialState?.drawings || []);
+  const [currentLine, setCurrentLine] = useState<{ x: number; y: number }[]>([]);
+  const [drawColor, setDrawColor] = useState('#ef4444');
+  const [drawWidth, setDrawWidth] = useState(3);
+  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    getState: () => ({
+      pageNumber,
+      scale,
+      drawings
+    }),
+    setState: (state: PdfViewerState) => {
+      setPageNumber(state.pageNumber);
+      setScale(state.scale);
+      setDrawings(state.drawings || []);
+    }
+  }));
+
+  // Notify parent of state changes
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({ pageNumber, scale, drawings });
+    }
+  }, [pageNumber, scale, drawings, onStateChange]);
+
+  // Redraw canvas when page or drawings change
+  useEffect(() => {
+    redrawCanvas();
+  }, [pageNumber, drawings, scale]);
+
+  const redrawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const page = pageRef.current;
+    if (!canvas || !page) return;
+
+    const rect = page.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw all lines for current page
+    const pageDrawings = drawings.filter(d => d.pageNumber === pageNumber);
+    for (const line of pageDrawings) {
+      if (line.points.length < 2) continue;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = line.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.moveTo(line.points[0].x * scale, line.points[0].y * scale);
+      for (let i = 1; i < line.points.length; i++) {
+        ctx.lineTo(line.points[i].x * scale, line.points[i].y * scale);
+      }
+      ctx.stroke();
+    }
+  }, [pageNumber, drawings, scale]);
+
+  const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    let clientX: number, clientY: number;
+    
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    return {
+      x: (clientX - rect.left) / scale,
+      y: (clientY - rect.top) / scale
+    };
+  };
+
+  const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
+    if (drawMode === 'none') return;
+    e.preventDefault();
+    
+    setIsDrawing(true);
+    const coords = getCanvasCoords(e);
+    setCurrentLine([coords]);
+  };
+
+  const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing || drawMode === 'none') return;
+    e.preventDefault();
+    
+    const coords = getCanvasCoords(e);
+    setCurrentLine(prev => [...prev, coords]);
+
+    // Draw current stroke
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx || currentLine.length < 1) return;
+
+    const lastPoint = currentLine[currentLine.length - 1];
+    ctx.beginPath();
+    ctx.strokeStyle = drawMode === 'erase' ? '#1a1a2e' : drawColor;
+    ctx.lineWidth = drawMode === 'erase' ? 20 : drawWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
+    ctx.lineTo(coords.x * scale, coords.y * scale);
+    ctx.stroke();
+  };
+
+  const handlePointerUp = () => {
+    if (!isDrawing || currentLine.length < 2) {
+      setIsDrawing(false);
+      setCurrentLine([]);
+      return;
+    }
+
+    if (drawMode === 'draw') {
+      const newLine: DrawingLine = {
+        pageNumber,
+        points: currentLine,
+        color: drawColor,
+        width: drawWidth
+      };
+      setDrawings(prev => [...prev, newLine]);
+    } else if (drawMode === 'erase') {
+      // For eraser, add a line with background color
+      const newLine: DrawingLine = {
+        pageNumber,
+        points: currentLine,
+        color: '#1a1a2e',
+        width: 20
+      };
+      setDrawings(prev => [...prev, newLine]);
+    }
+
+    setIsDrawing(false);
+    setCurrentLine([]);
+  };
+
+  const clearCurrentPage = () => {
+    setDrawings(prev => prev.filter(d => d.pageNumber !== pageNumber));
+    toast.success('نقاشی‌های این صفحه پاک شد');
+  };
+
+  const clearAllDrawings = () => {
+    setDrawings([]);
+    toast.success('همه نقاشی‌ها پاک شد');
+  };
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    setPageNumber(1);
+    if (!initialState) {
+      setPageNumber(1);
+    }
     setLoading(false);
     setError(false);
   };
@@ -30,6 +225,19 @@ export const UrlPdfViewer = ({ url }: UrlPdfViewerProps) => {
     setLoading(false);
     setError(true);
   };
+
+  // Resize observer for canvas
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+
+    const observer = new ResizeObserver(() => {
+      setTimeout(redrawCanvas, 100);
+    });
+
+    observer.observe(page);
+    return () => observer.disconnect();
+  }, [redrawCanvas]);
 
   if (error) {
     return (
@@ -49,7 +257,8 @@ export const UrlPdfViewer = ({ url }: UrlPdfViewerProps) => {
   return (
     <div className="flex flex-col h-full">
       {/* Controls */}
-      <div className="flex items-center justify-between p-2 border-b border-white/10 bg-card/50 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-2 border-b border-white/10 bg-card/50 backdrop-blur-sm flex-wrap gap-2">
+        {/* Zoom Controls */}
         <div className="flex items-center gap-1">
           <Button
             size="icon"
@@ -69,7 +278,58 @@ export const UrlPdfViewer = ({ url }: UrlPdfViewerProps) => {
             <ZoomIn className="w-4 h-4" />
           </Button>
         </div>
+
+        {/* Drawing Controls */}
+        <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+          <Button
+            size="icon"
+            variant={drawMode === 'draw' ? 'default' : 'ghost'}
+            className="h-8 w-8"
+            onClick={() => setDrawMode(drawMode === 'draw' ? 'none' : 'draw')}
+            title="قلم"
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant={drawMode === 'erase' ? 'default' : 'ghost'}
+            className="h-8 w-8"
+            onClick={() => setDrawMode(drawMode === 'erase' ? 'none' : 'erase')}
+            title="پاک‌کن"
+          >
+            <Eraser className="w-4 h-4" />
+          </Button>
+          
+          {/* Color Picker */}
+          {drawMode === 'draw' && (
+            <div className="flex items-center gap-1 px-1">
+              {['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#000000'].map(color => (
+                <button
+                  key={color}
+                  onClick={() => setDrawColor(color)}
+                  className={`w-5 h-5 rounded-full transition-transform ${
+                    drawColor === color ? 'ring-2 ring-white scale-110' : ''
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          )}
+          
+          <div className="h-6 w-px bg-white/20 mx-1" />
+          
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={clearCurrentPage}
+            title="پاک کردن این صفحه"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
         
+        {/* Page Controls */}
         <div className="flex items-center gap-1">
           <Button
             size="icon"
@@ -95,27 +355,48 @@ export const UrlPdfViewer = ({ url }: UrlPdfViewerProps) => {
         </div>
       </div>
 
-      {/* PDF Document */}
-      <div className="flex-1 overflow-auto p-4 flex justify-center bg-muted/20">
-        <Document
-          file={url}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={onDocumentLoadError}
-          loading={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-            </div>
-          }
-        >
-          <Page
-            pageNumber={pageNumber}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            className="shadow-lg"
+      {/* PDF Document with Canvas Overlay */}
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-auto p-4 flex justify-center bg-muted/20"
+      >
+        <div className="relative" ref={pageRef}>
+          <Document
+            file={url}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={onDocumentLoadError}
+            loading={
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+              </div>
+            }
+          >
+            <Page
+              pageNumber={pageNumber}
+              scale={scale}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              className="shadow-lg"
+            />
+          </Document>
+          
+          {/* Drawing Canvas Overlay */}
+          <canvas
+            ref={canvasRef}
+            className={`absolute top-0 left-0 ${drawMode !== 'none' ? 'cursor-crosshair' : 'pointer-events-none'}`}
+            style={{ touchAction: 'none' }}
+            onMouseDown={handlePointerDown}
+            onMouseMove={handlePointerMove}
+            onMouseUp={handlePointerUp}
+            onMouseLeave={handlePointerUp}
+            onTouchStart={handlePointerDown}
+            onTouchMove={handlePointerMove}
+            onTouchEnd={handlePointerUp}
           />
-        </Document>
+        </div>
       </div>
     </div>
   );
-};
+});
+
+UrlPdfViewer.displayName = 'UrlPdfViewer';
