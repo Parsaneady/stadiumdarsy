@@ -886,13 +886,21 @@ const Pension = () => {
   };
 
   const handleFinishAndSaveExam = async () => {
-    if (!takingExam || !user || !pension) return;
+    if (!takingExam || !user || !pension) {
+      toast.error('خطا: اطلاعات آزمون ناقص است');
+      return;
+    }
     
     setIsExamRunning(false);
 
     const qCount = takingExam.question_count;
     const answerKey = takingExam.answer_key || {};
     const hasAnswerKey = Object.keys(answerKey).length > 0;
+    
+    // Count user answers - those that have been selected
+    const answeredQuestions = Object.keys(examAnswers).filter(
+      key => examAnswers[Number(key)] !== null && examAnswers[Number(key)] !== undefined
+    ).length;
     
     let correctCount = 0;
     let wrongCount = 0;
@@ -909,52 +917,79 @@ const Pension = () => {
       } else if (correct !== null && correct !== undefined && myAnswer !== correct) {
         wrongCount++;
       } else {
-        // No answer key yet, count as blank for now
-        blankCount++;
+        // No answer key yet - user answered but can't calculate result
+        // Don't count as blank, just mark as answered
       }
+    }
+
+    // If no answer key, count unanswered as blank
+    if (!hasAnswerKey) {
+      blankCount = qCount - answeredQuestions;
     }
 
     const percentage = hasAnswerKey && qCount > 0 
       ? ((correctCount - (wrongCount / 3)) / qCount) * 100 
       : 0;
 
+    // Prepare data with proper type conversion for JSON storage
+    const answersToStore: Record<string, number | null> = {};
+    for (let i = 0; i < qCount; i++) {
+      answersToStore[String(i)] = examAnswers[i] ?? null;
+    }
+
     try {
+      const insertData = {
+        user_id: user.id,
+        exam_type: 'pension',
+        pension_id: pension.id,
+        exam_id: takingExam.id,
+        lesson_name: takingExam.title,
+        total_questions: qCount,
+        correct_answers: hasAnswerKey ? correctCount : 0,
+        wrong_answers: hasAnswerKey ? wrongCount : 0,
+        blank_answers: blankCount,
+        percentage: Math.max(0, percentage),
+        lessons_data: answersToStore,
+      };
+
+      console.log('[Exam] Saving exam result:', insertData);
+
       const { data: insertedResult, error } = await supabase
         .from('exam_results')
-        .insert({
-          user_id: user.id,
-          exam_type: 'pension',
-          pension_id: pension.id,
-          exam_id: takingExam.id,
-          lesson_name: takingExam.title,
-          total_questions: qCount,
-          correct_answers: correctCount,
-          wrong_answers: wrongCount,
-          blank_answers: blankCount,
-          percentage: Math.max(0, percentage),
-          lessons_data: examAnswers, // Store user answers for later scoring
-        })
+        .insert(insertData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Exam] Insert error details:', error);
+        throw error;
+      }
+
+      console.log('[Exam] Saved successfully:', insertedResult);
 
       // Add to local state
       if (insertedResult) {
         setUserExamResults(prev => [...prev, insertedResult as ExamResult]);
         
-        // Show report card if answer key exists
-        if (hasAnswerKey) {
-          setViewingReportCard(insertedResult as ExamResult);
-        }
+        toast.success('پاسخ‌های شما ذخیره شد');
+        
+        // Always show the user their answer sheet after finishing
+        setViewingAnswerSheet({ exam: takingExam, result: insertedResult as ExamResult });
       }
 
-      toast.success('پاسخ‌های شما ذخیره شد');
       setTakingExam(null);
       setExamAnswers({});
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('[Debug]', error);
-      toast.error('خطا در ذخیره پاسخ‌ها');
+    } catch (error: any) {
+      console.error('[Exam] Full error:', error);
+      
+      // More specific error messages
+      if (error?.message?.includes('row-level security') || error?.message?.includes('policy')) {
+        toast.error('خطا: شما دسترسی ثبت نتیجه ندارید');
+      } else if (error?.message?.includes('duplicate')) {
+        toast.error('شما قبلاً در این آزمون شرکت کرده‌اید');
+      } else {
+        toast.error('خطا در ذخیره پاسخ‌ها. لطفاً دوباره تلاش کنید.');
+      }
     }
   };
 
@@ -1246,149 +1281,185 @@ const Pension = () => {
     );
   }
 
-  // Taking exam view - exactly like reference image
+  // Taking exam view - exactly like ExamPanel (TestExam.tsx) reference
   if (takingExam) {
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
     const unansweredCount = takingExam.question_count - answeredCount;
     const progressPercent = takingExam.question_count > 0 ? Math.round((answeredCount / takingExam.question_count) * 100) : 0;
     
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        {/* Header - exactly like reference image */}
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 px-4 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            {/* Left side - finish button and tabs */}
-            <div className="flex items-center gap-3">
-              <Button 
-                onClick={handleFinishAndSaveExam}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6"
-              >
-                پایان آزمون
-              </Button>
-              
-              <div className="flex bg-muted/50 rounded-lg p-1">
-                <button
-                  onClick={() => setExamViewMode('answer')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-                    examViewMode === 'answer' 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  پاسخنامه
-                </button>
-                <button
-                  onClick={() => setExamViewMode('exam')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-                    examViewMode === 'exam' 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  آزمون
-                </button>
-              </div>
-            </div>
+      <div className="fixed inset-0 z-50 bg-background overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+        </div>
 
-            {/* Center - timer, progress, title */}
-            <div className="flex items-center gap-6">
-              {isExamRunning && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-                  <span className="font-mono font-bold text-lg">{formatExamTime(examTimeLeft)}</span>
-                  <Clock className="w-4 h-4" />
-                </div>
-              )}
-              <div className="text-sm text-muted-foreground">
-                پیشرفت: <span className="font-bold">{answeredCount}/{takingExam.question_count}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold">آزمون درحال برگزاری</span>
-                <FileText className="w-5 h-5 text-primary" />
-              </div>
-            </div>
-
-            {/* Right side - exit button */}
-            <button 
+        {/* Top Header Bar */}
+        <div className="absolute top-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6 z-10">
+          <div className="flex items-center gap-4">
+            <button
               onClick={handleExitExam}
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <FileText className="w-5 h-5" />
               <span className="text-sm">خروج از آزمون</span>
             </button>
+            <div className="h-6 w-px bg-white/20" />
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              <span className="font-semibold">آزمون درحال برگزاری</span>
+            </div>
           </div>
-        </header>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-hidden flex flex-col">
-          {examViewMode === 'exam' ? (
-            /* PDF View */
-            takingExam.pdf_url ? (
-              <div className="flex-1 overflow-hidden">
-                <iframe src={takingExam.pdf_url} className="w-full h-full" />
+          <div className="flex items-center gap-4">
+            {/* Progress */}
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">پیشرفت:</span>
+              <span className="font-bold text-primary">{answeredCount}/{takingExam.question_count}</span>
+              <div className="w-24 h-2 bg-muted/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
               </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                <p>فایل PDF موجود نیست</p>
+            </div>
+
+            <div className="h-6 w-px bg-white/20" />
+
+            {/* Timer */}
+            {isExamRunning && (
+              <div className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-full font-mono",
+                examTimeLeft < 60 ? "bg-destructive/20 text-destructive" : "bg-primary/20 text-primary"
+              )}>
+                <Clock className="w-5 h-5" />
+                <span className="font-bold text-xl tabular-nums">{formatExamTime(examTimeLeft)}</span>
               </div>
-            )
-          ) : (
-            /* Answer Sheet View - exactly like reference image */
-            <div className="flex-1 overflow-y-auto p-6">
-              <h2 className="text-xl font-bold text-right mb-6">پاسخنامه</h2>
-              
-              {/* Questions Grid - RTL, 5 columns */}
-              <div className="grid grid-cols-5 gap-4 direction-rtl" style={{ direction: 'rtl' }}>
-                {Array.from({ length: takingExam.question_count }, (_, idx) => (
-                  <div 
-                    key={idx} 
-                    className="p-4 bg-card/50 border border-border/50 rounded-xl text-center"
-                  >
-                    <p className="text-sm font-bold text-foreground mb-3">سوال {idx + 1}</p>
-                    <div className="flex justify-center gap-2" style={{ direction: 'ltr' }}>
-                      {[4, 3, 2, 1].map((opt) => {
-                        const isSelected = examAnswers[idx] === opt;
-                        
-                        return (
-                          <button
-                            key={opt}
-                            onClick={() => handleExamAnswerSelect(idx, opt)}
-                            className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
-                              isSelected 
-                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" 
-                                : "bg-muted/80 text-foreground hover:bg-muted"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+            )}
+
+            <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+              <Button
+                variant={examViewMode === 'exam' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setExamViewMode('exam')}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                آزمون
+              </Button>
+              <Button
+                variant={examViewMode === 'answer' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setExamViewMode('answer')}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                پاسخنامه
+              </Button>
+            </div>
+
+            <Button
+              onClick={handleFinishAndSaveExam}
+              className="bg-warning hover:bg-warning/90 text-warning-foreground"
+            >
+              پایان آزمون
+            </Button>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="absolute top-16 bottom-0 left-0 right-0 flex">
+          {/* PDF Viewer - Full Screen when in exam mode */}
+          {examViewMode === 'exam' && takingExam.pdf_url && (
+            <div className="w-full h-full bg-card/30">
+              <div className="h-full p-4">
+                <div className="h-full rounded-xl overflow-hidden bg-muted/20 border border-white/10">
+                  <iframe
+                    src={takingExam.pdf_url}
+                    className="w-full h-full"
+                    title="PDF Viewer"
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Footer Stats - exactly like reference */}
+          {examViewMode === 'exam' && !takingExam.pdf_url && (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <p>فایل PDF موجود نیست</p>
+            </div>
+          )}
+
+          {/* Answer Sheet - Full Screen when in answer mode */}
           {examViewMode === 'answer' && (
-            <div className="grid grid-cols-3 border-t border-border/50">
-              <div className="p-4 text-center bg-card/30">
-                <p className="text-2xl font-bold text-success">{progressPercent}%</p>
-                <p className="text-sm text-muted-foreground">پیشرفت</p>
+            <div className="w-full h-full overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/10 bg-card/30">
+                <h3 className="text-lg font-semibold">پاسخنامه</h3>
               </div>
-              <div className="p-4 text-center bg-primary/10 border-x border-border/50">
-                <p className="text-2xl font-bold text-primary">{unansweredCount}</p>
-                <p className="text-sm text-muted-foreground">بدون پاسخ</p>
+              
+              <div className="flex-1 overflow-auto p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-w-6xl mx-auto">
+                  {Array.from({ length: takingExam.question_count }, (_, idx) => {
+                    const isSelected = examAnswers[idx] !== null && examAnswers[idx] !== undefined;
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "p-4 rounded-xl backdrop-blur-sm border transition-colors",
+                          isSelected ? "bg-primary/10 border-primary/30" : "bg-card/50 border-white/10 hover:border-primary/30"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-bold text-lg">سوال {idx + 1}</span>
+                          {isSelected && (
+                            <div className="w-5 h-5 rounded-full bg-success flex items-center justify-center">
+                              <span className="text-xs text-white">✓</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[1, 2, 3, 4].map((option) => (
+                            <button
+                              key={option}
+                              onClick={() => handleExamAnswerSelect(idx, option)}
+                              className={cn(
+                                "w-12 h-12 rounded-lg text-base font-bold transition-all",
+                                examAnswers[idx] === option
+                                  ? "bg-primary text-white shadow-lg shadow-primary/30"
+                                  : "bg-muted/30 hover:bg-muted/50"
+                              )}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="p-4 text-center bg-card/30">
-                <p className="text-2xl font-bold text-foreground">{answeredCount}</p>
-                <p className="text-sm text-muted-foreground">پاسخ داده شده</p>
+
+              {/* Bottom Stats Bar */}
+              <div className="p-4 border-t border-white/10 bg-card/30">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                    <p className="text-2xl font-bold text-primary">{answeredCount}</p>
+                    <p className="text-xs text-muted-foreground">پاسخ داده شده</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-warning/10 border border-warning/20">
+                    <p className="text-2xl font-bold text-warning">{unansweredCount}</p>
+                    <p className="text-xs text-muted-foreground">بدون پاسخ</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                    <p className="text-2xl font-bold text-success">{progressPercent}%</p>
+                    <p className="text-xs text-muted-foreground">پیشرفت</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
-        </main>
+        </div>
       </div>
     );
   }
@@ -2193,107 +2264,161 @@ const Pension = () => {
           </div>
         )}
 
-        {/* Answer Sheet View Modal */}
+        {/* Answer Sheet View Modal - Enhanced with PDF access */}
         {viewingAnswerSheet && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setViewingAnswerSheet(null)}>
-            <div className="bg-card rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-xl flex items-center gap-2">
-                  <FileText className="w-6 h-6 text-primary" />
-                  پاسخبرگ شما - {viewingAnswerSheet.exam.title}
-                </h3>
-                <Button variant="ghost" size="icon" onClick={() => setViewingAnswerSheet(null)}>
-                  <X className="w-5 h-5" />
-                </Button>
+          <div className="fixed inset-0 bg-black/80 z-50" onClick={() => setViewingAnswerSheet(null)}>
+            <div className="h-full flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="bg-card/95 backdrop-blur-xl border-b border-white/10 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <h3 className="font-bold text-xl flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-primary" />
+                      پاسخبرگ شما - {viewingAnswerSheet.exam.title}
+                    </h3>
+                    {!viewingAnswerSheet.exam.answer_key || Object.keys(viewingAnswerSheet.exam.answer_key).length === 0 ? (
+                      <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+                        در انتظار تصحیح توسط سرگروه
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                        تصحیح شده
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {viewingAnswerSheet.exam.pdf_url && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(viewingAnswerSheet.exam.pdf_url!, '_blank')}
+                      >
+                        <FileText className="w-4 h-4 ml-2" />
+                        مشاهده سوالات
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => setViewingAnswerSheet(null)}>
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </div>
               </div>
               
-              {/* Stats Summary */}
-              <div className="grid grid-cols-4 gap-3 mb-6">
-                <div className="text-center p-3 bg-success/20 rounded-xl">
-                  <p className="text-2xl font-bold text-success">{viewingAnswerSheet.result.correct_answers}</p>
-                  <p className="text-xs text-muted-foreground">صحیح</p>
-                </div>
-                <div className="text-center p-3 bg-destructive/20 rounded-xl">
-                  <p className="text-2xl font-bold text-destructive">{viewingAnswerSheet.result.wrong_answers}</p>
-                  <p className="text-xs text-muted-foreground">غلط</p>
-                </div>
-                <div className="text-center p-3 bg-muted rounded-xl">
-                  <p className="text-2xl font-bold">{viewingAnswerSheet.result.blank_answers}</p>
-                  <p className="text-xs text-muted-foreground">نزده</p>
-                </div>
-                <div className="text-center p-3 bg-primary/20 rounded-xl">
-                  <p className="text-2xl font-bold text-primary">{(viewingAnswerSheet.result.percentage || 0).toFixed(1)}%</p>
-                  <p className="text-xs text-muted-foreground">درصد</p>
-                </div>
-              </div>
-
-              {/* Answer Grid */}
-              <div className="grid grid-cols-5 gap-3" style={{ direction: 'rtl' }}>
-                {Array.from({ length: viewingAnswerSheet.exam.question_count }, (_, idx) => {
-                  const userAnswers = (viewingAnswerSheet.result.lessons_data || {}) as Record<number, number | null>;
-                  const answerKey = viewingAnswerSheet.exam.answer_key || {};
-                  const userAnswer = userAnswers[idx];
-                  const correctAnswer = answerKey[idx];
-                  const hasAnswerKey = Object.keys(answerKey).length > 0;
-                  
-                  let status = 'blank'; // blank, correct, wrong
-                  if (userAnswer !== null && userAnswer !== undefined) {
-                    if (hasAnswerKey && correctAnswer !== null && correctAnswer !== undefined) {
-                      status = userAnswer === correctAnswer ? 'correct' : 'wrong';
-                    } else {
-                      status = 'answered';
-                    }
-                  }
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`p-3 rounded-xl text-center border ${
-                        status === 'correct' ? 'bg-success/10 border-success/30' :
-                        status === 'wrong' ? 'bg-destructive/10 border-destructive/30' :
-                        status === 'answered' ? 'bg-primary/10 border-primary/30' :
-                        'bg-card/50 border-border/50'
-                      }`}
-                    >
-                      <p className="text-sm font-bold mb-2">سوال {idx + 1}</p>
-                      <div className="flex justify-center gap-1" style={{ direction: 'ltr' }}>
-                        {[1, 2, 3, 4].map((opt) => {
-                          const isUserAnswer = userAnswer === opt;
-                          const isCorrectAnswer = hasAnswerKey && correctAnswer === opt;
-                          
-                          return (
-                            <div
-                              key={opt}
-                              className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
-                                isCorrectAnswer && isUserAnswer ? 'bg-success text-success-foreground' :
-                                isCorrectAnswer ? 'bg-success/50 text-success-foreground ring-2 ring-success' :
-                                isUserAnswer && !isCorrectAnswer ? 'bg-destructive text-destructive-foreground' :
-                                'bg-muted/50 text-muted-foreground'
-                              }`}
-                            >
-                              {opt}
-                            </div>
-                          );
-                        })}
-                      </div>
+              {/* Content */}
+              <div className="flex-1 overflow-auto p-6 bg-background/95">
+                <div className="max-w-5xl mx-auto">
+                  {/* Stats Summary */}
+                  <div className="grid grid-cols-4 gap-3 mb-6">
+                    <div className="text-center p-4 bg-success/20 rounded-xl border border-success/30">
+                      <p className="text-3xl font-bold text-success">{viewingAnswerSheet.result.correct_answers}</p>
+                      <p className="text-sm text-muted-foreground">صحیح</p>
                     </div>
-                  );
-                })}
-              </div>
-              
-              {/* Legend */}
-              <div className="flex items-center justify-center gap-6 mt-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-success"></div>
-                  <span>پاسخ صحیح</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-destructive"></div>
-                  <span>پاسخ غلط</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-muted/50 ring-2 ring-success"></div>
-                  <span>کلید صحیح</span>
+                    <div className="text-center p-4 bg-destructive/20 rounded-xl border border-destructive/30">
+                      <p className="text-3xl font-bold text-destructive">{viewingAnswerSheet.result.wrong_answers}</p>
+                      <p className="text-sm text-muted-foreground">غلط</p>
+                    </div>
+                    <div className="text-center p-4 bg-muted rounded-xl border border-white/10">
+                      <p className="text-3xl font-bold">{viewingAnswerSheet.result.blank_answers}</p>
+                      <p className="text-sm text-muted-foreground">نزده</p>
+                    </div>
+                    <div className="text-center p-4 bg-primary/20 rounded-xl border border-primary/30">
+                      <p className="text-3xl font-bold text-primary">
+                        {viewingAnswerSheet.exam.answer_key && Object.keys(viewingAnswerSheet.exam.answer_key).length > 0
+                          ? `${(viewingAnswerSheet.result.percentage || 0).toFixed(1)}%`
+                          : '---'
+                        }
+                      </p>
+                      <p className="text-sm text-muted-foreground">درصد</p>
+                    </div>
+                  </div>
+
+                  {/* Grading Status Message */}
+                  {(!viewingAnswerSheet.exam.answer_key || Object.keys(viewingAnswerSheet.exam.answer_key).length === 0) && (
+                    <div className="mb-6 p-4 bg-warning/10 border border-warning/30 rounded-xl text-center">
+                      <p className="text-warning font-medium">
+                        ⏳ سرگروه هنوز پاسخنامه را وارد نکرده است. فعلاً فقط پاسخ‌های انتخابی شما نمایش داده می‌شود.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Answer Grid */}
+                  <h4 className="font-bold mb-4">پاسخ‌های شما:</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {Array.from({ length: viewingAnswerSheet.exam.question_count }, (_, idx) => {
+                      // Handle both string and number keys for lessons_data
+                      const userAnswersRaw = viewingAnswerSheet.result.lessons_data || {};
+                      const userAnswer = (userAnswersRaw as any)[idx] ?? (userAnswersRaw as any)[String(idx)] ?? null;
+                      const answerKey = viewingAnswerSheet.exam.answer_key || {};
+                      const correctAnswer = answerKey[idx];
+                      const hasAnswerKey = Object.keys(answerKey).length > 0;
+                      
+                      let status = 'blank';
+                      if (userAnswer !== null && userAnswer !== undefined) {
+                        if (hasAnswerKey && correctAnswer !== null && correctAnswer !== undefined) {
+                          status = userAnswer === correctAnswer ? 'correct' : 'wrong';
+                        } else {
+                          status = 'answered';
+                        }
+                      }
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className={cn(
+                            "p-4 rounded-xl text-center border transition-all",
+                            status === 'correct' && 'bg-success/10 border-success/30',
+                            status === 'wrong' && 'bg-destructive/10 border-destructive/30',
+                            status === 'answered' && 'bg-primary/10 border-primary/30',
+                            status === 'blank' && 'bg-card/50 border-white/10'
+                          )}
+                        >
+                          <p className="text-sm font-bold mb-3">سوال {idx + 1}</p>
+                          <div className="grid grid-cols-4 gap-1">
+                            {[1, 2, 3, 4].map((opt) => {
+                              const isUserAnswer = userAnswer === opt;
+                              const isCorrectAnswer = hasAnswerKey && correctAnswer === opt;
+                              
+                              return (
+                                <div
+                                  key={opt}
+                                  className={cn(
+                                    "w-8 h-8 rounded-md text-xs font-bold flex items-center justify-center mx-auto",
+                                    isCorrectAnswer && isUserAnswer && 'bg-success text-white',
+                                    isCorrectAnswer && !isUserAnswer && 'bg-success/50 text-white ring-2 ring-success',
+                                    isUserAnswer && !isCorrectAnswer && hasAnswerKey && 'bg-destructive text-white',
+                                    isUserAnswer && !hasAnswerKey && 'bg-primary text-white',
+                                    !isUserAnswer && !isCorrectAnswer && 'bg-muted/30 text-muted-foreground'
+                                  )}
+                                >
+                                  {opt}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="flex flex-wrap items-center justify-center gap-6 mt-8 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-primary"></div>
+                      <span>پاسخ شما (در انتظار تصحیح)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-success"></div>
+                      <span>پاسخ صحیح شما</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-destructive"></div>
+                      <span>پاسخ غلط شما</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-success/50 ring-2 ring-success"></div>
+                      <span>پاسخ صحیح (نزده)</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
