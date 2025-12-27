@@ -1,8 +1,8 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { TrendingUp, Award } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
-import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
+import { formatHoursShort, formatHoursDisplay, generateTimeTicks } from '@/lib/timeUtils';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -37,6 +37,15 @@ const AnalyticsCharts = memo(({
   subjectRankings,
   totalHours,
 }: AnalyticsChartsProps) => {
+  // Calculate dynamic ticks based on chart data
+  const chartTicks = useMemo(() => {
+    const maxHours = Math.max(
+      ...weeklyProgressData.map(d => Math.max(d['عملکرد'] || 0, d['هدف'] || 0)),
+      0.5
+    );
+    return generateTimeTicks(maxHours);
+  }, [weeklyProgressData]);
+
   return (
     <>
       {/* Charts Grid */}
@@ -66,8 +75,8 @@ const AnalyticsCharts = memo(({
                   stroke="rgba(255,255,255,0.5)" 
                   fontSize={12} 
                   tickFormatter={(value) => formatHoursShort(value)}
-                  ticks={[0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]}
-                  domain={[0, 'auto']}
+                  ticks={chartTicks}
+                  domain={[0, chartTicks[chartTicks.length - 1] || 1]}
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}

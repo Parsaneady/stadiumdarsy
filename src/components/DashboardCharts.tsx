@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
-import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
+import { formatHoursShort, formatHoursDisplay, generateTimeTicks } from '@/lib/timeUtils';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardChartsProps {
@@ -38,6 +38,15 @@ const DashboardCharts = memo(({
   todayTotal,
   todayActualHours
 }: DashboardChartsProps) => {
+  // Calculate dynamic ticks based on chart data
+  const chartTicks = useMemo(() => {
+    const maxHours = Math.max(
+      ...weeklyChartData.map(d => Math.max(d['ساعت'] || 0, d['هدف'] || 0)),
+      0.5
+    );
+    return generateTimeTicks(maxHours);
+  }, [weeklyChartData]);
+
   return (
     <>
       {/* Main Content Grid */}
@@ -75,8 +84,8 @@ const DashboardCharts = memo(({
                 <YAxis 
                   stroke="rgba(255,255,255,0.5)" 
                   tickFormatter={(value) => formatHoursShort(value)}
-                  ticks={[0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]}
-                  domain={[0, 'auto']}
+                  ticks={chartTicks}
+                  domain={[0, chartTicks[chartTicks.length - 1] || 1]}
                 />
                 <Tooltip
                   contentStyle={tooltipStyle}
