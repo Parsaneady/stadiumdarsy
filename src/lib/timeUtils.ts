@@ -20,8 +20,9 @@ export const formatHoursDisplay = (totalHours: number): string => {
   return `${hours}:${minutes.toString().padStart(2, '0')}`;
 };
 
-// Format for short display (charts, etc.) - always HH:MM format
+// Format for short display (charts, etc.) - always H:MM format
 export const formatHoursShort = (totalHours: number): string => {
+  if (totalHours === 0) return '0';
   const { hours, minutes } = hoursToHoursMinutes(totalHours);
   return `${hours}:${minutes.toString().padStart(2, '0')}`;
 };

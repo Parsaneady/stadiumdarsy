@@ -2089,7 +2089,7 @@ const Pension = () => {
                       {member.wakeTime && (
                         <div className="flex items-center gap-1 text-green-500">
                           <Clock className="w-4 h-4" />
-                          <span>{member.wakeTime}</span>
+                          <span>{member.wakeTime.substring(0, 5)}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-1 text-muted-foreground">
