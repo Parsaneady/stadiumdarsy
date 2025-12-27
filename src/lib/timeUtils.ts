@@ -27,6 +27,35 @@ export const formatHoursShort = (totalHours: number): string => {
   return `${hours}:${minutes.toString().padStart(2, '0')}`;
 };
 
+// Generate nice tick values for chart Y-axis based on max value
+export const generateTimeTicks = (maxValue: number): number[] => {
+  if (maxValue <= 0) return [0];
+  
+  // Define nice intervals in hours
+  const niceIntervals = [0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12];
+  
+  // Find the best interval that gives 3-6 ticks
+  let bestInterval = 0.5;
+  for (const interval of niceIntervals) {
+    const tickCount = Math.ceil(maxValue / interval) + 1;
+    if (tickCount >= 3 && tickCount <= 6) {
+      bestInterval = interval;
+      break;
+    }
+    if (tickCount < 3) {
+      bestInterval = interval;
+    }
+  }
+  
+  // Generate ticks from 0 to just above maxValue
+  const ticks: number[] = [];
+  for (let i = 0; i <= Math.ceil(maxValue / bestInterval); i++) {
+    ticks.push(i * bestInterval);
+  }
+  
+  return ticks;
+};
+
 // Convert Persian numerals to English
 export const persianToEnglish = (str: string): string => {
   const persianNums = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
