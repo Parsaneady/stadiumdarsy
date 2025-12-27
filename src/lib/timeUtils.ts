@@ -10,13 +10,13 @@ export const hoursMinutesToHours = (hours: number, minutes: number): number => {
   return hours + (minutes / 60);
 };
 
-// Format hours to display string (e.g., "۲ ساعت و ۳۰ دقیقه")
+// Format hours to display string (e.g., "۲:۳۰" or "۲" for whole hours)
 export const formatHoursDisplay = (totalHours: number): string => {
   const { hours, minutes } = hoursToHoursMinutes(totalHours);
   
   if (hours === 0 && minutes === 0) return '۰';
-  if (hours === 0) return `${minutes} دقیقه`;
-  if (minutes === 0) return `${hours} ساعت`;
+  if (hours === 0) return `۰:${minutes.toString().padStart(2, '0')}`;
+  if (minutes === 0) return `${hours}`;
   return `${hours}:${minutes.toString().padStart(2, '0')}`;
 };
 
