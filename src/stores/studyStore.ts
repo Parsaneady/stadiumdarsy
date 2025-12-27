@@ -439,14 +439,22 @@ export const useStudyStore = create<StudyStore>()(
           });
         }
         
-        // Add to the specific subject session
-        const todayIndex = get().getTodayIndex();
-        const todayPlan = state.weeklyPlan[todayIndex];
+        // Add to the specific subject session - use fresh state
+        const freshState = get();
+        const todayIndex = freshState.getTodayIndex();
+        const todayPlan = freshState.weeklyPlan[todayIndex];
+        
+        console.log('Pomodoro completed:', { subject, minutes, todayIndex, todayPlan: todayPlan?.dayName, sessions: todayPlan?.sessions?.map(s => s.subject) });
+        
         if (todayPlan) {
           const targetSession = todayPlan.sessions.find(s => s.subject === subject);
+          console.log('Target session found:', targetSession ? { subject: targetSession.subject, currentHours: targetSession.actualHours } : 'NOT FOUND');
+          
           if (targetSession) {
+            const newHours = targetSession.actualHours + (minutes / 60);
+            console.log('Updating session hours:', { from: targetSession.actualHours, to: newHours });
             get().updateSession(todayPlan.id, targetSession.id, {
-              actualHours: targetSession.actualHours + (minutes / 60),
+              actualHours: newHours,
             });
           }
         }
