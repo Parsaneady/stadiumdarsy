@@ -72,7 +72,7 @@ const DashboardCharts = memo(({
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                <YAxis stroke="rgba(255,255,255,0.5)" />
+                <YAxis stroke="rgba(255,255,255,0.5)" tickFormatter={(value) => formatHoursShort(value)} />
                 <Tooltip
                   contentStyle={tooltipStyle}
                   formatter={formatChartTooltip}
