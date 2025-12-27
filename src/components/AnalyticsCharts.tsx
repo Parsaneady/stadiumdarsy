@@ -62,7 +62,13 @@ const AnalyticsCharts = memo(({
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" fontSize={12} />
-                <YAxis stroke="rgba(255,255,255,0.5)" fontSize={12} tickFormatter={(value) => formatHoursShort(value)} />
+                <YAxis 
+                  stroke="rgba(255,255,255,0.5)" 
+                  fontSize={12} 
+                  tickFormatter={(value) => formatHoursShort(value)}
+                  ticks={[0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]}
+                  domain={[0, 'auto']}
+                />
                 <Tooltip
                   contentStyle={tooltipStyle}
                   formatter={(value: number, name: string) => [formatHoursShort(value), name]}
