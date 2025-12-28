@@ -191,49 +191,61 @@ const Pomodoro = () => {
     }
   }, [pomodoroSettings]);
 
-  // Timer effect with requestAnimationFrame optimization
+  // Timer effect - only depends on isRunning to prevent interval recreation
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        decrementTime();
-      }, 1000);
-    } else if (timeLeft === 0 && isRunning) {
-      playAlarm();
-      
-      if (mode === 'study' && pomodoroSubject) {
-        addPomodoroTime(pomodoroSettings.studyDuration, pomodoroSubject);
-        addPomodoroSession(pomodoroSubject, pomodoroSettings.studyDuration); // Save to cloud
-        incrementCompletedPomodoros();
-        
-        toast({
-          title: "🎉 تبریک!",
-          description: `یک پومودورو برای ${pomodoroSubject} تکمیل شد!`,
-        });
-        
-        if (currentCycle >= pomodoroSettings.cycles) {
-          setMode('longBreak');
-          setTimeLeft(pomodoroSettings.longBreak * 60);
-          setCurrentCycle(1);
-        } else {
-          setMode('shortBreak');
-          setTimeLeft(pomodoroSettings.shortBreak * 60);
-          incrementCycle();
-        }
-      } else {
-        setMode('study');
-        setTimeLeft(pomodoroSettings.studyDuration * 60);
-        toast({
-          title: "⏰ استراحت تمام شد!",
-          description: "وقت مطالعه است!",
-        });
-      }
-      setIsRunning(false);
+    if (!isRunning) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
     }
+
+    intervalRef.current = setInterval(() => {
+      // Get fresh state directly from store to avoid stale closures
+      const currentTimeLeft = usePomodoroStore.getState().timeLeft;
+      const currentMode = usePomodoroStore.getState().mode;
+      const currentSubject = usePomodoroStore.getState().pomodoroSubject;
+      const currentCycleValue = usePomodoroStore.getState().currentCycle;
+
+      if (currentTimeLeft > 0) {
+        decrementTime();
+      } else {
+        // Timer finished
+        playAlarm();
+
+        if (currentMode === 'study' && currentSubject) {
+          addPomodoroTime(pomodoroSettings.studyDuration, currentSubject);
+          addPomodoroSession(currentSubject, pomodoroSettings.studyDuration);
+          incrementCompletedPomodoros();
+
+          toast({
+            title: "🎉 تبریک!",
+            description: `یک پومودورو برای ${currentSubject} تکمیل شد!`,
+          });
+
+          if (currentCycleValue >= pomodoroSettings.cycles) {
+            setMode('longBreak');
+            setTimeLeft(pomodoroSettings.longBreak * 60);
+            setCurrentCycle(1);
+          } else {
+            setMode('shortBreak');
+            setTimeLeft(pomodoroSettings.shortBreak * 60);
+            incrementCycle();
+          }
+        } else {
+          setMode('study');
+          setTimeLeft(pomodoroSettings.studyDuration * 60);
+          toast({
+            title: "⏰ استراحت تمام شد!",
+            description: "وقت مطالعه است!",
+          });
+        }
+        setIsRunning(false);
+      }
+    }, 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning, timeLeft, mode, currentCycle, pomodoroSettings, addPomodoroTime, playAlarm, pomodoroSubject, decrementTime, incrementCompletedPomodoros, incrementCycle, setCurrentCycle, setIsRunning, setMode, setTimeLeft]);
+  }, [isRunning, pomodoroSettings, addPomodoroTime, addPomodoroSession, playAlarm, decrementTime, incrementCompletedPomodoros, incrementCycle, setCurrentCycle, setIsRunning, setMode, setTimeLeft]);
 
   // Request notification permission
   useEffect(() => {
