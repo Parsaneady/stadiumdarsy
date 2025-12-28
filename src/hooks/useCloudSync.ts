@@ -336,12 +336,106 @@ export const useCloudSync = () => {
     }
   }, [user]);
 
+  // Check and reset weekly data in cloud (every Saturday)
+  const checkAndResetWeeklyInCloud = useCallback(async () => {
+    if (!user) return;
+
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+    
+    // Only reset on Saturday (6 in JS)
+    if (dayOfWeek !== 6) return;
+
+    try {
+      // Check if we already reset today
+      const { data: settings } = await supabase
+        .from('user_settings')
+        .select('last_weekly_reset')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (settings?.last_weekly_reset) {
+        const lastReset = new Date(settings.last_weekly_reset);
+        const isSameDay = 
+          lastReset.getFullYear() === today.getFullYear() &&
+          lastReset.getMonth() === today.getMonth() &&
+          lastReset.getDate() === today.getDate();
+        
+        if (isSameDay) return;
+      }
+
+      // Get current weekly plans
+      const { data: weeklyPlans } = await supabase
+        .from('weekly_plans')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (weeklyPlans && weeklyPlans.length > 0) {
+        // Reset each day's sessions (keep structure, reset progress)
+        for (const plan of weeklyPlans) {
+          const sessions = (plan.sessions as unknown as StudySession[]) || [];
+          const resetSessions = sessions.map(session => ({
+            ...session,
+            actualHours: 0,
+            actualTests: 0,
+            completed: false,
+            completionPercent: 0,
+            notes: '',
+          }));
+
+          await supabase
+            .from('weekly_plans')
+            .update({ sessions: resetSessions as unknown as any })
+            .eq('id', plan.id);
+        }
+
+        // Update local store
+        const formattedPlans: DayPlan[] = weeklyPlans.map(plan => {
+          const sessions = (plan.sessions as unknown as StudySession[]) || [];
+          return {
+            id: plan.id,
+            dayName: plan.day_name,
+            dayIndex: plan.day_index,
+            sessions: sessions.map(session => ({
+              ...session,
+              actualHours: 0,
+              actualTests: 0,
+              completed: false,
+              completionPercent: 0,
+              notes: '',
+            })),
+          };
+        });
+        store.setWeeklyPlan(formattedPlans);
+      }
+
+      // Update last_weekly_reset
+      const todayStr = today.toISOString().split('T')[0];
+      await supabase
+        .from('user_settings')
+        .update({ last_weekly_reset: todayStr })
+        .eq('user_id', user.id);
+
+      // Also reset local pomodoro daily data
+      store.setLastWeeklyReset(new Date().toISOString());
+
+      console.log('[Cloud] Weekly reset completed');
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[Debug] Error in weekly reset:', error);
+      }
+    }
+  }, [user, store]);
+
   // Load data when user changes
   useEffect(() => {
     if (user) {
-      loadFromCloud();
+      loadFromCloud().then(() => {
+        // Check for weekly reset after loading
+        checkAndResetWeeklyInCloud();
+      });
     }
-  }, [user, loadFromCloud]);
+  }, [user, loadFromCloud, checkAndResetWeeklyInCloud]);
 
   return {
     loadFromCloud,
@@ -353,6 +447,7 @@ export const useCloudSync = () => {
     saveStreak,
     addPomodoroSession,
     updateProfileStats,
+    checkAndResetWeeklyInCloud,
     isInitialLoad: isInitialLoad.current,
   };
 };

@@ -111,6 +111,7 @@ interface StudyStore {
   setDailyLogs: (logs: DailyLog[]) => void;
   setCalendarEvents: (events: CalendarEvent[]) => void;
   setStreak: (streak: number) => void;
+  setLastWeeklyReset: (date: string | null) => void;
 }
 
 const PERSIAN_DAYS = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
@@ -517,6 +518,10 @@ export const useStudyStore = create<StudyStore>()(
 
       setStreak: (streak) => {
         set({ streak });
+      },
+
+      setLastWeeklyReset: (date) => {
+        set({ lastWeeklyReset: date });
       },
 
       getUpcomingEvents: () => {
