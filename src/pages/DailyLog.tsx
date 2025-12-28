@@ -24,19 +24,19 @@ const DailyLog = () => {
   const todayIndex = getTodayIndex();
   const todayPlan = weeklyPlan[todayIndex];
 
-  const handleSaveSession = (updates: Partial<StudySession>) => {
+  const handleSaveSession = async (updates: Partial<StudySession>) => {
     if (selectedSession && todayPlan) {
       // Update in store
       updateSession(selectedSession.dayId, selectedSession.session.id, updates);
       
       // Get fresh sessions from store after update and save to cloud
-      setTimeout(() => {
+      setTimeout(async () => {
         const store = useStudyStore.getState();
         const freshTodayPlan = store.weeklyPlan[getTodayIndex()];
         if (freshTodayPlan) {
-          saveWeeklyPlan(freshTodayPlan.id, freshTodayPlan.sessions);
+          await saveWeeklyPlan(freshTodayPlan.id, freshTodayPlan.sessions);
         }
-      }, 0);
+      }, 100);
       
       setSelectedSession(null);
       toast({
@@ -75,7 +75,7 @@ const DailyLog = () => {
         if (deltaMinutes !== 0 || deltaTests !== 0) {
           await updateProfileStats(deltaMinutes, deltaTests);
         }
-      }, 0);
+      }, 100);
       
       toast({
         title: "ذخیره شد! ✨",

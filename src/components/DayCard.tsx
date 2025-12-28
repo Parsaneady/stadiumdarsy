@@ -33,25 +33,25 @@ export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
     return { completedCount: completed, totalHours: hours, completionPercent: percent };
   }, [day.sessions]);
 
-  const handleAddSession = useCallback((session: Omit<StudySession, 'id'>) => {
+  const handleAddSession = useCallback(async (session: Omit<StudySession, 'id'>) => {
     if (editingSession) {
       updateSession(day.id, editingSession.id, session);
       // Save to cloud after update
       const updatedSessions = day.sessions.map(s => 
         s.id === editingSession.id ? { ...s, ...session } : s
       );
-      saveWeeklyPlan(day.id, updatedSessions);
+      await saveWeeklyPlan(day.id, updatedSessions);
       setEditingSession(null);
     } else {
       addSession(day.id, session);
       // Save to cloud after add - get fresh sessions with new one
-      setTimeout(() => {
+      setTimeout(async () => {
         const store = useStudyStore.getState();
         const updatedDay = store.weeklyPlan.find(d => d.id === day.id);
         if (updatedDay) {
-          saveWeeklyPlan(day.id, updatedDay.sessions);
+          await saveWeeklyPlan(day.id, updatedDay.sessions);
         }
-      }, 0);
+      }, 100);
     }
   }, [editingSession, updateSession, addSession, day.id, day.sessions, saveWeeklyPlan]);
 
@@ -118,27 +118,27 @@ export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
               <SessionCard
                 key={session.id}
                 session={session}
-                onToggleComplete={() => {
+                onToggleComplete={async () => {
                   toggleSessionComplete(day.id, session.id);
                   // Save to cloud after toggle
-                  setTimeout(() => {
+                  setTimeout(async () => {
                     const store = useStudyStore.getState();
                     const updatedDay = store.weeklyPlan.find(d => d.id === day.id);
                     if (updatedDay) {
-                      saveWeeklyPlan(day.id, updatedDay.sessions);
+                      await saveWeeklyPlan(day.id, updatedDay.sessions);
                     }
-                  }, 0);
+                  }, 100);
                 }}
-                onDelete={() => {
+                onDelete={async () => {
                   deleteSession(day.id, session.id);
                   // Save to cloud after delete
-                  setTimeout(() => {
+                  setTimeout(async () => {
                     const store = useStudyStore.getState();
                     const updatedDay = store.weeklyPlan.find(d => d.id === day.id);
                     if (updatedDay) {
-                      saveWeeklyPlan(day.id, updatedDay.sessions);
+                      await saveWeeklyPlan(day.id, updatedDay.sessions);
                     }
-                  }, 0);
+                  }, 100);
                 }}
                 onEdit={() => handleEdit(session)}
               />
