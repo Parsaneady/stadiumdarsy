@@ -553,6 +553,7 @@ export type Database = {
           created_at: string
           id: string
           last_study_date: string | null
+          last_weekly_reset: string | null
           pomodoro_cycles: number
           pomodoro_long_break: number
           pomodoro_short_break: number
@@ -565,6 +566,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_study_date?: string | null
+          last_weekly_reset?: string | null
           pomodoro_cycles?: number
           pomodoro_long_break?: number
           pomodoro_short_break?: number
@@ -577,6 +579,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_study_date?: string | null
+          last_weekly_reset?: string | null
           pomodoro_cycles?: number
           pomodoro_long_break?: number
           pomodoro_short_break?: number
