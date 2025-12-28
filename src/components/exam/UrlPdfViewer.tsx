@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Pencil, Eraser, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { getCachedSignedUrl } from '@/lib/storageUtils';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -10,7 +11,7 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface UrlPdfViewerProps {
-  url: string;
+  url: string; // This is now a file path, not a public URL
   viewerId?: string;
   onStateChange?: (state: PdfViewerState) => void;
   initialState?: PdfViewerState;
@@ -48,6 +49,7 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [pageRendered, setPageRendered] = useState(false);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
@@ -86,6 +88,28 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
       }
     }
   }));
+
+  // Generate signed URL when url prop changes
+  useEffect(() => {
+    if (!url) {
+      setSignedUrl(null);
+      return;
+    }
+    
+    const generateSignedUrl = async () => {
+      setLoading(true);
+      setError(false);
+      const signed = await getCachedSignedUrl('pension-exams', url);
+      if (signed) {
+        setSignedUrl(signed);
+      } else {
+        setError(true);
+        setLoading(false);
+      }
+    };
+    
+    generateSignedUrl();
+  }, [url]);
 
   // Notify parent of state changes
   useEffect(() => {
@@ -337,13 +361,24 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4 p-8">
         <p className="text-center">خطا در بارگذاری PDF</p>
-        <p className="text-sm text-center">ممکن است مرورگر شما از نمایش این فایل پشتیبانی نکند</p>
-        <Button
-          variant="outline"
-          onClick={() => window.open(url, '_blank')}
-        >
-          باز کردن در تب جدید
-        </Button>
+        <p className="text-sm text-center">ممکن است دسترسی به فایل منقضی شده یا مرورگر شما از نمایش این فایل پشتیبانی نکند</p>
+        {signedUrl && (
+          <Button
+            variant="outline"
+            onClick={() => window.open(signedUrl, '_blank')}
+          >
+            باز کردن در تب جدید
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Show loading while generating signed URL
+  if (!signedUrl) {
+    return (
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -456,7 +491,7 @@ export const UrlPdfViewer = forwardRef<PdfViewerRef, UrlPdfViewerProps>(({
       >
         <div className="relative" ref={pageRef}>
           <Document
-            file={url}
+            file={signedUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
             loading={
