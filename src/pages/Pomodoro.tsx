@@ -220,14 +220,14 @@ const Pomodoro = () => {
           freshState.incrementCompletedPomodoros();
           
           // Save updated sessions to cloud after pomodoro time is added
-          setTimeout(() => {
+          setTimeout(async () => {
             const studyState = useStudyStore.getState();
             const todayIndex = studyState.getTodayIndex();
             const todayPlan = studyState.weeklyPlan[todayIndex];
             if (todayPlan) {
-              saveWeeklyPlan(todayPlan.id, todayPlan.sessions);
+              await saveWeeklyPlan(todayPlan.id, todayPlan.sessions);
             }
-          }, 50);
+          }, 200);
 
           toast({
             title: "🎉 تبریک!",

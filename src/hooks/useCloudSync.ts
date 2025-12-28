@@ -134,20 +134,25 @@ export const useCloudSync = () => {
     }
   };
 
-  // Save weekly plan to cloud
+  // Save weekly plan to cloud (removed isSyncing check - save should always work)
   const saveWeeklyPlan = useCallback(async (dayId: string, sessions: StudySession[]) => {
-    if (!user || isSyncing.current) return;
+    if (!user) return;
 
     try {
-      await supabase
+      console.log('[Cloud] Saving weekly plan:', { dayId, sessionsCount: sessions.length });
+      const { error } = await supabase
         .from('weekly_plans')
         .update({ sessions: sessions as unknown as any })
         .eq('id', dayId)
         .eq('user_id', user.id);
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('[Debug] Error saving weekly plan:', error);
+      
+      if (error) {
+        console.error('[Cloud] Error saving weekly plan:', error);
+      } else {
+        console.log('[Cloud] Weekly plan saved successfully');
       }
+    } catch (error) {
+      console.error('[Cloud] Exception saving weekly plan:', error);
     }
   }, [user]);
 
@@ -158,6 +163,7 @@ export const useCloudSync = () => {
     const dateOnly = log.date.split('T')[0];
 
     try {
+      console.log('[Cloud] Saving daily log:', { date: dateOnly, hours: log.totalStudyHours });
       const { data: existing } = await supabase
         .from('daily_logs')
         .select('id')
@@ -176,23 +182,25 @@ export const useCloudSync = () => {
       };
 
       if (existing) {
-        await supabase
+        const { error } = await supabase
           .from('daily_logs')
           .update(logData)
           .eq('id', existing.id);
+        if (error) console.error('[Cloud] Error updating daily log:', error);
+        else console.log('[Cloud] Daily log updated successfully');
       } else {
-        await supabase
+        const { error } = await supabase
           .from('daily_logs')
           .insert({
             user_id: user.id,
             date: dateOnly,
             ...logData,
           });
+        if (error) console.error('[Cloud] Error inserting daily log:', error);
+        else console.log('[Cloud] Daily log inserted successfully');
       }
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('[Debug] Error saving daily log:', error);
-      }
+      console.error('[Cloud] Exception saving daily log:', error);
     }
   }, [user]);
 
