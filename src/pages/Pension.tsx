@@ -824,11 +824,8 @@ const Pension = () => {
 
       toast.loading('در حال ایجاد آزمون...', { id: 'upload-toast' });
 
-      const { data: urlData } = supabase.storage
-        .from('pension-exams')
-        .getPublicUrl(fileName);
-
-      const pdfUrl = urlData.publicUrl;
+      // Store just the file path (not public URL) for signed URL generation
+      const pdfPath = fileName;
 
       const { data, error } = await supabase
         .from('pension_exams')
@@ -843,7 +840,7 @@ const Pension = () => {
           duration_minutes: examDuration ? parseInt(examDuration) : 60,
           question_count: qCount,
           is_active: true,
-          pdf_url: pdfUrl,
+          pdf_url: pdfPath,
           answer_key: {},
         } as any)
         .select()
