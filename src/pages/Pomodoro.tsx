@@ -200,21 +200,24 @@ const Pomodoro = () => {
 
     intervalRef.current = setInterval(() => {
       // Get fresh state directly from store to avoid stale closures
-      const currentTimeLeft = usePomodoroStore.getState().timeLeft;
-      const currentMode = usePomodoroStore.getState().mode;
-      const currentSubject = usePomodoroStore.getState().pomodoroSubject;
-      const currentCycleValue = usePomodoroStore.getState().currentCycle;
+      const state = usePomodoroStore.getState();
+      const currentTimeLeft = state.timeLeft;
 
       if (currentTimeLeft > 0) {
-        decrementTime();
+        state.decrementTime();
       } else {
-        // Timer finished
+        // Timer finished - get fresh state again
+        const freshState = usePomodoroStore.getState();
+        const currentMode = freshState.mode;
+        const currentSubject = freshState.pomodoroSubject;
+        const currentCycleValue = freshState.currentCycle;
+
         playAlarm();
 
         if (currentMode === 'study' && currentSubject) {
           addPomodoroTime(pomodoroSettings.studyDuration, currentSubject);
           addPomodoroSession(currentSubject, pomodoroSettings.studyDuration);
-          incrementCompletedPomodoros();
+          freshState.incrementCompletedPomodoros();
 
           toast({
             title: "🎉 تبریک!",
@@ -222,30 +225,30 @@ const Pomodoro = () => {
           });
 
           if (currentCycleValue >= pomodoroSettings.cycles) {
-            setMode('longBreak');
-            setTimeLeft(pomodoroSettings.longBreak * 60);
-            setCurrentCycle(1);
+            freshState.setMode('longBreak');
+            freshState.setTimeLeft(pomodoroSettings.longBreak * 60);
+            freshState.setCurrentCycle(1);
           } else {
-            setMode('shortBreak');
-            setTimeLeft(pomodoroSettings.shortBreak * 60);
-            incrementCycle();
+            freshState.setMode('shortBreak');
+            freshState.setTimeLeft(pomodoroSettings.shortBreak * 60);
+            freshState.incrementCycle();
           }
         } else {
-          setMode('study');
-          setTimeLeft(pomodoroSettings.studyDuration * 60);
+          freshState.setMode('study');
+          freshState.setTimeLeft(pomodoroSettings.studyDuration * 60);
           toast({
             title: "⏰ استراحت تمام شد!",
             description: "وقت مطالعه است!",
           });
         }
-        setIsRunning(false);
+        freshState.setIsRunning(false);
       }
     }, 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning, pomodoroSettings, addPomodoroTime, addPomodoroSession, playAlarm, decrementTime, incrementCompletedPomodoros, incrementCycle, setCurrentCycle, setIsRunning, setMode, setTimeLeft]);
+  }, [isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Request notification permission
   useEffect(() => {
