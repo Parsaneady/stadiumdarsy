@@ -10,12 +10,15 @@ export const useCloudSync = () => {
   const store = useStudyStore();
   const isInitialLoad = useRef(true);
   const isSyncing = useRef(false);
+  const hasLoadedRef = useRef(false); // Track if already loaded for this user
 
-  // Load data from cloud
+  // Load data from cloud - only runs once per user session
   const loadFromCloud = useCallback(async () => {
-    if (!user || isSyncing.current) return;
+    if (!user || isSyncing.current || hasLoadedRef.current) return;
     
+    hasLoadedRef.current = true; // Mark as loaded immediately
     isSyncing.current = true;
+    console.log('[Cloud] Loading data from cloud...');
     
     try {
       // Load weekly plans
@@ -447,15 +450,15 @@ export const useCloudSync = () => {
     }
   }, [user, store]);
 
-  // Load data when user changes
+  // Load data when user changes - only once per session
   useEffect(() => {
-    if (user) {
+    if (user && !hasLoadedRef.current) {
       loadFromCloud().then(() => {
         // Check for weekly reset after loading
         checkAndResetWeeklyInCloud();
       });
     }
-  }, [user, loadFromCloud, checkAndResetWeeklyInCloud]);
+  }, [user]); // Only depend on user, not the functions
 
   return {
     loadFromCloud,
