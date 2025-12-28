@@ -343,8 +343,13 @@ export const useCloudSync = () => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
     
+    console.log('[Weekly Reset] Checking... dayOfWeek:', dayOfWeek, '(6 = Saturday)');
+    
     // Only reset on Saturday (6 in JS)
-    if (dayOfWeek !== 6) return;
+    if (dayOfWeek !== 6) {
+      console.log('[Weekly Reset] Not Saturday, skipping reset');
+      return;
+    }
 
     try {
       // Check if we already reset today
@@ -354,6 +359,8 @@ export const useCloudSync = () => {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      console.log('[Weekly Reset] Last reset date:', settings?.last_weekly_reset);
+
       if (settings?.last_weekly_reset) {
         const lastReset = new Date(settings.last_weekly_reset);
         const isSameDay = 
@@ -361,8 +368,13 @@ export const useCloudSync = () => {
           lastReset.getMonth() === today.getMonth() &&
           lastReset.getDate() === today.getDate();
         
-        if (isSameDay) return;
+        if (isSameDay) {
+          console.log('[Weekly Reset] Already reset today, skipping');
+          return;
+        }
       }
+
+      console.log('[Weekly Reset] Starting weekly reset...');
 
       // Get current weekly plans
       const { data: weeklyPlans } = await supabase
