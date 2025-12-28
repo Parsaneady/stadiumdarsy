@@ -148,7 +148,7 @@ const Pomodoro = () => {
     resetTimer,
   } = usePomodoroStore();
   
-  const { savePomodoroSettings, addPomodoroSession } = useCloudSync();
+  const { savePomodoroSettings, addPomodoroSession, saveWeeklyPlan } = useCloudSync();
   
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -218,6 +218,16 @@ const Pomodoro = () => {
           addPomodoroTime(pomodoroSettings.studyDuration, currentSubject);
           addPomodoroSession(currentSubject, pomodoroSettings.studyDuration);
           freshState.incrementCompletedPomodoros();
+          
+          // Save updated sessions to cloud after pomodoro time is added
+          setTimeout(() => {
+            const studyState = useStudyStore.getState();
+            const todayIndex = studyState.getTodayIndex();
+            const todayPlan = studyState.weeklyPlan[todayIndex];
+            if (todayPlan) {
+              saveWeeklyPlan(todayPlan.id, todayPlan.sessions);
+            }
+          }, 50);
 
           toast({
             title: "🎉 تبریک!",

@@ -25,13 +25,19 @@ const DailyLog = () => {
   const todayPlan = weeklyPlan[todayIndex];
 
   const handleSaveSession = (updates: Partial<StudySession>) => {
-    if (selectedSession) {
+    if (selectedSession && todayPlan) {
+      // Update in store
       updateSession(selectedSession.dayId, selectedSession.session.id, updates);
-      // Save to cloud
-      const updatedSessions = todayPlan?.sessions.map(s => 
-        s.id === selectedSession.session.id ? { ...s, ...updates } : s
-      ) || [];
-      saveWeeklyPlan(selectedSession.dayId, updatedSessions);
+      
+      // Get fresh sessions from store after update and save to cloud
+      setTimeout(() => {
+        const store = useStudyStore.getState();
+        const freshTodayPlan = store.weeklyPlan[getTodayIndex()];
+        if (freshTodayPlan) {
+          saveWeeklyPlan(freshTodayPlan.id, freshTodayPlan.sessions);
+        }
+      }, 0);
+      
       setSelectedSession(null);
       toast({
         title: "✅ ذخیره شد",
@@ -57,16 +63,19 @@ const DailyLog = () => {
       
       logDaily(todayPlan.id);
       
-      // Save the latest log to cloud
-      const latestLog = dailyLogs.find(log => log.date.split('T')[0] === todayKey);
-      if (latestLog) {
-        saveDailyLog(latestLog);
-      }
-      
-      // Update profile stats with delta only
-      if (deltaMinutes !== 0 || deltaTests !== 0) {
-        await updateProfileStats(deltaMinutes, deltaTests);
-      }
+      // Get fresh log from store after logDaily and save to cloud
+      setTimeout(async () => {
+        const store = useStudyStore.getState();
+        const latestLog = store.dailyLogs.find(log => log.date.split('T')[0] === todayKey);
+        if (latestLog) {
+          await saveDailyLog(latestLog);
+        }
+        
+        // Update profile stats with delta only
+        if (deltaMinutes !== 0 || deltaTests !== 0) {
+          await updateProfileStats(deltaMinutes, deltaTests);
+        }
+      }, 0);
       
       toast({
         title: "ذخیره شد! ✨",

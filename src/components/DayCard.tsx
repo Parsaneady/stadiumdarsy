@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo, useEffect } from 'react';
+import { useState, useCallback, useMemo, memo, useRef } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { DayPlan, StudySession, useStudyStore } from '@/stores/studyStore';
 import { SessionCard } from './SessionCard';
@@ -20,13 +20,9 @@ export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
 
   const { addSession, updateSession, deleteSession, toggleSessionComplete } = useStudyStore();
   const { saveWeeklyPlan } = useCloudSync();
-
-  // Save to cloud whenever sessions change
-  useEffect(() => {
-    if (day.sessions.length >= 0) {
-      saveWeeklyPlan(day.id, day.sessions);
-    }
-  }, [day.sessions, day.id, saveWeeklyPlan]);
+  
+  // Track if user made local changes (not from cloud load)
+  const hasUserChangedRef = useRef(false);
 
   const { completedCount, totalHours, completionPercent } = useMemo(() => {
     const completed = day.sessions.filter((s) => s.completed).length;
@@ -40,11 +36,24 @@ export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
   const handleAddSession = useCallback((session: Omit<StudySession, 'id'>) => {
     if (editingSession) {
       updateSession(day.id, editingSession.id, session);
+      // Save to cloud after update
+      const updatedSessions = day.sessions.map(s => 
+        s.id === editingSession.id ? { ...s, ...session } : s
+      );
+      saveWeeklyPlan(day.id, updatedSessions);
       setEditingSession(null);
     } else {
       addSession(day.id, session);
+      // Save to cloud after add - get fresh sessions with new one
+      setTimeout(() => {
+        const store = useStudyStore.getState();
+        const updatedDay = store.weeklyPlan.find(d => d.id === day.id);
+        if (updatedDay) {
+          saveWeeklyPlan(day.id, updatedDay.sessions);
+        }
+      }, 0);
     }
-  }, [editingSession, updateSession, addSession, day.id]);
+  }, [editingSession, updateSession, addSession, day.id, day.sessions, saveWeeklyPlan]);
 
   const handleEdit = useCallback((session: StudySession) => {
     setEditingSession(session);
@@ -109,8 +118,28 @@ export const DayCard = memo(({ day, delay = 0 }: DayCardProps) => {
               <SessionCard
                 key={session.id}
                 session={session}
-                onToggleComplete={() => toggleSessionComplete(day.id, session.id)}
-                onDelete={() => deleteSession(day.id, session.id)}
+                onToggleComplete={() => {
+                  toggleSessionComplete(day.id, session.id);
+                  // Save to cloud after toggle
+                  setTimeout(() => {
+                    const store = useStudyStore.getState();
+                    const updatedDay = store.weeklyPlan.find(d => d.id === day.id);
+                    if (updatedDay) {
+                      saveWeeklyPlan(day.id, updatedDay.sessions);
+                    }
+                  }, 0);
+                }}
+                onDelete={() => {
+                  deleteSession(day.id, session.id);
+                  // Save to cloud after delete
+                  setTimeout(() => {
+                    const store = useStudyStore.getState();
+                    const updatedDay = store.weeklyPlan.find(d => d.id === day.id);
+                    if (updatedDay) {
+                      saveWeeklyPlan(day.id, updatedDay.sessions);
+                    }
+                  }, 0);
+                }}
                 onEdit={() => handleEdit(session)}
               />
             ))}
