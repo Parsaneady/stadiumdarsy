@@ -55,6 +55,7 @@ const ExamPanel = () => {
   const [viewingResult, setViewingResult] = useState<ExamResult | null>(null);
   const [noWrongPenalty, setNoWrongPenalty] = useState(false);
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
+  const [hasResultSaved, setHasResultSaved] = useState(false); // Prevent multiple saves
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -165,6 +166,12 @@ const ExamPanel = () => {
   };
 
   const calculateResults = (useNoWrongPenalty: boolean = noWrongPenalty) => {
+    // Prevent multiple saves - only allow one save per exam session
+    if (hasResultSaved && !editingResultId) {
+      toast.info('عملکرد این آزمون قبلاً ثبت شده است');
+      return null;
+    }
+
     const updatedAnswers = answers.map(a => ({
       ...a,
       isCorrect: a.selectedOption !== null && a.correctOption !== null 
@@ -212,6 +219,7 @@ const ExamPanel = () => {
       setEditingResultId(null);
     } else {
       newResults = [result, ...examResults];
+      setHasResultSaved(true); // Mark as saved to prevent duplicate saves
     }
     setExamResults(newResults);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newResults));
@@ -252,6 +260,7 @@ const ExamPanel = () => {
     setAnswers([]);
     setTimeLeft(0);
     setIsRunning(false);
+    setHasResultSaved(false); // Reset the save flag for new exam
   };
 
   const formatTime = (seconds: number) => {
