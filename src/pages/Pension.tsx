@@ -140,103 +140,6 @@ interface ExamResult {
   lessons_data?: Record<number, number | null> | null;
 }
 
-// Member Results Section Component
-const MemberResultsSection = ({ pensionId, members }: { pensionId: string; members: PensionMember[] }) => {
-  const [results, setResults] = useState<ExamResult[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchResults = async () => {
-      try {
-        const { data } = await supabase
-          .from('exam_results')
-          .select('*')
-          .eq('pension_id', pensionId)
-          .eq('exam_type', 'pension')
-          .order('created_at', { ascending: false });
-
-        if (data) {
-          setResults(data as ExamResult[]);
-        }
-      } catch (error) {
-        console.error('Error fetching results:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchResults();
-  }, [pensionId]);
-
-  const getMemberName = (userId: string) => {
-    const member = members.find(m => m.user_id === userId);
-    return member?.profile?.username || member?.profile?.first_name || 'کاربر';
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (results.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        <Target className="w-12 h-12 mx-auto mb-2 opacity-30" />
-        <p>هنوز نتیجه‌ای ثبت نشده است</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {results.map((result) => (
-        <div 
-          key={result.id}
-          className="p-4 rounded-lg bg-white/5 border border-white/10"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                  {getMemberName(result.user_id)[0]}
-                </AvatarFallback>
-              </Avatar>
-              <span className="font-medium">@{getMemberName(result.user_id)}</span>
-            </div>
-            <span className={`font-bold ${(result.percentage || 0) >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-              {(result.percentage || 0).toFixed(1)}%
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-center text-sm">
-            <div>
-              <p className="font-bold text-green-500">{result.correct_answers}</p>
-              <p className="text-xs text-muted-foreground">صحیح</p>
-            </div>
-            <div>
-              <p className="font-bold text-red-500">{result.wrong_answers}</p>
-              <p className="text-xs text-muted-foreground">غلط</p>
-            </div>
-            <div>
-              <p className="font-bold text-muted-foreground">{result.blank_answers}</p>
-              <p className="text-xs text-muted-foreground">نزده</p>
-            </div>
-            <div>
-              <p className="font-bold">{result.total_questions}</p>
-              <p className="text-xs text-muted-foreground">کل</p>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {result.lesson_name} - {new Date(result.created_at).toLocaleDateString('fa-IR')}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 interface MemberWeeklyPlan {
   userId: string;
   displayName: string;
@@ -466,6 +369,11 @@ const Pension = () => {
   // Wake up log state
   const [myWakeTime, setMyWakeTime] = useState<string | null>(null);
   const [loggingWakeUp, setLoggingWakeUp] = useState(false);
+  
+  // Exam rankings state
+  const [viewingExamRankings, setViewingExamRankings] = useState<PensionExam | null>(null);
+  const [examRankingsResults, setExamRankingsResults] = useState<ExamResult[]>([]);
+  const [loadingRankings, setLoadingRankings] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -765,6 +673,38 @@ const Pension = () => {
     } catch (error) {
       toast.error('خطا در حذف اعلان');
     }
+  };
+
+  const handleViewExamRankings = async (exam: PensionExam) => {
+    setViewingExamRankings(exam);
+    setLoadingRankings(true);
+    
+    try {
+      const { data } = await supabase
+        .from('exam_results')
+        .select('*')
+        .eq('pension_exam_id', exam.id)
+        .eq('exam_type', 'pension')
+        .order('percentage', { ascending: false });
+      
+      if (data) {
+        setExamRankingsResults(data as ExamResult[]);
+      }
+    } catch (error) {
+      console.error('Error fetching exam rankings:', error);
+      toast.error('خطا در دریافت نتایج');
+    } finally {
+      setLoadingRankings(false);
+    }
+  };
+
+  const getMemberNameForRankings = (userId: string) => {
+    const member = members.find(m => m.user_id === userId);
+    return {
+      displayName: member?.profile?.display_name || member?.profile?.username || 'کاربر',
+      username: member?.profile?.username || null,
+      avatarUrl: member?.profile?.avatar_url || null
+    };
   };
 
   const handleCreateExam = async () => {
@@ -1961,7 +1901,7 @@ const Pension = () => {
 
         {/* Pension Tabs */}
         <Tabs defaultValue="leaderboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="leaderboard">
               <Trophy className="w-4 h-4 ml-1" />
               امتیازات
@@ -1969,10 +1909,6 @@ const Pension = () => {
             <TabsTrigger value="exams">
               <FileText className="w-4 h-4 ml-1" />
               آزمون
-            </TabsTrigger>
-            <TabsTrigger value="results">
-              <Target className="w-4 h-4 ml-1" />
-              عملکرد
             </TabsTrigger>
             <TabsTrigger value="announcements">
               <Bell className="w-4 h-4 ml-1" />
@@ -2346,6 +2282,15 @@ const Pension = () => {
                               <Button 
                                 size="sm" 
                                 variant="outline"
+                                className="gap-1 bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                                onClick={() => handleViewExamRankings(exam)}
+                              >
+                                <Target className="w-4 h-4" />
+                                عملکرد اعضا
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
                                 className="gap-1"
                                 onClick={() => handleEditAnswerKey(exam)}
                               >
@@ -2403,17 +2348,6 @@ const Pension = () => {
             </GlassCard>
           </TabsContent>
 
-          {/* Results Tab */}
-          <TabsContent value="results">
-            <GlassCard>
-              <div className="flex items-center gap-2 mb-4">
-                <Target className="w-5 h-5 text-primary" />
-                <h2 className="font-bold text-lg">عملکرد اعضا در آزمون‌ها</h2>
-              </div>
-
-              <MemberResultsSection pensionId={pension.id} members={members} />
-            </GlassCard>
-          </TabsContent>
 
           {/* Announcements Tab */}
           <TabsContent value="announcements">
@@ -2624,6 +2558,112 @@ const Pension = () => {
                   <p className="text-lg font-bold">{new Date(viewingReportCard.created_at).toLocaleDateString('fa-IR')}</p>
                   <p className="text-muted-foreground">تاریخ آزمون</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Exam Rankings Dialog */}
+        {viewingExamRankings && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-card rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-white/10">
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <div>
+                  <h3 className="font-bold text-lg">رتبه‌بندی آزمون</h3>
+                  <p className="text-sm text-muted-foreground">{viewingExamRankings.title}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setViewingExamRankings(null);
+                    setExamRankingsResults([]);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+                {loadingRankings ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : examRankingsResults.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Target className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                    <p>هنوز کسی در این آزمون شرکت نکرده است</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {/* Header */}
+                    <div className="grid grid-cols-12 gap-2 p-3 bg-muted/30 rounded-lg text-sm font-medium text-muted-foreground">
+                      <div className="col-span-1 text-center">رتبه</div>
+                      <div className="col-span-4">کاربر</div>
+                      <div className="col-span-2 text-center">درصد</div>
+                      <div className="col-span-1 text-center text-green-500">✓</div>
+                      <div className="col-span-1 text-center text-red-500">✗</div>
+                      <div className="col-span-1 text-center text-muted-foreground">—</div>
+                      <div className="col-span-2 text-center">کل</div>
+                    </div>
+                    
+                    {/* Results */}
+                    {examRankingsResults.map((result, index) => {
+                      const memberInfo = getMemberNameForRankings(result.user_id);
+                      return (
+                        <div 
+                          key={result.id}
+                          className={`grid grid-cols-12 gap-2 p-3 rounded-lg items-center ${
+                            index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                            index === 1 ? 'bg-gray-400/10 border border-gray-400/20' :
+                            index === 2 ? 'bg-orange-500/10 border border-orange-500/20' :
+                            'bg-white/5'
+                          }`}
+                        >
+                          <div className={`col-span-1 text-center font-bold ${
+                            index === 0 ? 'text-yellow-500' :
+                            index === 1 ? 'text-gray-400' :
+                            index === 2 ? 'text-orange-500' :
+                            'text-muted-foreground'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="col-span-4 flex items-center gap-2">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={memberInfo.avatarUrl ? getAvatarSrc(memberInfo.avatarUrl) : undefined} />
+                              <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                {memberInfo.displayName[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="truncate">
+                              <p className="font-medium text-sm truncate">{memberInfo.displayName}</p>
+                              {memberInfo.username && (
+                                <p className="text-xs text-muted-foreground truncate">@{memberInfo.username}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className={`col-span-2 text-center font-bold ${
+                            (result.percentage || 0) >= 50 ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {(result.percentage || 0).toFixed(1)}%
+                          </div>
+                          <div className="col-span-1 text-center text-green-500 font-medium">
+                            {result.correct_answers}
+                          </div>
+                          <div className="col-span-1 text-center text-red-500 font-medium">
+                            {result.wrong_answers}
+                          </div>
+                          <div className="col-span-1 text-center text-muted-foreground font-medium">
+                            {result.blank_answers}
+                          </div>
+                          <div className="col-span-2 text-center font-medium">
+                            {result.total_questions}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
