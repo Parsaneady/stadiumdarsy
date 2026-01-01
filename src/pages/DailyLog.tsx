@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee } from 'lucide-react';
+import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings } from 'lucide-react';
 import { useStudyStore, StudySession } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
@@ -13,6 +13,8 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +31,12 @@ interface Activity {
   endHour: number;
 }
 
+interface StudyMarker {
+  hour: number;
+  type: 'start' | 'end';
+  subject?: string;
+}
+
 const SUBJECT_COLORS: Record<string, string> = {
   'ریاضی': '#F97316',
   'فیزیک': '#3B82F6', 
@@ -42,7 +50,7 @@ const SUBJECT_COLORS: Record<string, string> = {
 
 const DailyLog = () => {
   const { user } = useAuth();
-  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings, setPomodoroSettings } = useStudyStore();
   const { 
     mode, timeLeft, isRunning, currentCycle, pomodoroSubject,
     setMode, setTimeLeft, setIsRunning, setCurrentCycle, 
@@ -55,7 +63,9 @@ const DailyLog = () => {
   const [wakeUpDialogOpen, setWakeUpDialogOpen] = useState(false);
   const [wakeUpInput, setWakeUpInput] = useState('07:00');
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [studyMarkers, setStudyMarkers] = useState<StudyMarker[]>([]);
   const [studyModeOpen, setStudyModeOpen] = useState(false);
+  const [pomodoroSettingsOpen, setPomodoroSettingsOpen] = useState(false);
   const [currentStudySession, setCurrentStudySession] = useState<{
     subject: string;
     mode: 'pomodoro' | 'free';
@@ -112,6 +122,20 @@ const DailyLog = () => {
             : new Date().getHours() + new Date().getMinutes() / 60,
         }));
         setActivities(mapped);
+        
+        // Build study markers from activities
+        const markers: StudyMarker[] = [];
+        activitiesData.forEach(a => {
+          if (a.activity_type === 'study') {
+            const startH = parseInt(a.start_time.split(':')[0]) + parseInt(a.start_time.split(':')[1]) / 60;
+            markers.push({ hour: startH, type: 'start', subject: a.subject || undefined });
+            if (a.end_time) {
+              const endH = parseInt(a.end_time.split(':')[0]) + parseInt(a.end_time.split(':')[1]) / 60;
+              markers.push({ hour: endH, type: 'end', subject: a.subject || undefined });
+            }
+          }
+        });
+        setStudyMarkers(markers);
       }
 
       // Check if currently studying
@@ -215,6 +239,10 @@ const DailyLog = () => {
       mode: studyMode,
       startTime: now,
     });
+    
+    // Add start marker
+    const startHour = now.getHours() + now.getMinutes() / 60;
+    setStudyMarkers(prev => [...prev, { hour: startHour, type: 'start', subject }]);
 
     if (studyMode === 'pomodoro') {
       setPomodoroSubject(subject);
@@ -291,6 +319,20 @@ const DailyLog = () => {
           : now.getHours() + now.getMinutes() / 60,
       }));
       setActivities(mapped);
+      
+      // Update study markers
+      const markers: StudyMarker[] = [];
+      activitiesData.forEach(a => {
+        if (a.activity_type === 'study') {
+          const startH = parseInt(a.start_time.split(':')[0]) + parseInt(a.start_time.split(':')[1]) / 60;
+          markers.push({ hour: startH, type: 'start', subject: a.subject || undefined });
+          if (a.end_time) {
+            const endH = parseInt(a.end_time.split(':')[0]) + parseInt(a.end_time.split(':')[1]) / 60;
+            markers.push({ hour: endH, type: 'end', subject: a.subject || undefined });
+          }
+        }
+      });
+      setStudyMarkers(markers);
     }
 
     toast({
@@ -419,6 +461,7 @@ const DailyLog = () => {
                     wakeUpHour={wakeUpTime}
                     size={320}
                     subjectColors={subjectColorsFromPlan}
+                    studyMarkers={studyMarkers}
                   />
 
                   {/* Study Controls */}
@@ -469,14 +512,24 @@ const DailyLog = () => {
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        onClick={() => setStudyModeOpen(true)}
-                        className="w-full bg-gradient-to-r from-primary to-accent py-6 text-lg"
-                        disabled={availableSubjects.length === 0}
-                      >
-                        <Play className="w-5 h-5 ml-2" />
-                        شروع مطالعه
-                      </Button>
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => setStudyModeOpen(true)}
+                          className="w-full bg-gradient-to-r from-primary to-accent py-6 text-lg"
+                          disabled={availableSubjects.length === 0}
+                        >
+                          <Play className="w-5 h-5 ml-2" />
+                          شروع مطالعه
+                        </Button>
+                        <Button
+                          onClick={() => setPomodoroSettingsOpen(true)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Settings className="w-4 h-4 ml-2" />
+                          تنظیمات پومودورو
+                        </Button>
+                      </div>
                     )}
 
                     {availableSubjects.length === 0 && (
@@ -573,6 +626,86 @@ const DailyLog = () => {
           onSelectPomodoro={(subject) => startStudy(subject, 'pomodoro')}
           onSelectFreeTime={(subject) => startStudy(subject, 'free')}
         />
+
+        {/* Pomodoro Settings Dialog */}
+        <Dialog open={pomodoroSettingsOpen} onOpenChange={setPomodoroSettingsOpen}>
+          <DialogContent className="glass-card border-white/20">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-primary" />
+                تنظیمات پومودورو
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              <div className="space-y-3">
+                <Label className="flex justify-between">
+                  <span>مدت مطالعه</span>
+                  <span className="text-primary font-mono">{pomodoroSettings.studyDuration} دقیقه</span>
+                </Label>
+                <Slider
+                  value={[pomodoroSettings.studyDuration]}
+                  onValueChange={([val]) => setPomodoroSettings({ ...pomodoroSettings, studyDuration: val })}
+                  min={5}
+                  max={60}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="flex justify-between">
+                  <span>استراحت کوتاه</span>
+                  <span className="text-success font-mono">{pomodoroSettings.shortBreak} دقیقه</span>
+                </Label>
+                <Slider
+                  value={[pomodoroSettings.shortBreak]}
+                  onValueChange={([val]) => setPomodoroSettings({ ...pomodoroSettings, shortBreak: val })}
+                  min={1}
+                  max={15}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="flex justify-between">
+                  <span>استراحت بلند</span>
+                  <span className="text-accent font-mono">{pomodoroSettings.longBreak} دقیقه</span>
+                </Label>
+                <Slider
+                  value={[pomodoroSettings.longBreak]}
+                  onValueChange={([val]) => setPomodoroSettings({ ...pomodoroSettings, longBreak: val })}
+                  min={5}
+                  max={30}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <Label className="flex justify-between">
+                  <span>تعداد سیکل</span>
+                  <span className="text-warning font-mono">{pomodoroSettings.cycles} سیکل</span>
+                </Label>
+                <Slider
+                  value={[pomodoroSettings.cycles]}
+                  onValueChange={([val]) => setPomodoroSettings({ ...pomodoroSettings, cycles: val })}
+                  min={1}
+                  max={8}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+              
+              <Button 
+                onClick={() => setPomodoroSettingsOpen(false)}
+                className="w-full"
+              >
+                ذخیره تنظیمات
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

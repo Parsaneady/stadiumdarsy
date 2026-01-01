@@ -10,12 +10,19 @@ interface Activity {
   endHour: number; // 0-24
 }
 
+interface StudyMarker {
+  hour: number;
+  type: 'start' | 'end';
+  subject?: string;
+}
+
 interface DayClockCircleProps {
   activities: Activity[];
   wakeUpHour?: number;
   currentHour?: number;
   size?: number;
   subjectColors?: Record<string, string>;
+  studyMarkers?: StudyMarker[];
 }
 
 const DEFAULT_SUBJECT_COLORS: Record<string, string> = {
@@ -38,8 +45,14 @@ const getTehranTime = () => {
   return {
     hours: tehranTime.getHours(),
     minutes: tehranTime.getMinutes(),
-    totalHours: tehranTime.getHours() + tehranTime.getMinutes() / 60,
+    seconds: tehranTime.getSeconds(),
+    totalHours: tehranTime.getHours() + tehranTime.getMinutes() / 60 + tehranTime.getSeconds() / 3600,
   };
+};
+
+// Convert hour to angle - 0 at top (12 o'clock position)
+const hourToAngle = (hour: number) => {
+  return (hour / 24) * 2 * Math.PI - Math.PI / 2;
 };
 
 export const DayClockCircle = ({ 
@@ -47,78 +60,82 @@ export const DayClockCircle = ({
   wakeUpHour = 7, 
   currentHour,
   size = 280,
-  subjectColors = {}
+  subjectColors = {},
+  studyMarkers = []
 }: DayClockCircleProps) => {
-  const radius = (size / 2) - 30; // More padding for hour labels
+  const radius = (size / 2) - 30;
   const center = size / 2;
   const innerRadius = radius - 35;
   
-  // Tehran time state
+  // Tehran time state - update every second for smooth movement
   const [tehranTime, setTehranTime] = useState(getTehranTime());
   
-  // Update Tehran time every minute
   useEffect(() => {
     const interval = setInterval(() => {
       setTehranTime(getTehranTime());
-    }, 60000);
+    }, 1000); // Update every second
     return () => clearInterval(interval);
   }, []);
   
-  // Get current hour if not provided - use Tehran time
   const now = currentHour ?? tehranTime.totalHours;
   
-  // Merge colors: use passed colors first, then defaults
   const SUBJECT_COLORS = { ...DEFAULT_SUBJECT_COLORS, ...subjectColors };
 
-  // Calculate arc path for a segment
-  const getArcPath = (startAngle: number, endAngle: number, innerR: number, outerR: number) => {
-    // Convert hours to angles (0 hours = top, clockwise)
-    const startRad = ((startAngle - 6) / 24) * 2 * Math.PI;
-    const endRad = ((endAngle - 6) / 24) * 2 * Math.PI;
+  // Calculate arc path - 0 is at top
+  const getArcPath = (startHour: number, endHour: number, innerR: number, outerR: number) => {
+    const startAngle = hourToAngle(startHour);
+    const endAngle = hourToAngle(endHour);
     
-    const x1 = center + outerR * Math.sin(startRad);
-    const y1 = center - outerR * Math.cos(startRad);
-    const x2 = center + outerR * Math.sin(endRad);
-    const y2 = center - outerR * Math.cos(endRad);
-    const x3 = center + innerR * Math.sin(endRad);
-    const y3 = center - innerR * Math.cos(endRad);
-    const x4 = center + innerR * Math.sin(startRad);
-    const y4 = center - innerR * Math.cos(startRad);
+    const x1 = center + outerR * Math.cos(startAngle);
+    const y1 = center + outerR * Math.sin(startAngle);
+    const x2 = center + outerR * Math.cos(endAngle);
+    const y2 = center + outerR * Math.sin(endAngle);
+    const x3 = center + innerR * Math.cos(endAngle);
+    const y3 = center + innerR * Math.sin(endAngle);
+    const x4 = center + innerR * Math.cos(startAngle);
+    const y4 = center + innerR * Math.sin(startAngle);
     
-    const largeArc = (endAngle - startAngle) > 12 ? 1 : 0;
+    const largeArc = (endHour - startHour) > 12 ? 1 : 0;
     
     return `M ${x1} ${y1} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4} Z`;
   };
 
-  // Generate hour markers - all 24 hours visible
+  // Hour markers - 0 at top
   const hourMarkers = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
-      const angle = ((i - 6) / 24) * 2 * Math.PI;
-      const isMainHour = i % 3 === 0; // Show every 3 hours
+      const angle = hourToAngle(i);
+      const isMainHour = i % 3 === 0;
       const markerLength = isMainHour ? 8 : 4;
       const textRadius = radius + 18;
       
       return {
         hour: i,
-        x1: center + (radius - markerLength) * Math.sin(angle),
-        y1: center - (radius - markerLength) * Math.cos(angle),
-        x2: center + radius * Math.sin(angle),
-        y2: center - radius * Math.cos(angle),
-        textX: center + textRadius * Math.sin(angle),
-        textY: center - textRadius * Math.cos(angle),
+        x1: center + (radius - markerLength) * Math.cos(angle),
+        y1: center + (radius - markerLength) * Math.sin(angle),
+        x2: center + radius * Math.cos(angle),
+        y2: center + radius * Math.sin(angle),
+        textX: center + textRadius * Math.cos(angle),
+        textY: center + textRadius * Math.sin(angle),
         isMain: isMainHour,
       };
     });
   }, [radius, center]);
 
-  // Wake-up line position
-  const wakeUpAngle = ((wakeUpHour - 6) / 24) * 2 * Math.PI;
-  const wakeUpX1 = center + innerRadius * Math.sin(wakeUpAngle);
-  const wakeUpY1 = center - innerRadius * Math.cos(wakeUpAngle);
-  const wakeUpX2 = center + radius * Math.sin(wakeUpAngle);
-  const wakeUpY2 = center - radius * Math.cos(wakeUpAngle);
+  // Wake-up line with arrow
+  const wakeUpAngle = hourToAngle(wakeUpHour);
+  const wakeUpX1 = center + innerRadius * Math.cos(wakeUpAngle);
+  const wakeUpY1 = center + innerRadius * Math.sin(wakeUpAngle);
+  const wakeUpX2 = center + (radius + 25) * Math.cos(wakeUpAngle);
+  const wakeUpY2 = center + (radius + 25) * Math.sin(wakeUpAngle);
+  
+  // Arrow head points for wake-up
+  const arrowLength = 8;
+  const arrowAngleOffset = Math.PI / 6;
+  const wakeArrow1X = wakeUpX2 - arrowLength * Math.cos(wakeUpAngle - arrowAngleOffset);
+  const wakeArrow1Y = wakeUpY2 - arrowLength * Math.sin(wakeUpAngle - arrowAngleOffset);
+  const wakeArrow2X = wakeUpX2 - arrowLength * Math.cos(wakeUpAngle + arrowAngleOffset);
+  const wakeArrow2Y = wakeUpY2 - arrowLength * Math.sin(wakeUpAngle + arrowAngleOffset);
 
-  // Get color for activity
   const getActivityColor = (activity: Activity) => {
     if (activity.type === 'sleep') return 'hsl(var(--muted))';
     if (activity.type === 'break') return 'hsl(var(--muted) / 0.5)';
@@ -129,10 +146,15 @@ export const DayClockCircle = ({
     return 'hsl(var(--primary))';
   };
 
-  // Current time indicator angle - precise with minutes
-  const currentAngle = ((now - 6) / 24) * 2 * Math.PI;
-  const currentX = center + (radius - 10) * Math.sin(currentAngle);
-  const currentY = center - (radius - 10) * Math.cos(currentAngle);
+  // Current time indicator - smooth movement
+  const currentAngle = hourToAngle(now);
+  const currentX = center + (radius - 10) * Math.cos(currentAngle);
+  const currentY = center + (radius - 10) * Math.sin(currentAngle);
+
+  // Format wake-up time as HH:MM
+  const wakeUpHours = Math.floor(wakeUpHour);
+  const wakeUpMinutes = Math.round((wakeUpHour % 1) * 60);
+  const wakeUpTimeStr = `${String(wakeUpHours).padStart(2, '0')}:${String(wakeUpMinutes).padStart(2, '0')}`;
 
   // Legend items
   const legendItems = useMemo(() => {
@@ -159,116 +181,164 @@ export const DayClockCircle = ({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <svg width={size} height={size} className="drop-shadow-lg">
-        {/* Background circle */}
-        <circle
-          cx={center}
-          cy={center}
-          r={radius}
-          className="fill-muted/20 stroke-muted/30"
-          strokeWidth="2"
-        />
-        
-        {/* Inner circle */}
-        <circle
-          cx={center}
-          cy={center}
-          r={innerRadius}
-          className="fill-background/80"
-        />
-
-        {/* Sleep segment (0 to wakeUpHour) */}
-        <path
-          d={getArcPath(0, wakeUpHour, innerRadius, radius)}
-          fill="hsl(var(--muted))"
-          className="opacity-60"
-        />
-
-        {/* Activity segments */}
-        {activities.map((activity) => (
-          <path
-            key={activity.id}
-            d={getArcPath(activity.startHour, activity.endHour, innerRadius, radius)}
-            fill={getActivityColor(activity)}
-            className="transition-all duration-300 hover:opacity-80"
+      <svg width={size} height={size + 40} className="drop-shadow-lg">
+        {/* Main circle group - shifted down for wake-up label */}
+        <g transform={`translate(0, 20)`}>
+          {/* Background circle */}
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            className="fill-muted/20 stroke-muted/30"
+            strokeWidth="2"
           />
-        ))}
+          
+          {/* Inner circle */}
+          <circle
+            cx={center}
+            cy={center}
+            r={innerRadius}
+            className="fill-background/80"
+          />
 
-        {/* Hour markers */}
-        {hourMarkers.map(({ hour, x1, y1, x2, y2, textX, textY, isMain }) => (
-          <g key={hour}>
-            <line
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              className={cn(
-                'stroke-muted-foreground',
-                isMain ? 'stroke-[2]' : 'stroke-[1] opacity-40'
-              )}
+          {/* Sleep segment (0 to wakeUpHour) */}
+          <path
+            d={getArcPath(0, wakeUpHour, innerRadius, radius)}
+            fill="hsl(var(--muted))"
+            className="opacity-60"
+          />
+
+          {/* Activity segments */}
+          {activities.map((activity) => (
+            <path
+              key={activity.id}
+              d={getArcPath(activity.startHour, activity.endHour, innerRadius, radius)}
+              fill={getActivityColor(activity)}
+              className="transition-all duration-300 hover:opacity-80"
             />
-            {isMain && (
-              <text
-                x={textX}
-                y={textY}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="fill-foreground text-[11px] font-bold"
-              >
-                {hour}
-              </text>
-            )}
-          </g>
-        ))}
+          ))}
 
-        {/* Wake-up indicator line */}
-        <line
-          x1={wakeUpX1}
-          y1={wakeUpY1}
-          x2={wakeUpX2}
-          y2={wakeUpY2}
-          className="stroke-warning stroke-[3]"
-          strokeLinecap="round"
-        />
-        <circle
-          cx={wakeUpX2}
-          cy={wakeUpY2}
-          r={4}
-          className="fill-warning"
-        />
+          {/* Hour markers */}
+          {hourMarkers.map(({ hour, x1, y1, x2, y2, textX, textY, isMain }) => (
+            <g key={hour}>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                className={cn(
+                  'stroke-muted-foreground',
+                  isMain ? 'stroke-[2]' : 'stroke-[1] opacity-40'
+                )}
+              />
+              {isMain && (
+                <text
+                  x={textX}
+                  y={textY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-foreground text-[11px] font-bold"
+                >
+                  {hour}
+                </text>
+              )}
+            </g>
+          ))}
 
-        {/* Current time indicator */}
-        <circle
-          cx={currentX}
-          cy={currentY}
-          r={6}
-          className="fill-primary animate-pulse"
-        />
-        <line
-          x1={center}
-          y1={center}
-          x2={currentX}
-          y2={currentY}
-          className="stroke-primary stroke-2"
-        />
+          {/* Study start/end markers */}
+          {studyMarkers.map((marker, idx) => {
+            const markerAngle = hourToAngle(marker.hour);
+            const mx1 = center + innerRadius * Math.cos(markerAngle);
+            const my1 = center + innerRadius * Math.sin(markerAngle);
+            const mx2 = center + (radius + 15) * Math.cos(markerAngle);
+            const my2 = center + (radius + 15) * Math.sin(markerAngle);
+            
+            return (
+              <g key={`marker-${idx}`}>
+                <line
+                  x1={mx1}
+                  y1={my1}
+                  x2={mx2}
+                  y2={my2}
+                  className={marker.type === 'start' ? 'stroke-success stroke-[2]' : 'stroke-destructive stroke-[2]'}
+                  strokeLinecap="round"
+                />
+                <circle
+                  cx={mx2}
+                  cy={my2}
+                  r={4}
+                  className={marker.type === 'start' ? 'fill-success' : 'fill-destructive'}
+                />
+              </g>
+            );
+          })}
 
-        {/* Center text - Tehran time */}
-        <text
-          x={center}
-          y={center - 10}
-          textAnchor="middle"
-          className="fill-foreground text-lg font-bold"
-        >
-          {String(tehranTime.hours).padStart(2, '0')}:{String(tehranTime.minutes).padStart(2, '0')}
-        </text>
-        <text
-          x={center}
-          y={center + 12}
-          textAnchor="middle"
-          className="fill-muted-foreground text-xs"
-        >
-          ساعت تهران
-        </text>
+          {/* Wake-up indicator with arrow and time label */}
+          <line
+            x1={wakeUpX1}
+            y1={wakeUpY1}
+            x2={wakeUpX2}
+            y2={wakeUpY2}
+            className="stroke-warning stroke-[3]"
+            strokeLinecap="round"
+          />
+          {/* Arrow head */}
+          <path
+            d={`M ${wakeUpX2} ${wakeUpY2} L ${wakeArrow1X} ${wakeArrow1Y} M ${wakeUpX2} ${wakeUpY2} L ${wakeArrow2X} ${wakeArrow2Y}`}
+            className="stroke-warning stroke-[3]"
+            strokeLinecap="round"
+            fill="none"
+          />
+          {/* Wake-up time label */}
+          <text
+            x={center + (radius + 40) * Math.cos(wakeUpAngle)}
+            y={center + (radius + 40) * Math.sin(wakeUpAngle)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="fill-warning text-[10px] font-bold"
+          >
+            {wakeUpTimeStr}
+          </text>
+
+          {/* Current time indicator - moving hand */}
+          <line
+            x1={center}
+            y1={center}
+            x2={currentX}
+            y2={currentY}
+            className="stroke-primary stroke-2"
+          />
+          <circle
+            cx={currentX}
+            cy={currentY}
+            r={6}
+            className="fill-primary"
+          />
+          <circle
+            cx={center}
+            cy={center}
+            r={4}
+            className="fill-primary"
+          />
+
+          {/* Center text - Tehran time HH:MM */}
+          <text
+            x={center}
+            y={center - 10}
+            textAnchor="middle"
+            className="fill-foreground text-lg font-bold font-mono"
+          >
+            {String(tehranTime.hours).padStart(2, '0')}:{String(tehranTime.minutes).padStart(2, '0')}
+          </text>
+          <text
+            x={center}
+            y={center + 12}
+            textAnchor="middle"
+            className="fill-muted-foreground text-xs"
+          >
+            ساعت تهران
+          </text>
+        </g>
       </svg>
 
       {/* Legend */}
