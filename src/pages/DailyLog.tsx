@@ -133,12 +133,18 @@ const DailyLog = () => {
     loadTodayData();
   }, [user]);
 
-  // Get available subjects from today's plan
+  // Get available subjects from today's plan with their colors
   const todayIndex = getTodayIndex();
   const todayPlan = weeklyPlan[todayIndex];
   const availableSubjects = todayPlan?.sessions.map(s => s.subject) || [];
-
-  // Handle wake-up registration
+  
+  // Build subject colors map from weekly plan
+  const subjectColorsFromPlan: Record<string, string> = {};
+  todayPlan?.sessions.forEach(s => {
+    if (s.subject && s.color) {
+      subjectColorsFromPlan[s.subject] = s.color;
+    }
+  });
   const handleWakeUp = async () => {
     if (!user) return;
     
@@ -411,7 +417,8 @@ const DailyLog = () => {
                   <DayClockCircle 
                     activities={activities}
                     wakeUpHour={wakeUpTime}
-                    size={300}
+                    size={320}
+                    subjectColors={subjectColorsFromPlan}
                   />
 
                   {/* Study Controls */}

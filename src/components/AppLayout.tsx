@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCloudSync } from '@/hooks/useCloudSync';
@@ -14,7 +14,9 @@ import {
   History,
   User,
   BookOpen,
-  GraduationCap
+  GraduationCap,
+  Menu,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -43,6 +45,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // Enable cloud sync for logged in users
   useCloudSync();
@@ -109,8 +112,22 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
       </div>
 
+      {/* Toggle Button - Always visible */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className={cn(
+          "fixed top-4 z-[60] w-10 h-10 rounded-xl glass-card border border-white/10 flex items-center justify-center transition-all duration-300",
+          sidebarOpen ? "right-[17rem]" : "right-4"
+        )}
+      >
+        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      </button>
+
       {/* Sidebar - Right side for RTL */}
-      <aside className="fixed right-0 top-0 h-screen w-64 glass-card border-l border-white/10 z-50 flex flex-col">
+      <aside className={cn(
+        "fixed right-0 top-0 h-screen w-64 glass-card border-l border-white/10 z-50 flex flex-col transition-transform duration-300",
+        sidebarOpen ? "translate-x-0" : "translate-x-full"
+      )}>
         {/* Logo/Brand */}
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -149,11 +166,11 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
-          {/* Study Desk Section - As cards/islands */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-3 py-2">
+          {/* Study Desk Section - As Island Cards */}
+          <div className="p-3 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-primary" />
-              <span className="text-xs font-semibold text-primary uppercase tracking-wide">میز مطالعه</span>
+              <span className="text-sm font-semibold text-primary">میز مطالعه</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {studyDeskItems.map((item) => {
@@ -165,8 +182,8 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                     className={cn(
                       'flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200',
                       isActive
-                        ? 'bg-gradient-to-br from-primary/20 to-accent/20 text-primary border border-primary/30 shadow-lg shadow-primary/10'
-                        : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/5'
+                        ? 'bg-gradient-to-br from-primary/30 to-accent/30 text-primary border border-primary/40 shadow-lg shadow-primary/20'
+                        : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/10'
                     )}
                   >
                     <item.icon className={cn('w-5 h-5', isActive && 'text-primary')} />
@@ -176,9 +193,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
               })}
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="h-px bg-white/10" />
 
           {/* Other Navigation Items */}
           <div className="space-y-1">
@@ -207,7 +221,10 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 mr-64 p-6 relative z-10">
+      <main className={cn(
+        "flex-1 p-6 relative z-10 transition-all duration-300",
+        sidebarOpen ? "mr-64" : "mr-0"
+      )}>
         <div className="max-w-6xl mx-auto">
           {children}
         </div>

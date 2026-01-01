@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Activity {
@@ -15,9 +15,10 @@ interface DayClockCircleProps {
   wakeUpHour?: number;
   currentHour?: number;
   size?: number;
+  subjectColors?: Record<string, string>;
 }
 
-const SUBJECT_COLORS: Record<string, string> = {
+const DEFAULT_SUBJECT_COLORS: Record<string, string> = {
   'ریاضی': '#F97316',
   'فیزیک': '#3B82F6', 
   'شیمی': '#10B981',
@@ -28,18 +29,46 @@ const SUBJECT_COLORS: Record<string, string> = {
   'دینی': '#84CC16',
 };
 
+// Get Tehran time
+const getTehranTime = () => {
+  const now = new Date();
+  const tehranOffset = 3.5 * 60; // Tehran is UTC+3:30
+  const localOffset = now.getTimezoneOffset();
+  const tehranTime = new Date(now.getTime() + (localOffset + tehranOffset) * 60000);
+  return {
+    hours: tehranTime.getHours(),
+    minutes: tehranTime.getMinutes(),
+    totalHours: tehranTime.getHours() + tehranTime.getMinutes() / 60,
+  };
+};
+
 export const DayClockCircle = ({ 
   activities, 
   wakeUpHour = 7, 
   currentHour,
-  size = 280 
+  size = 280,
+  subjectColors = {}
 }: DayClockCircleProps) => {
-  const radius = (size / 2) - 20;
+  const radius = (size / 2) - 30; // More padding for hour labels
   const center = size / 2;
   const innerRadius = radius - 35;
   
-  // Get current hour if not provided
-  const now = currentHour ?? new Date().getHours();
+  // Tehran time state
+  const [tehranTime, setTehranTime] = useState(getTehranTime());
+  
+  // Update Tehran time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTehranTime(getTehranTime());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Get current hour if not provided - use Tehran time
+  const now = currentHour ?? tehranTime.totalHours;
+  
+  // Merge colors: use passed colors first, then defaults
+  const SUBJECT_COLORS = { ...DEFAULT_SUBJECT_COLORS, ...subjectColors };
 
   // Calculate arc path for a segment
   const getArcPath = (startAngle: number, endAngle: number, innerR: number, outerR: number) => {
@@ -61,26 +90,33 @@ export const DayClockCircle = ({
     return `M ${x1} ${y1} A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4} Z`;
   };
 
-  // Generate hour markers
+  // Generate hour markers - all 24 hours visible
   const hourMarkers = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
       const angle = ((i - 6) / 24) * 2 * Math.PI;
-      const isMainHour = i % 6 === 0;
-      const markerRadius = radius + (isMainHour ? 8 : 4);
-      const textRadius = radius + 16;
+      const isMainHour = i % 3 === 0; // Show every 3 hours
+      const markerLength = isMainHour ? 8 : 4;
+      const textRadius = radius + 18;
       
       return {
         hour: i,
-        x1: center + (radius - 5) * Math.sin(angle),
-        y1: center - (radius - 5) * Math.cos(angle),
-        x2: center + markerRadius * Math.sin(angle),
-        y2: center - markerRadius * Math.cos(angle),
+        x1: center + (radius - markerLength) * Math.sin(angle),
+        y1: center - (radius - markerLength) * Math.cos(angle),
+        x2: center + radius * Math.sin(angle),
+        y2: center - radius * Math.cos(angle),
         textX: center + textRadius * Math.sin(angle),
         textY: center - textRadius * Math.cos(angle),
         isMain: isMainHour,
       };
     });
   }, [radius, center]);
+
+  // Wake-up line position
+  const wakeUpAngle = ((wakeUpHour - 6) / 24) * 2 * Math.PI;
+  const wakeUpX1 = center + innerRadius * Math.sin(wakeUpAngle);
+  const wakeUpY1 = center - innerRadius * Math.cos(wakeUpAngle);
+  const wakeUpX2 = center + radius * Math.sin(wakeUpAngle);
+  const wakeUpY2 = center - radius * Math.cos(wakeUpAngle);
 
   // Get color for activity
   const getActivityColor = (activity: Activity) => {
@@ -93,10 +129,10 @@ export const DayClockCircle = ({
     return 'hsl(var(--primary))';
   };
 
-  // Current time indicator angle
+  // Current time indicator angle - precise with minutes
   const currentAngle = ((now - 6) / 24) * 2 * Math.PI;
-  const currentX = center + (radius - 15) * Math.sin(currentAngle);
-  const currentY = center - (radius - 15) * Math.cos(currentAngle);
+  const currentX = center + (radius - 10) * Math.sin(currentAngle);
+  const currentY = center - (radius - 10) * Math.cos(currentAngle);
 
   // Legend items
   const legendItems = useMemo(() => {
@@ -168,7 +204,7 @@ export const DayClockCircle = ({
               y2={y2}
               className={cn(
                 'stroke-muted-foreground',
-                isMain ? 'stroke-[2]' : 'stroke-[1] opacity-50'
+                isMain ? 'stroke-[2]' : 'stroke-[1] opacity-40'
               )}
             />
             {isMain && (
@@ -177,13 +213,29 @@ export const DayClockCircle = ({
                 y={textY}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-[10px] font-medium"
+                className="fill-foreground text-[11px] font-bold"
               >
                 {hour}
               </text>
             )}
           </g>
         ))}
+
+        {/* Wake-up indicator line */}
+        <line
+          x1={wakeUpX1}
+          y1={wakeUpY1}
+          x2={wakeUpX2}
+          y2={wakeUpY2}
+          className="stroke-warning stroke-[3]"
+          strokeLinecap="round"
+        />
+        <circle
+          cx={wakeUpX2}
+          cy={wakeUpY2}
+          r={4}
+          className="fill-warning"
+        />
 
         {/* Current time indicator */}
         <circle
@@ -200,14 +252,14 @@ export const DayClockCircle = ({
           className="stroke-primary stroke-2"
         />
 
-        {/* Center text */}
+        {/* Center text - Tehran time */}
         <text
           x={center}
           y={center - 10}
           textAnchor="middle"
           className="fill-foreground text-lg font-bold"
         >
-          {now}:00
+          {String(tehranTime.hours).padStart(2, '0')}:{String(tehranTime.minutes).padStart(2, '0')}
         </text>
         <text
           x={center}
@@ -215,7 +267,7 @@ export const DayClockCircle = ({
           textAnchor="middle"
           className="fill-muted-foreground text-xs"
         >
-          ساعت فعلی
+          ساعت تهران
         </text>
       </svg>
 
