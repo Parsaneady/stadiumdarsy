@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCloudSync } from '@/hooks/useCloudSync';
@@ -10,52 +10,29 @@ import {
   LogOut,
   Loader2,
   ClipboardList,
-  Timer,
   BarChart3,
   History,
   User,
   BookOpen,
-  ChevronDown,
   GraduationCap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { motion, AnimatePresence } from 'framer-motion';
 
-// Navigation structure with groups
-const navGroups = [
-  {
-    id: 'main',
-    items: [
-      { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
-    ]
-  },
-  {
-    id: 'study-desk',
-    label: 'میز مطالعه',
-    icon: BookOpen,
-    items: [
-      { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
-      { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
-      { path: '/pomodoro', icon: Timer, label: 'پومودورو' },
-      { path: '/exam', icon: FileText, label: 'پنل آزمون' },
-      { path: '/pension', icon: Users, label: 'پانسیون' },
-    ]
-  },
-  {
-    id: 'analytics',
-    items: [
-      { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
-      { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
-    ]
-  },
-  {
-    id: 'user',
-    items: [
-      { path: '/profile', icon: User, label: 'پروفایل' },
-    ]
-  }
+// Navigation structure - Study Desk as a section, not collapsible
+const studyDeskItems = [
+  { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
+  { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
+  { path: '/exam', icon: FileText, label: 'پنل آزمون' },
+  { path: '/pension', icon: Users, label: 'پانسیون' },
+];
+
+const otherNavItems = [
+  { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
+  { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
+  { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
+  { path: '/profile', icon: User, label: 'پروفایل' },
 ];
 
 interface AppLayoutProps {
@@ -66,22 +43,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [studyDeskOpen, setStudyDeskOpen] = useState(true);
   
-  // Enable cloud sync for logged in users - automatically loads and saves data
+  // Enable cloud sync for logged in users
   useCloudSync();
-
-  // Check if current path is in study desk group
-  const isStudyDeskActive = navGroups.find(g => g.id === 'study-desk')?.items.some(
-    item => location.pathname === item.path
-  );
-
-  useEffect(() => {
-    // Auto-expand study desk if active route is inside
-    if (isStudyDeskActive) {
-      setStudyDeskOpen(true);
-    }
-  }, [isStudyDeskActive]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -116,21 +80,20 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
     navigate('/auth');
   };
 
-  const NavItem = ({ item, nested = false }: { item: typeof navGroups[0]['items'][0], nested?: boolean }) => {
+  const NavItem = ({ item }: { item: { path: string; icon: any; label: string } }) => {
     const isActive = location.pathname === item.path;
     return (
       <button
         onClick={() => navigate(item.path)}
         className={cn(
-          'w-full flex items-center gap-3 rounded-xl transition-all duration-200',
-          nested ? 'px-3 py-2.5 mr-4' : 'px-4 py-3',
+          'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
           isActive
             ? 'bg-primary/20 text-primary border border-primary/30'
             : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
         )}
       >
-        <item.icon className={cn('shrink-0', nested ? 'w-4 h-4' : 'w-5 h-5')} />
-        <span className={cn('font-medium', nested && 'text-sm')}>{item.label}</span>
+        <item.icon className="w-5 h-5 shrink-0" />
+        <span className="font-medium">{item.label}</span>
         {isActive && (
           <div className="mr-auto w-2 h-2 rounded-full bg-primary" />
         )}
@@ -185,58 +148,44 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navGroups.map((group) => (
-            <div key={group.id}>
-              {/* Collapsible Group (Study Desk) */}
-              {group.label ? (
-                <div className="mb-1">
+        <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+          {/* Study Desk Section - As cards/islands */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-3 py-2">
+              <BookOpen className="w-4 h-4 text-primary" />
+              <span className="text-xs font-semibold text-primary uppercase tracking-wide">میز مطالعه</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {studyDeskItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
                   <button
-                    onClick={() => setStudyDeskOpen(!studyDeskOpen)}
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
-                      isStudyDeskActive
-                        ? 'bg-gradient-to-l from-primary/10 to-accent/10 text-primary border border-primary/20'
-                        : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                      'flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200',
+                      isActive
+                        ? 'bg-gradient-to-br from-primary/20 to-accent/20 text-primary border border-primary/30 shadow-lg shadow-primary/10'
+                        : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/5'
                     )}
                   >
-                    {group.icon && <group.icon className="w-5 h-5" />}
-                    <span className="font-medium">{group.label}</span>
-                    <motion.div
-                      className="mr-auto"
-                      animate={{ rotate: studyDeskOpen ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </motion.div>
+                    <item.icon className={cn('w-5 h-5', isActive && 'text-primary')} />
+                    <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
                   </button>
-                  
-                  <AnimatePresence initial={false}>
-                    {studyDeskOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: 'easeInOut' }}
-                        className="overflow-hidden"
-                      >
-                        <div className="pt-1 pr-2 space-y-1 border-r-2 border-primary/20 mr-6 mt-1">
-                          {group.items.map((item) => (
-                            <NavItem key={item.path} item={item} nested />
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                /* Regular items */
-                group.items.map((item) => (
-                  <NavItem key={item.path} item={item} />
-                ))
-              )}
+                );
+              })}
             </div>
-          ))}
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-white/10" />
+
+          {/* Other Navigation Items */}
+          <div className="space-y-1">
+            {otherNavItems.map((item) => (
+              <NavItem key={item.path} item={item} />
+            ))}
+          </div>
         </nav>
 
         {/* Logout & Footer */}
