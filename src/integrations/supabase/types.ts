@@ -527,6 +527,48 @@ export type Database = {
         }
         Relationships: []
       }
+      study_activities: {
+        Row: {
+          activity_date: string
+          activity_type: string
+          color: string | null
+          created_at: string
+          end_time: string | null
+          id: string
+          is_active: boolean | null
+          start_time: string
+          study_mode: string | null
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string
+          activity_type: string
+          color?: string | null
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          start_time: string
+          study_mode?: string | null
+          subject?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          activity_type?: string
+          color?: string | null
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          start_time?: string
+          study_mode?: string | null
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -586,6 +628,39 @@ export type Database = {
           pomodoro_study_duration?: number
           streak?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_study_status: {
+        Row: {
+          created_at: string
+          current_subject: string | null
+          id: string
+          is_studying: boolean | null
+          last_active: string | null
+          started_at: string | null
+          study_mode: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_subject?: string | null
+          id?: string
+          is_studying?: boolean | null
+          last_active?: string | null
+          started_at?: string | null
+          study_mode?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_subject?: string | null
+          id?: string
+          is_studying?: boolean | null
+          last_active?: string | null
+          started_at?: string | null
+          study_mode?: string | null
           user_id?: string
         }
         Relationships: []

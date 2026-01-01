@@ -1,316 +1,572 @@
-import { useState, useEffect } from 'react';
-import { ClipboardList, Save, Clock, FileText, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
-import { useStudyStore, StudySession, DailyLog as DailyLogType } from '@/stores/studyStore';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee } from 'lucide-react';
+import { useStudyStore, StudySession } from '@/stores/studyStore';
+import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
-import { LogSessionModal } from '@/components/LogSessionModal';
-import { Progress } from '@/components/ui/progress';
-import { formatHoursDisplay, formatHoursShort } from '@/lib/timeUtils';
+import { DayClockCircle } from '@/components/study/DayClockCircle';
+import { PensionMembersStatus } from '@/components/study/PensionMembersStatus';
+import { StudyModeSelector } from '@/components/study/StudyModeSelector';
 import { toast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/AppLayout';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+interface Activity {
+  id: string;
+  type: 'sleep' | 'study' | 'break' | 'free_time';
+  subject?: string;
+  color?: string;
+  startHour: number;
+  endHour: number;
+}
+
+const SUBJECT_COLORS: Record<string, string> = {
+  'ریاضی': '#F97316',
+  'فیزیک': '#3B82F6', 
+  'شیمی': '#10B981',
+  'زیست': '#8B5CF6',
+  'ادبیات': '#EC4899',
+  'عربی': '#EAB308',
+  'زبان': '#06B6D4',
+  'دینی': '#84CC16',
+};
 
 const DailyLog = () => {
-  const { weeklyPlan, dailyLogs, initializeWeek, updateSession, logDaily, getTodayIndex, toggleSessionComplete } = useStudyStore();
-  const { saveDailyLog, saveWeeklyPlan, updateProfileStats } = useCloudSync();
-  const [selectedSession, setSelectedSession] = useState<{ dayId: string; session: StudySession } | null>(null);
+  const { user } = useAuth();
+  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings } = useStudyStore();
+  const { 
+    mode, timeLeft, isRunning, currentCycle, pomodoroSubject,
+    setMode, setTimeLeft, setIsRunning, setCurrentCycle, 
+    incrementCycle, setPomodoroSubject, decrementTime
+  } = usePomodoroStore();
+  const { saveWeeklyPlan, addPomodoroSession } = useCloudSync();
 
+  // State
+  const [wakeUpTime, setWakeUpTime] = useState<number | null>(null);
+  const [wakeUpDialogOpen, setWakeUpDialogOpen] = useState(false);
+  const [wakeUpInput, setWakeUpInput] = useState('07:00');
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [studyModeOpen, setStudyModeOpen] = useState(false);
+  const [currentStudySession, setCurrentStudySession] = useState<{
+    subject: string;
+    mode: 'pomodoro' | 'free';
+    startTime: Date;
+  } | null>(null);
+  const [freeTimeElapsed, setFreeTimeElapsed] = useState(0);
+  
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize week if needed
   useEffect(() => {
     if (weeklyPlan.length === 0) {
       initializeWeek();
     }
   }, [weeklyPlan.length, initializeWeek]);
 
+  // Load today's wake-up time and activities from database
+  useEffect(() => {
+    if (!user) return;
+
+    const loadTodayData = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check wake-up log
+      const { data: wakeUpData } = await supabase
+        .from('wake_up_logs')
+        .select('wake_time')
+        .eq('user_id', user.id)
+        .eq('logged_date', today)
+        .maybeSingle();
+
+      if (wakeUpData) {
+        const [hours] = wakeUpData.wake_time.split(':').map(Number);
+        setWakeUpTime(hours);
+      }
+
+      // Load activities
+      const { data: activitiesData } = await supabase
+        .from('study_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('activity_date', today)
+        .order('start_time');
+
+      if (activitiesData) {
+        const mapped: Activity[] = activitiesData.map(a => ({
+          id: a.id,
+          type: a.activity_type as Activity['type'],
+          subject: a.subject || undefined,
+          color: a.color || undefined,
+          startHour: parseInt(a.start_time.split(':')[0]) + parseInt(a.start_time.split(':')[1]) / 60,
+          endHour: a.end_time 
+            ? parseInt(a.end_time.split(':')[0]) + parseInt(a.end_time.split(':')[1]) / 60
+            : new Date().getHours() + new Date().getMinutes() / 60,
+        }));
+        setActivities(mapped);
+      }
+
+      // Check if currently studying
+      const { data: statusData } = await supabase
+        .from('user_study_status')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (statusData?.is_studying && statusData.started_at) {
+        setCurrentStudySession({
+          subject: statusData.current_subject || '',
+          mode: (statusData.study_mode || 'free') as 'pomodoro' | 'free',
+          startTime: new Date(statusData.started_at),
+        });
+      }
+    };
+
+    loadTodayData();
+  }, [user]);
+
+  // Get available subjects from today's plan
   const todayIndex = getTodayIndex();
   const todayPlan = weeklyPlan[todayIndex];
+  const availableSubjects = todayPlan?.sessions.map(s => s.subject) || [];
 
-  const handleSaveSession = async (updates: Partial<StudySession>) => {
-    if (selectedSession && todayPlan) {
-      // Update in store
-      updateSession(selectedSession.dayId, selectedSession.session.id, updates);
-      
-      // Get fresh sessions from store after update and save to cloud
-      setTimeout(async () => {
-        const store = useStudyStore.getState();
-        const freshTodayPlan = store.weeklyPlan[getTodayIndex()];
-        if (freshTodayPlan) {
-          await saveWeeklyPlan(freshTodayPlan.id, freshTodayPlan.sessions);
-        }
-      }, 100);
-      
-      setSelectedSession(null);
-      toast({
-        title: "✅ ذخیره شد",
-        description: "اطلاعات جلسه به‌روزرسانی شد.",
-      });
+  // Handle wake-up registration
+  const handleWakeUp = async () => {
+    if (!user) return;
+    
+    const [hours, minutes] = wakeUpInput.split(':').map(Number);
+    const wakeHour = hours + minutes / 60;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    
+    // Get user's pension
+    const { data: memberData } = await supabase
+      .from('pension_members')
+      .select('pension_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (memberData) {
+      await supabase.from('wake_up_logs').upsert({
+        user_id: user.id,
+        pension_id: memberData.pension_id,
+        wake_time: timeStr,
+        logged_date: today,
+      }, { onConflict: 'user_id,logged_date' });
     }
+
+    setWakeUpTime(wakeHour);
+    setWakeUpDialogOpen(false);
+    
+    toast({
+      title: '☀️ بیداری ثبت شد',
+      description: `ساعت بیداری: ${wakeUpInput}`,
+    });
   };
 
-  const handleSaveDay = async () => {
-    if (todayPlan) {
-      const todayKey = new Date().toISOString().split('T')[0];
-      const existingLog = dailyLogs.find(log => log.date.split('T')[0] === todayKey);
-      
-      // Calculate today's study hours and tests
-      const todayStudyMinutes = Math.round(todayPlan.sessions.reduce((sum, s) => sum + s.actualHours, 0) * 60);
-      const todayTests = todayPlan.sessions.reduce((sum, s) => sum + s.actualTests, 0);
-      
-      // Calculate delta (only add the difference if updating)
-      const prevStudyMinutes = existingLog ? Math.round(existingLog.totalStudyHours * 60) : 0;
-      const prevTests = existingLog ? existingLog.totalTests : 0;
-      const deltaMinutes = todayStudyMinutes - prevStudyMinutes;
-      const deltaTests = todayTests - prevTests;
-      
-      logDaily(todayPlan.id);
-      
-      // Get fresh log from store after logDaily and save to cloud
-      setTimeout(async () => {
-        const store = useStudyStore.getState();
-        const latestLog = store.dailyLogs.find(log => log.date.split('T')[0] === todayKey);
-        if (latestLog) {
-          await saveDailyLog(latestLog);
-        }
-        
-        // Update profile stats with delta only
-        if (deltaMinutes !== 0 || deltaTests !== 0) {
-          await updateProfileStats(deltaMinutes, deltaTests);
-        }
-      }, 100);
-      
-      toast({
-        title: "ذخیره شد! ✨",
-        description: "عملکرد امروز با موفقیت ثبت شد.",
-      });
+  // Start study session
+  const startStudy = async (subject: string, studyMode: 'pomodoro' | 'free') => {
+    if (!user) return;
+    
+    const now = new Date();
+    
+    // Update user study status
+    await supabase.from('user_study_status').upsert({
+      user_id: user.id,
+      is_studying: true,
+      current_subject: subject,
+      study_mode: studyMode,
+      started_at: now.toISOString(),
+      last_active: now.toISOString(),
+    }, { onConflict: 'user_id' });
+
+    // Create activity record
+    const today = now.toISOString().split('T')[0];
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+    
+    await supabase.from('study_activities').insert({
+      user_id: user.id,
+      activity_date: today,
+      activity_type: 'study',
+      subject,
+      color: SUBJECT_COLORS[subject] || '#8B5CF6',
+      start_time: timeStr,
+      is_active: true,
+      study_mode: studyMode,
+    });
+
+    setCurrentStudySession({
+      subject,
+      mode: studyMode,
+      startTime: now,
+    });
+
+    if (studyMode === 'pomodoro') {
+      setPomodoroSubject(subject);
+      setMode('study');
+      setTimeLeft(pomodoroSettings.studyDuration * 60);
+      setIsRunning(true);
+    } else {
+      setFreeTimeElapsed(0);
     }
+
+    toast({
+      title: '📚 شروع مطالعه',
+      description: `${subject} - ${studyMode === 'pomodoro' ? 'پومودورو' : 'تایم آزاد'}`,
+    });
   };
 
-  if (!todayPlan) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">در حال بارگذاری...</p>
-      </div>
-    );
-  }
+  // Stop study session
+  const stopStudy = async () => {
+    if (!user || !currentStudySession) return;
 
-  const totalTarget = todayPlan.sessions.reduce((sum, s) => sum + s.targetHours, 0);
-  const totalActual = todayPlan.sessions.reduce((sum, s) => sum + s.actualHours, 0);
-  const overallPercent = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
+    const now = new Date();
+    
+    // Update user status
+    await supabase.from('user_study_status').update({
+      is_studying: false,
+      current_subject: null,
+      study_mode: null,
+      started_at: null,
+      last_active: now.toISOString(),
+    }).eq('user_id', user.id);
 
-  const totalTargetTests = todayPlan.sessions.reduce((sum, s) => sum + s.targetTests, 0);
-  const totalActualTests = todayPlan.sessions.reduce((sum, s) => sum + s.actualTests, 0);
+    // Update activity end time
+    const today = now.toISOString().split('T')[0];
+    const endTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+    
+    await supabase.from('study_activities').update({
+      end_time: endTimeStr,
+      is_active: false,
+    })
+    .eq('user_id', user.id)
+    .eq('activity_date', today)
+    .eq('is_active', true);
 
-  const getPerformanceFeedback = () => {
-    if (overallPercent >= 100) return { icon: TrendingUp, text: 'عالی! به هدف رسیدی! 🎉', color: 'text-success' };
-    if (overallPercent >= 70) return { icon: TrendingUp, text: 'خوب پیش می‌ری! ادامه بده! 💪', color: 'text-warning' };
-    return { icon: TrendingDown, text: 'تلاش بیشتری لازمه. می‌تونی! 📚', color: 'text-destructive' };
+    // Calculate duration
+    const durationMinutes = Math.floor((now.getTime() - currentStudySession.startTime.getTime()) / 60000);
+    
+    if (currentStudySession.mode === 'free' && durationMinutes > 0) {
+      // Save to pomodoro sessions for stats
+      await addPomodoroSession(currentStudySession.subject, durationMinutes);
+    }
+
+    setCurrentStudySession(null);
+    setIsRunning(false);
+    setPomodoroSubject(null);
+    setFreeTimeElapsed(0);
+
+    // Refresh activities
+    const { data: activitiesData } = await supabase
+      .from('study_activities')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('activity_date', today)
+      .order('start_time');
+
+    if (activitiesData) {
+      const mapped: Activity[] = activitiesData.map(a => ({
+        id: a.id,
+        type: a.activity_type as Activity['type'],
+        subject: a.subject || undefined,
+        color: a.color || undefined,
+        startHour: parseInt(a.start_time.split(':')[0]) + parseInt(a.start_time.split(':')[1]) / 60,
+        endHour: a.end_time 
+          ? parseInt(a.end_time.split(':')[0]) + parseInt(a.end_time.split(':')[1]) / 60
+          : now.getHours() + now.getMinutes() / 60,
+      }));
+      setActivities(mapped);
+    }
+
+    toast({
+      title: '✅ پایان مطالعه',
+      description: `${currentStudySession.subject} - ${durationMinutes} دقیقه`,
+    });
   };
 
-  const feedback = getPerformanceFeedback();
+  // Pomodoro timer effect
+  useEffect(() => {
+    if (!isRunning || currentStudySession?.mode !== 'pomodoro') {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      const state = usePomodoroStore.getState();
+      
+      if (state.timeLeft > 0) {
+        state.decrementTime();
+      } else {
+        // Timer finished
+        if (state.mode === 'study') {
+          // Save pomodoro session
+          if (currentStudySession) {
+            addPomodoroSession(currentStudySession.subject, pomodoroSettings.studyDuration);
+          }
+          
+          toast({
+            title: '🎉 پومودورو تمام شد!',
+            description: 'زمان استراحت!',
+          });
+
+          if (currentCycle >= pomodoroSettings.cycles) {
+            state.setMode('longBreak');
+            state.setTimeLeft(pomodoroSettings.longBreak * 60);
+            state.setCurrentCycle(1);
+          } else {
+            state.setMode('shortBreak');
+            state.setTimeLeft(pomodoroSettings.shortBreak * 60);
+            state.incrementCycle();
+          }
+        } else {
+          // Break finished
+          toast({
+            title: '⏰ استراحت تمام شد!',
+            description: 'ادامه مطالعه...',
+          });
+          state.setMode('study');
+          state.setTimeLeft(pomodoroSettings.studyDuration * 60);
+        }
+      }
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRunning, currentStudySession, pomodoroSettings, currentCycle, addPomodoroSession]);
+
+  // Free time counter
+  useEffect(() => {
+    if (!currentStudySession || currentStudySession.mode !== 'free') return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - currentStudySession.startTime.getTime()) / 1000);
+      setFreeTimeElapsed(elapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [currentStudySession]);
+
+  // Format time display
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <AppLayout>
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
-        <div className="flex items-center gap-4">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4 animate-fade-in">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center">
             <ClipboardList className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold gradient-text">ثبت روزانه</h1>
             <p className="text-muted-foreground mt-1">
-              عملکرد امروز ({todayPlan.dayName}) را ثبت کنید
+              {todayPlan?.dayName || 'امروز'} - ساعت فعالیت‌های شما
             </p>
           </div>
         </div>
-        <Button
-          onClick={handleSaveDay}
-          className="bg-gradient-to-r from-success to-secondary hover:opacity-90"
-        >
-          <Save className="w-4 h-4 ml-2" />
-          ثبت نهایی روز
-        </Button>
-      </div>
 
-      {/* Today's Overview */}
-      <GlassCard delay={0}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">خلاصه امروز</h3>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            overallPercent >= 80 ? 'status-excellent' :
-            overallPercent >= 50 ? 'status-good' : 'status-needs-work'
-          }`}>
-            {Math.round(overallPercent)}%
-          </span>
-        </div>
-        <Progress
-          value={Math.min(100, overallPercent)}
-          className="h-3 mb-4"
-          indicatorClassName={
-            overallPercent >= 80 ? 'bg-success' :
-            overallPercent >= 50 ? 'bg-warning' : 'bg-destructive'
-          }
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Clock Circle Section */}
+          <GlassCard delay={0}>
+            <div className="flex flex-col items-center">
+              {/* Wake-up section */}
+              {wakeUpTime === null ? (
+                <div className="w-full mb-6">
+                  <div className="text-center p-6 rounded-xl bg-warning/10 border border-warning/30">
+                    <Sun className="w-10 h-10 mx-auto mb-3 text-warning" />
+                    <h3 className="font-semibold mb-2">ابتدا ساعت بیداری را ثبت کنید</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      برای شروع ثبت فعالیت‌ها، ساعت بیداری خود را وارد کنید
+                    </p>
+                    <Button 
+                      onClick={() => setWakeUpDialogOpen(true)}
+                      className="bg-gradient-to-r from-warning to-accent"
+                    >
+                      <Sun className="w-4 h-4 ml-2" />
+                      ثبت بیداری
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Clock Circle */}
+                  <DayClockCircle 
+                    activities={activities}
+                    wakeUpHour={wakeUpTime}
+                    size={300}
+                  />
 
-        {/* Feedback */}
-        <div className={`flex items-center gap-2 mb-4 ${feedback.color}`}>
-          <feedback.icon className="w-5 h-5" />
-          <span className="font-medium">{feedback.text}</span>
-        </div>
+                  {/* Study Controls */}
+                  <div className="w-full mt-6 space-y-4">
+                    {currentStudySession ? (
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/30">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">در حال مطالعه</p>
+                            <p className="font-semibold text-lg">{currentStudySession.subject}</p>
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm text-muted-foreground">
+                              {currentStudySession.mode === 'pomodoro' ? 'پومودورو' : 'تایم آزاد'}
+                            </p>
+                            <p className="font-mono text-2xl font-bold text-primary">
+                              {currentStudySession.mode === 'pomodoro' 
+                                ? formatTime(timeLeft)
+                                : formatTime(freeTimeElapsed)
+                              }
+                            </p>
+                          </div>
+                        </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-3 rounded-xl bg-muted/30">
-            <Clock className="w-5 h-5 mx-auto mb-2 text-secondary" />
-            <p className="text-2xl font-bold">{formatHoursShort(totalActual)}</p>
-            <p className="text-xs text-muted-foreground">از {formatHoursShort(totalTarget)}</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-muted/30">
-            <FileText className="w-5 h-5 mx-auto mb-2 text-accent" />
-            <p className="text-2xl font-bold">{totalActualTests}</p>
-            <p className="text-xs text-muted-foreground">از {totalTargetTests} تست</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-muted/30">
-            <CheckCircle2 className="w-5 h-5 mx-auto mb-2 text-success" />
-            <p className="text-2xl font-bold">
-              {todayPlan.sessions.filter(s => s.completed).length}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              از {todayPlan.sessions.length} جلسه
-            </p>
-          </div>
-        </div>
-      </GlassCard>
+                        {currentStudySession.mode === 'pomodoro' && (
+                          <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                            {mode === 'study' ? (
+                              <Timer className="w-4 h-4 text-primary" />
+                            ) : (
+                              <Coffee className="w-4 h-4 text-success" />
+                            )}
+                            <span>
+                              {mode === 'study' 
+                                ? `مطالعه - سیکل ${currentCycle}/${pomodoroSettings.cycles}`
+                                : mode === 'shortBreak' ? 'استراحت کوتاه' : 'استراحت بلند'
+                              }
+                            </span>
+                          </div>
+                        )}
 
-      {/* Sessions to Log */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">جلسات امروز</h3>
-        
-        {todayPlan.sessions.length === 0 ? (
-          <GlassCard>
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">هنوز جلسه‌ای برای امروز تعریف نشده است.</p>
-              <Button 
-                variant="link" 
-                className="mt-2 text-primary"
-                onClick={() => window.location.href = '/weekly-plan'}
-              >
-                رفتن به برنامه هفتگی
-              </Button>
+                        <Button
+                          onClick={stopStudy}
+                          variant="destructive"
+                          className="w-full"
+                        >
+                          <Square className="w-4 h-4 ml-2" />
+                          پایان مطالعه
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => setStudyModeOpen(true)}
+                        className="w-full bg-gradient-to-r from-primary to-accent py-6 text-lg"
+                        disabled={availableSubjects.length === 0}
+                      >
+                        <Play className="w-5 h-5 ml-2" />
+                        شروع مطالعه
+                      </Button>
+                    )}
+
+                    {availableSubjects.length === 0 && (
+                      <p className="text-xs text-center text-muted-foreground">
+                        ابتدا در برنامه هفتگی درس اضافه کنید
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </GlassCard>
-        ) : (
-          <div className="space-y-3">
-            {todayPlan.sessions.map((session) => {
-              const hoursPercent = session.targetHours > 0 
-                ? (session.actualHours / session.targetHours) * 100 
-                : 0;
-              const testsPercent = session.targetTests > 0 
-                ? (session.actualTests / session.targetTests) * 100 
-                : 0;
 
-              const isExcellent = hoursPercent >= 100 && testsPercent >= 100;
-              const isGood = hoursPercent >= 70 || testsPercent >= 70;
-
-              return (
-                <div
-                  key={session.id}
-                  className={`glass-card rounded-xl p-5 cursor-pointer transition-all hover:scale-[1.01] ${
-                    session.completed 
-                      ? 'border-success/30 bg-success/5' 
-                      : 'hover:border-primary/30'
-                  }`}
-                  onClick={() => setSelectedSession({ dayId: todayPlan.id, session })}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSessionComplete(todayPlan.id, session.id);
-                        }}
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                          session.completed 
-                            ? 'bg-success border-success text-white' 
-                            : 'border-muted-foreground hover:border-primary'
-                        }`}
+          {/* Right column */}
+          <div className="space-y-6">
+            {/* Today's Legend */}
+            {activities.length > 0 && (
+              <GlassCard delay={1}>
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  فعالیت‌های امروز
+                </h3>
+                <div className="space-y-2">
+                  {activities.map((act) => {
+                    const duration = act.endHour - act.startHour;
+                    return (
+                      <div 
+                        key={act.id}
+                        className="flex items-center gap-3 p-2 rounded-lg bg-white/5"
                       >
-                        {session.completed && <CheckCircle2 className="w-4 h-4" />}
-                      </button>
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: session.color }}
-                      />
-                      <div>
-                        <h4 className={`font-semibold text-lg ${session.completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {session.subject}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          برای ویرایش کلیک کنید
+                        <div 
+                          className="w-4 h-4 rounded-full shrink-0"
+                          style={{ backgroundColor: act.color || 'hsl(var(--muted))' }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {act.subject || (act.type === 'sleep' ? 'خواب' : act.type)}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {Math.floor(act.startHour)}:{String(Math.round((act.startHour % 1) * 60)).padStart(2, '0')}
+                          {' - '}
+                          {Math.floor(act.endHour)}:{String(Math.round((act.endHour % 1) * 60)).padStart(2, '0')}
+                        </p>
+                        <p className="text-xs font-medium text-primary">
+                          {duration.toFixed(1)} ساعت
                         </p>
                       </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      session.completed ? 'status-excellent' :
-                      isExcellent ? 'status-excellent' :
-                      isGood ? 'status-good' : 'status-needs-work'
-                    }`}>
-                      {session.completed ? '✓ تکمیل شده' :
-                       isExcellent ? '✓ عالی' :
-                       isGood ? 'خوب' : 'نیاز به تلاش'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-muted-foreground">ساعت مطالعه</span>
-                        <span className={hoursPercent >= 100 ? 'text-success font-medium' : ''}>
-                          {formatHoursShort(session.actualHours)} / {formatHoursShort(session.targetHours)}
-                        </span>
-                      </div>
-                      <Progress
-                        value={Math.min(100, hoursPercent)}
-                        className="h-2"
-                        indicatorClassName={hoursPercent >= 100 ? 'bg-success' : hoursPercent >= 50 ? 'bg-warning' : 'bg-secondary'}
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-muted-foreground">تست</span>
-                        <span className={testsPercent >= 100 ? 'text-success font-medium' : ''}>
-                          {session.actualTests} / {session.targetTests}
-                        </span>
-                      </div>
-                      <Progress
-                        value={Math.min(100, testsPercent)}
-                        className="h-2"
-                        indicatorClassName={testsPercent >= 100 ? 'bg-success' : testsPercent >= 50 ? 'bg-warning' : 'bg-accent'}
-                      />
-                    </div>
-                  </div>
-
-                  {session.notes && (
-                    <p className="mt-3 text-sm text-muted-foreground bg-muted/30 rounded-lg p-2">
-                      {session.notes}
-                    </p>
-                  )}
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </GlassCard>
+            )}
 
-      {/* Log Session Modal */}
-      {selectedSession && (
-        <LogSessionModal
-          isOpen={!!selectedSession}
-          onClose={() => setSelectedSession(null)}
-          session={selectedSession.session}
-          onSave={handleSaveSession}
+            {/* Pension Members */}
+            <PensionMembersStatus />
+          </div>
+        </div>
+
+        {/* Wake-up Dialog */}
+        <Dialog open={wakeUpDialogOpen} onOpenChange={setWakeUpDialogOpen}>
+          <DialogContent className="glass-card border-white/20">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sun className="w-5 h-5 text-warning" />
+                ثبت ساعت بیداری
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <p className="text-sm text-muted-foreground">
+                ساعت بیداری امروز را وارد کنید:
+              </p>
+              <Input
+                type="time"
+                value={wakeUpInput}
+                onChange={(e) => setWakeUpInput(e.target.value)}
+                className="text-center text-2xl py-6"
+              />
+              <Button 
+                onClick={handleWakeUp}
+                className="w-full bg-gradient-to-r from-warning to-accent"
+              >
+                ثبت بیداری
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Study Mode Selector */}
+        <StudyModeSelector
+          open={studyModeOpen}
+          onClose={() => setStudyModeOpen(false)}
+          subjects={availableSubjects}
+          onSelectPomodoro={(subject) => startStudy(subject, 'pomodoro')}
+          onSelectFreeTime={(subject) => startStudy(subject, 'free')}
         />
-      )}
-    </div>
+      </div>
     </AppLayout>
   );
 };
