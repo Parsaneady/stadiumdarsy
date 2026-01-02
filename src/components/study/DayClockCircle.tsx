@@ -14,6 +14,7 @@ interface StudyMarker {
   hour: number;
   type: 'start' | 'end';
   subject?: string;
+  color?: string;
 }
 
 interface DayClockCircleProps {
@@ -23,6 +24,7 @@ interface DayClockCircleProps {
   size?: number;
   subjectColors?: Record<string, string>;
   studyMarkers?: StudyMarker[];
+  totalStudyMinutes?: number;
 }
 
 const DEFAULT_SUBJECT_COLORS: Record<string, string> = {
@@ -61,7 +63,8 @@ export const DayClockCircle = ({
   currentHour,
   size = 280,
   subjectColors = {},
-  studyMarkers = []
+  studyMarkers = [],
+  totalStudyMinutes = 0,
 }: DayClockCircleProps) => {
   const radius = (size / 2) - 30;
   const center = size / 2;
@@ -156,6 +159,11 @@ export const DayClockCircle = ({
   const wakeUpMinutes = Math.round((wakeUpHour % 1) * 60);
   const wakeUpTimeStr = `${String(wakeUpHours).padStart(2, '0')}:${String(wakeUpMinutes).padStart(2, '0')}`;
 
+  // Format study time
+  const studyHours = Math.floor(totalStudyMinutes / 60);
+  const studyMins = Math.round(totalStudyMinutes % 60);
+  const studyTimeStr = `${String(studyHours).padStart(2, '0')}:${String(studyMins).padStart(2, '0')}`;
+
   // Legend items
   const legendItems = useMemo(() => {
     const items: { label: string; color: string; hours: number }[] = [];
@@ -245,31 +253,28 @@ export const DayClockCircle = ({
             </g>
           ))}
 
-          {/* Study start/end markers */}
+          {/* Study start/end markers - use subject color */}
           {studyMarkers.map((marker, idx) => {
             const markerAngle = hourToAngle(marker.hour);
             const mx1 = center + innerRadius * Math.cos(markerAngle);
             const my1 = center + innerRadius * Math.sin(markerAngle);
-            const mx2 = center + (radius + 15) * Math.cos(markerAngle);
-            const my2 = center + (radius + 15) * Math.sin(markerAngle);
+            const mx2 = center + (radius + 10) * Math.cos(markerAngle);
+            const my2 = center + (radius + 10) * Math.sin(markerAngle);
+            
+            // Get subject color
+            const markerColor = marker.color || (marker.subject && SUBJECT_COLORS[marker.subject]) || 'hsl(var(--primary))';
             
             return (
-              <g key={`marker-${idx}`}>
-                <line
-                  x1={mx1}
-                  y1={my1}
-                  x2={mx2}
-                  y2={my2}
-                  className={marker.type === 'start' ? 'stroke-success stroke-[2]' : 'stroke-destructive stroke-[2]'}
-                  strokeLinecap="round"
-                />
-                <circle
-                  cx={mx2}
-                  cy={my2}
-                  r={4}
-                  className={marker.type === 'start' ? 'fill-success' : 'fill-destructive'}
-                />
-              </g>
+              <line
+                key={`marker-${idx}`}
+                x1={mx1}
+                y1={my1}
+                x2={mx2}
+                y2={my2}
+                stroke={markerColor}
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             );
           })}
 
@@ -321,14 +326,14 @@ export const DayClockCircle = ({
             className="fill-primary"
           />
 
-          {/* Center text - Tehran time HH:MM */}
+          {/* Center text - Study time HH:MM */}
           <text
             x={center}
             y={center - 10}
             textAnchor="middle"
             className="fill-foreground text-lg font-bold font-mono"
           >
-            {String(tehranTime.hours).padStart(2, '0')}:{String(tehranTime.minutes).padStart(2, '0')}
+            {studyTimeStr}
           </text>
           <text
             x={center}
@@ -336,7 +341,7 @@ export const DayClockCircle = ({
             textAnchor="middle"
             className="fill-muted-foreground text-xs"
           >
-            ساعت تهران
+            ساعت مطالعه
           </text>
         </g>
       </svg>
