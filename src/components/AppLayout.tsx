@@ -22,13 +22,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-// Navigation structure - Study Desk as a section, not collapsible
-const studyDeskItems = [
-  { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
-  { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
-  { path: '/exam', icon: FileText, label: 'پنل آزمون' },
-  { path: '/pension', icon: Users, label: 'پانسیون' },
-];
+// Study desk items - removed from sidebar, now on StudyDesk page
 
 const otherNavItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
@@ -166,33 +160,21 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
-          {/* Study Desk Section - As Island Cards */}
-          <div className="p-3 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20">
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">میز مطالعه</span>
+          {/* Study Desk Section - Link to page */}
+          <button
+            onClick={() => navigate('/study-desk')}
+            className="w-full p-3 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 hover:border-primary/40 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-right flex-1">
+                <span className="font-semibold text-primary">میز مطالعه</span>
+                <p className="text-[10px] text-muted-foreground">برنامه، تایمر، آزمون</p>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {studyDeskItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    className={cn(
-                      'flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200',
-                      isActive
-                        ? 'bg-gradient-to-br from-primary/30 to-accent/30 text-primary border border-primary/40 shadow-lg shadow-primary/20'
-                        : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/10'
-                    )}
-                  >
-                    <item.icon className={cn('w-5 h-5', isActive && 'text-primary')} />
-                    <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          </button>
 
           {/* Other Navigation Items */}
           <div className="space-y-1">

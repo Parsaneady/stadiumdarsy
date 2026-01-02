@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings } from 'lucide-react';
+import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings, Target } from 'lucide-react';
 import { useStudyStore, StudySession } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { DayClockCircle } from '@/components/study/DayClockCircle';
 import { PensionMembersStatus } from '@/components/study/PensionMembersStatus';
+import { PensionMembersStudyTime } from '@/components/study/PensionMembersStudyTime';
 import { StudyModeSelector } from '@/components/study/StudyModeSelector';
 import { toast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/AppLayout';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePomodoroSound } from '@/hooks/usePomodoroSound';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +37,7 @@ interface StudyMarker {
   hour: number;
   type: 'start' | 'end';
   subject?: string;
+  color?: string;
 }
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -57,6 +60,7 @@ const DailyLog = () => {
     incrementCycle, setPomodoroSubject, decrementTime
   } = usePomodoroStore();
   const { saveWeeklyPlan, addPomodoroSession } = useCloudSync();
+  const { playPomodoroComplete, playBreakComplete } = usePomodoroSound();
 
   // State
   const [wakeUpTime, setWakeUpTime] = useState<number | null>(null);
@@ -72,8 +76,10 @@ const DailyLog = () => {
     startTime: Date;
   } | null>(null);
   const [freeTimeElapsed, setFreeTimeElapsed] = useState(0);
+  const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTickRef = useRef<number>(Date.now());
 
   // Initialize week if needed
   useEffect(() => {
@@ -98,8 +104,8 @@ const DailyLog = () => {
         .maybeSingle();
 
       if (wakeUpData) {
-        const [hours] = wakeUpData.wake_time.split(':').map(Number);
-        setWakeUpTime(hours);
+        const [hours, minutes] = wakeUpData.wake_time.split(':').map(Number);
+        setWakeUpTime(hours + minutes / 60);
       }
 
       // Load activities
@@ -123,15 +129,27 @@ const DailyLog = () => {
         }));
         setActivities(mapped);
         
-        // Build study markers from activities
+        // Calculate total study time
+        let totalMins = 0;
+        activitiesData.forEach(a => {
+          if (a.activity_type === 'study' && a.end_time) {
+            const [startH, startM] = a.start_time.split(':').map(Number);
+            const [endH, endM] = a.end_time.split(':').map(Number);
+            totalMins += (endH * 60 + endM) - (startH * 60 + startM);
+          }
+        });
+        setTotalStudyMinutes(totalMins);
+        
+        // Build study markers from activities with colors
         const markers: StudyMarker[] = [];
         activitiesData.forEach(a => {
           if (a.activity_type === 'study') {
             const startH = parseInt(a.start_time.split(':')[0]) + parseInt(a.start_time.split(':')[1]) / 60;
-            markers.push({ hour: startH, type: 'start', subject: a.subject || undefined });
+            const subjectColor = a.subject ? (subjectColorsFromPlan[a.subject] || SUBJECT_COLORS[a.subject]) : undefined;
+            markers.push({ hour: startH, type: 'start', subject: a.subject || undefined, color: subjectColor });
             if (a.end_time) {
               const endH = parseInt(a.end_time.split(':')[0]) + parseInt(a.end_time.split(':')[1]) / 60;
-              markers.push({ hour: endH, type: 'end', subject: a.subject || undefined });
+              markers.push({ hour: endH, type: 'end', subject: a.subject || undefined, color: subjectColor });
             }
           }
         });
@@ -151,6 +169,12 @@ const DailyLog = () => {
           mode: (statusData.study_mode || 'free') as 'pomodoro' | 'free',
           startTime: new Date(statusData.started_at),
         });
+        
+        // Restore pomodoro state if in pomodoro mode
+        if (statusData.study_mode === 'pomodoro') {
+          setPomodoroSubject(statusData.current_subject);
+          setIsRunning(true);
+        }
       }
     };
 
@@ -169,6 +193,7 @@ const DailyLog = () => {
       subjectColorsFromPlan[s.subject] = s.color;
     }
   });
+
   const handleWakeUp = async () => {
     if (!user) return;
     
@@ -222,13 +247,14 @@ const DailyLog = () => {
     // Create activity record
     const today = now.toISOString().split('T')[0];
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
+    const subjectColor = subjectColorsFromPlan[subject] || SUBJECT_COLORS[subject] || '#8B5CF6';
     
     await supabase.from('study_activities').insert({
       user_id: user.id,
       activity_date: today,
       activity_type: 'study',
       subject,
-      color: SUBJECT_COLORS[subject] || '#8B5CF6',
+      color: subjectColor,
       start_time: timeStr,
       is_active: true,
       study_mode: studyMode,
@@ -240,15 +266,16 @@ const DailyLog = () => {
       startTime: now,
     });
     
-    // Add start marker
+    // Add start marker with subject color
     const startHour = now.getHours() + now.getMinutes() / 60;
-    setStudyMarkers(prev => [...prev, { hour: startHour, type: 'start', subject }]);
+    setStudyMarkers(prev => [...prev, { hour: startHour, type: 'start', subject, color: subjectColor }]);
 
     if (studyMode === 'pomodoro') {
       setPomodoroSubject(subject);
       setMode('study');
       setTimeLeft(pomodoroSettings.studyDuration * 60);
       setIsRunning(true);
+      lastTickRef.current = Date.now();
     } else {
       setFreeTimeElapsed(0);
     }
@@ -294,6 +321,14 @@ const DailyLog = () => {
       await addPomodoroSession(currentStudySession.subject, durationMinutes);
     }
 
+    // Add end marker with subject color
+    const subjectColor = subjectColorsFromPlan[currentStudySession.subject] || SUBJECT_COLORS[currentStudySession.subject];
+    const endHour = now.getHours() + now.getMinutes() / 60;
+    setStudyMarkers(prev => [...prev, { hour: endHour, type: 'end', subject: currentStudySession.subject, color: subjectColor }]);
+
+    // Update total study time
+    setTotalStudyMinutes(prev => prev + durationMinutes);
+
     setCurrentStudySession(null);
     setIsRunning(false);
     setPomodoroSubject(null);
@@ -319,20 +354,6 @@ const DailyLog = () => {
           : now.getHours() + now.getMinutes() / 60,
       }));
       setActivities(mapped);
-      
-      // Update study markers
-      const markers: StudyMarker[] = [];
-      activitiesData.forEach(a => {
-        if (a.activity_type === 'study') {
-          const startH = parseInt(a.start_time.split(':')[0]) + parseInt(a.start_time.split(':')[1]) / 60;
-          markers.push({ hour: startH, type: 'start', subject: a.subject || undefined });
-          if (a.end_time) {
-            const endH = parseInt(a.end_time.split(':')[0]) + parseInt(a.end_time.split(':')[1]) / 60;
-            markers.push({ hour: endH, type: 'end', subject: a.subject || undefined });
-          }
-        }
-      });
-      setStudyMarkers(markers);
     }
 
     toast({
@@ -341,21 +362,36 @@ const DailyLog = () => {
     });
   };
 
-  // Pomodoro timer effect
+  // Pomodoro timer effect - persistent across navigation
   useEffect(() => {
     if (!isRunning || currentStudySession?.mode !== 'pomodoro') {
       if (intervalRef.current) clearInterval(intervalRef.current);
       return;
     }
 
+    // Calculate elapsed time since last tick (handles navigation)
+    const now = Date.now();
+    const elapsed = Math.floor((now - lastTickRef.current) / 1000);
+    if (elapsed > 1) {
+      // Catch up if we missed some time
+      const state = usePomodoroStore.getState();
+      const newTime = Math.max(0, state.timeLeft - elapsed);
+      state.setTimeLeft(newTime);
+    }
+    lastTickRef.current = now;
+
     intervalRef.current = setInterval(() => {
       const state = usePomodoroStore.getState();
+      lastTickRef.current = Date.now();
       
       if (state.timeLeft > 0) {
         state.decrementTime();
       } else {
         // Timer finished
         if (state.mode === 'study') {
+          // Play sound
+          playPomodoroComplete();
+          
           // Save pomodoro session
           if (currentStudySession) {
             addPomodoroSession(currentStudySession.subject, pomodoroSettings.studyDuration);
@@ -376,7 +412,9 @@ const DailyLog = () => {
             state.incrementCycle();
           }
         } else {
-          // Break finished
+          // Break finished - play sound
+          playBreakComplete();
+          
           toast({
             title: '⏰ استراحت تمام شد!',
             description: 'ادامه مطالعه...',
@@ -390,9 +428,9 @@ const DailyLog = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning, currentStudySession, pomodoroSettings, currentCycle, addPomodoroSession]);
+  }, [isRunning, currentStudySession, pomodoroSettings, currentCycle, addPomodoroSession, playPomodoroComplete, playBreakComplete]);
 
-  // Free time counter
+  // Free time counter - also persistent
   useEffect(() => {
     if (!currentStudySession || currentStudySession.mode !== 'free') return;
 
@@ -415,6 +453,11 @@ const DailyLog = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Calculate current session study minutes for display
+  const currentSessionMinutes = currentStudySession 
+    ? Math.floor((Date.now() - currentStudySession.startTime.getTime()) / 60000)
+    : 0;
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -426,7 +469,7 @@ const DailyLog = () => {
           <div>
             <h1 className="text-3xl font-bold gradient-text">ثبت روزانه</h1>
             <p className="text-muted-foreground mt-1">
-              {todayPlan?.dayName || 'امروز'} - ساعت فعالیت‌های شما
+              {todayPlan?.dayName || 'امروز'} - مطالعه و ثبت فعالیت
             </p>
           </div>
         </div>
@@ -462,6 +505,7 @@ const DailyLog = () => {
                     size={320}
                     subjectColors={subjectColorsFromPlan}
                     studyMarkers={studyMarkers}
+                    totalStudyMinutes={totalStudyMinutes + currentSessionMinutes}
                   />
 
                   {/* Study Controls */}
@@ -545,38 +589,62 @@ const DailyLog = () => {
 
           {/* Right column */}
           <div className="space-y-6">
-            {/* Today's Legend */}
-            {activities.length > 0 && (
+            {/* Today's Plan from Weekly Program */}
+            {todayPlan && todayPlan.sessions.length > 0 && (
               <GlassCard delay={1}>
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-primary" />
-                  فعالیت‌های امروز
+                  <Target className="w-5 h-5 text-primary" />
+                  برنامه امروز
                 </h3>
                 <div className="space-y-2">
-                  {activities.map((act) => {
-                    const duration = act.endHour - act.startHour;
+                  {todayPlan.sessions.map((session) => {
+                    const progressHours = (session.actualHours / session.targetHours) * 100 || 0;
+                    const progressTests = (session.actualTests / session.targetTests) * 100 || 0;
+                    
                     return (
                       <div 
-                        key={act.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-white/5"
+                        key={session.id}
+                        className="p-3 rounded-lg bg-white/5 border border-white/10"
                       >
-                        <div 
-                          className="w-4 h-4 rounded-full shrink-0"
-                          style={{ backgroundColor: act.color || 'hsl(var(--muted))' }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">
-                            {act.subject || (act.type === 'sleep' ? 'خواب' : act.type)}
-                          </p>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div 
+                            className="w-4 h-4 rounded-full shrink-0"
+                            style={{ backgroundColor: session.color || 'hsl(var(--primary))' }}
+                          />
+                          <span className="font-medium flex-1">{session.subject}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {Math.floor(act.startHour)}:{String(Math.round((act.startHour % 1) * 60)).padStart(2, '0')}
-                          {' - '}
-                          {Math.floor(act.endHour)}:{String(Math.round((act.endHour % 1) * 60)).padStart(2, '0')}
-                        </p>
-                        <p className="text-xs font-medium text-primary">
-                          {duration.toFixed(1)} ساعت
-                        </p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <div className="flex justify-between text-muted-foreground mb-1">
+                              <span>ساعت</span>
+                              <span>{session.actualHours.toFixed(1)} / {session.targetHours}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full rounded-full transition-all"
+                                style={{ 
+                                  width: `${Math.min(100, progressHours)}%`,
+                                  backgroundColor: session.color || 'hsl(var(--primary))'
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-muted-foreground mb-1">
+                              <span>تست</span>
+                              <span>{session.actualTests} / {session.targetTests}</span>
+                            </div>
+                            <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full rounded-full transition-all"
+                                style={{ 
+                                  width: `${Math.min(100, progressTests)}%`,
+                                  backgroundColor: session.color || 'hsl(var(--primary))'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -584,8 +652,11 @@ const DailyLog = () => {
               </GlassCard>
             )}
 
-            {/* Pension Members */}
+            {/* Pension Members Status */}
             <PensionMembersStatus />
+
+            {/* Pension Members Study Time */}
+            <PensionMembersStudyTime />
           </div>
         </div>
 
