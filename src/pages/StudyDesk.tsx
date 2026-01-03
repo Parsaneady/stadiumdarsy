@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ClipboardList, FileText, Users } from 'lucide-react';
+import { Calendar, ClipboardList, FileText, Users, Clock } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
+import { useStudyStore } from '@/stores/studyStore';
+import { useMemo } from 'react';
 
 const studyDeskItems = [
   { 
@@ -34,8 +36,31 @@ const studyDeskItems = [
   },
 ];
 
+// Format hours to HH:MM
+const formatHoursToHHMM = (hours: number): string => {
+  const h = Math.floor(hours);
+  const m = Math.round((hours % 1) * 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 const StudyDesk = () => {
   const navigate = useNavigate();
+  const { weeklyPlan, getTodayIndex } = useStudyStore();
+  
+  // Calculate today's stats
+  const todayStats = useMemo(() => {
+    const todayIndex = getTodayIndex();
+    const todayPlan = weeklyPlan[todayIndex];
+    
+    if (!todayPlan) return { totalHours: 0, actualHours: 0, totalTests: 0, actualTests: 0 };
+    
+    const totalHours = todayPlan.sessions.reduce((sum, s) => sum + s.targetHours, 0);
+    const actualHours = todayPlan.sessions.reduce((sum, s) => sum + s.actualHours, 0);
+    const totalTests = todayPlan.sessions.reduce((sum, s) => sum + s.targetTests, 0);
+    const actualTests = todayPlan.sessions.reduce((sum, s) => sum + s.actualTests, 0);
+    
+    return { totalHours, actualHours, totalTests, actualTests };
+  }, [weeklyPlan, getTodayIndex]);
 
   return (
     <AppLayout>
@@ -46,6 +71,23 @@ const StudyDesk = () => {
           <p className="text-muted-foreground">
             ابزارهای مدیریت مطالعه خود را انتخاب کنید
           </p>
+        </div>
+
+        {/* Today's Quick Stats */}
+        <div className="flex justify-center gap-6 animate-fade-in">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/30">
+            <Clock className="w-5 h-5 text-primary" />
+            <span className="text-sm text-muted-foreground">امروز:</span>
+            <span className="font-mono font-bold text-primary">
+              {formatHoursToHHMM(todayStats.actualHours)} / {formatHoursToHHMM(todayStats.totalHours)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-success/10 border border-success/30">
+            <span className="text-sm text-muted-foreground">تست:</span>
+            <span className="font-mono font-bold text-success">
+              {todayStats.actualTests} / {todayStats.totalTests}
+            </span>
+          </div>
         </div>
 
         {/* Islands Grid */}
