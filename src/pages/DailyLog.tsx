@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings, Target } from 'lucide-react';
-import { useStudyStore, StudySession } from '@/stores/studyStore';
+import { useStudyStore, StudySession, DailyLog as DailyLogType, DailyLogSession } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -53,13 +53,13 @@ const SUBJECT_COLORS: Record<string, string> = {
 
 const DailyLog = () => {
   const { user } = useAuth();
-  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings, setPomodoroSettings } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings, setPomodoroSettings, updateSession, logDaily } = useStudyStore();
   const { 
     mode, timeLeft, isRunning, currentCycle, pomodoroSubject,
     setMode, setTimeLeft, setIsRunning, setCurrentCycle, 
     incrementCycle, setPomodoroSubject, decrementTime
   } = usePomodoroStore();
-  const { saveWeeklyPlan, addPomodoroSession } = useCloudSync();
+  const { saveWeeklyPlan, addPomodoroSession, saveDailyLog } = useCloudSync();
   const { playPomodoroComplete, playBreakComplete } = usePomodoroSound();
 
   // State
@@ -315,10 +315,26 @@ const DailyLog = () => {
 
     // Calculate duration
     const durationMinutes = Math.floor((now.getTime() - currentStudySession.startTime.getTime()) / 60000);
+    const durationHours = durationMinutes / 60;
     
-    if (currentStudySession.mode === 'free' && durationMinutes > 0) {
-      // Save to pomodoro sessions for stats
+    // Always save study time and update weekly plan
+    if (durationMinutes > 0) {
       await addPomodoroSession(currentStudySession.subject, durationMinutes);
+      
+      // Update weekly plan session with actual hours
+      if (todayPlan) {
+        const targetSession = todayPlan.sessions.find(s => s.subject === currentStudySession.subject);
+        if (targetSession) {
+          const newHours = targetSession.actualHours + durationHours;
+          updateSession(todayPlan.id, targetSession.id, { actualHours: newHours });
+          
+          // Save to cloud
+          const updatedSessions = todayPlan.sessions.map(s => 
+            s.id === targetSession.id ? { ...s, actualHours: newHours } : s
+          );
+          saveWeeklyPlan(todayPlan.id, updatedSessions);
+        }
+      }
     }
 
     // Add end marker with subject color
@@ -451,6 +467,13 @@ const DailyLog = () => {
       return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  // Format hours to HH:MM
+  const formatHoursToHHMM = (hours: number): string => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours % 1) * 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   };
 
   // Calculate current session study minutes for display
@@ -617,7 +640,7 @@ const DailyLog = () => {
                           <div>
                             <div className="flex justify-between text-muted-foreground mb-1">
                               <span>ساعت</span>
-                              <span>{session.actualHours.toFixed(1)} / {session.targetHours}</span>
+                              <span>{formatHoursToHHMM(session.actualHours)} / {formatHoursToHHMM(session.targetHours)}</span>
                             </div>
                             <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
                               <div 
