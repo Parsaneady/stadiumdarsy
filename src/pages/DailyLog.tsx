@@ -64,8 +64,6 @@ const DailyLog = () => {
 
   // State
   const [wakeUpTime, setWakeUpTime] = useState<number | null>(null);
-  const [wakeUpDialogOpen, setWakeUpDialogOpen] = useState(false);
-  const [wakeUpInput, setWakeUpInput] = useState('07:00');
   const [activities, setActivities] = useState<Activity[]>([]);
   const [studyMarkers, setStudyMarkers] = useState<StudyMarker[]>([]);
   const [studyModeOpen, setStudyModeOpen] = useState(false);
@@ -197,10 +195,13 @@ const DailyLog = () => {
   const handleWakeUp = async () => {
     if (!user) return;
     
-    const [hours, minutes] = wakeUpInput.split(':').map(Number);
+    // Use current time immediately
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
     const wakeHour = hours + minutes / 60;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = now.toISOString().split('T')[0];
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     
     // Get user's pension
@@ -220,11 +221,11 @@ const DailyLog = () => {
     }
 
     setWakeUpTime(wakeHour);
-    setWakeUpDialogOpen(false);
     
+    const timeDisplay = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     toast({
       title: '☀️ بیداری ثبت شد',
-      description: `ساعت بیداری: ${wakeUpInput}`,
+      description: `ساعت بیداری: ${timeDisplay}`,
     });
   };
 
@@ -506,12 +507,12 @@ const DailyLog = () => {
                 <div className="w-full mb-6">
                   <div className="text-center p-6 rounded-xl bg-warning/10 border border-warning/30">
                     <Sun className="w-10 h-10 mx-auto mb-3 text-warning" />
-                    <h3 className="font-semibold mb-2">ابتدا ساعت بیداری را ثبت کنید</h3>
+                    <h3 className="font-semibold mb-2">ابتدا بیداری را ثبت کنید</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      برای شروع ثبت فعالیت‌ها، ساعت بیداری خود را وارد کنید
+                      با کلیک روی دکمه، ساعت فعلی به عنوان بیداری ثبت می‌شود
                     </p>
                     <Button 
-                      onClick={() => setWakeUpDialogOpen(true)}
+                      onClick={handleWakeUp}
                       className="bg-gradient-to-r from-warning to-accent"
                     >
                       <Sun className="w-4 h-4 ml-2" />
@@ -624,6 +625,17 @@ const DailyLog = () => {
                     const progressHours = (session.actualHours / session.targetHours) * 100 || 0;
                     const progressTests = (session.actualTests / session.targetTests) * 100 || 0;
                     
+                    const handleAddTests = (amount: number) => {
+                      const newTests = Math.max(0, session.actualTests + amount);
+                      updateSession(todayPlan.id, session.id, { actualTests: newTests });
+                      
+                      // Save to cloud
+                      const updatedSessions = todayPlan.sessions.map(s => 
+                        s.id === session.id ? { ...s, actualTests: newTests } : s
+                      );
+                      saveWeeklyPlan(todayPlan.id, updatedSessions);
+                    };
+                    
                     return (
                       <div 
                         key={session.id}
@@ -666,6 +678,55 @@ const DailyLog = () => {
                                 }}
                               />
                             </div>
+                            {/* Test input buttons */}
+                            <div className="flex items-center gap-1 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 w-6 p-0 text-xs"
+                                onClick={() => handleAddTests(-5)}
+                              >
+                                -5
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 w-6 p-0 text-xs"
+                                onClick={() => handleAddTests(-1)}
+                              >
+                                -1
+                              </Button>
+                              <Input
+                                type="number"
+                                value={session.actualTests}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  updateSession(todayPlan.id, session.id, { actualTests: val });
+                                  const updatedSessions = todayPlan.sessions.map(s => 
+                                    s.id === session.id ? { ...s, actualTests: val } : s
+                                  );
+                                  saveWeeklyPlan(todayPlan.id, updatedSessions);
+                                }}
+                                className="h-6 w-12 text-center text-xs p-1"
+                                min={0}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 w-6 p-0 text-xs"
+                                onClick={() => handleAddTests(1)}
+                              >
+                                +1
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 w-6 p-0 text-xs"
+                                onClick={() => handleAddTests(5)}
+                              >
+                                +5
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -683,34 +744,6 @@ const DailyLog = () => {
           </div>
         </div>
 
-        {/* Wake-up Dialog */}
-        <Dialog open={wakeUpDialogOpen} onOpenChange={setWakeUpDialogOpen}>
-          <DialogContent className="glass-card border-white/20">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Sun className="w-5 h-5 text-warning" />
-                ثبت ساعت بیداری
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <p className="text-sm text-muted-foreground">
-                ساعت بیداری امروز را وارد کنید:
-              </p>
-              <Input
-                type="time"
-                value={wakeUpInput}
-                onChange={(e) => setWakeUpInput(e.target.value)}
-                className="text-center text-2xl py-6"
-              />
-              <Button 
-                onClick={handleWakeUp}
-                className="w-full bg-gradient-to-r from-warning to-accent"
-              >
-                ثبت بیداری
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* Study Mode Selector */}
         <StudyModeSelector
