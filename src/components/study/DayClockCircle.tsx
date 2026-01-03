@@ -166,21 +166,23 @@ export const DayClockCircle = ({
 
   // Legend items
   const legendItems = useMemo(() => {
-    const items: { label: string; color: string; hours: number }[] = [];
-    const subjectHours: Record<string, number> = {};
+    const items: { label: string; color: string; hoursFormatted: string }[] = [];
+    const subjectMinutes: Record<string, number> = {};
     
     activities.forEach(act => {
       if (act.type === 'study' && act.subject) {
-        const duration = act.endHour - act.startHour;
-        subjectHours[act.subject] = (subjectHours[act.subject] || 0) + duration;
+        const durationMins = (act.endHour - act.startHour) * 60;
+        subjectMinutes[act.subject] = (subjectMinutes[act.subject] || 0) + durationMins;
       }
     });
     
-    Object.entries(subjectHours).forEach(([subject, hours]) => {
+    Object.entries(subjectMinutes).forEach(([subject, mins]) => {
+      const h = Math.floor(mins / 60);
+      const m = Math.round(mins % 60);
       items.push({
         label: subject,
         color: SUBJECT_COLORS[subject] || 'hsl(var(--primary))',
-        hours,
+        hoursFormatted: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
       });
     });
     
@@ -359,8 +361,8 @@ export const DayClockCircle = ({
                 style={{ backgroundColor: item.color }} 
               />
               <span className="text-xs font-medium">{item.label}</span>
-              <span className="text-xs text-muted-foreground">
-                {item.hours.toFixed(1)} ساعت
+              <span className="text-xs text-muted-foreground font-mono">
+                {item.hoursFormatted}
               </span>
             </div>
           ))}
