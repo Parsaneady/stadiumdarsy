@@ -53,7 +53,7 @@ const SUBJECT_COLORS: Record<string, string> = {
 
 const DailyLog = () => {
   const { user } = useAuth();
-  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings, setPomodoroSettings, updateSession, logDaily } = useStudyStore();
+  const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings, setPomodoroSettings, updateSession, dailyLogs, setDailyLogs } = useStudyStore();
   const { 
     mode, timeLeft, isRunning, currentCycle, pomodoroSubject,
     setMode, setTimeLeft, setIsRunning, setCurrentCycle, 
@@ -191,6 +191,40 @@ const DailyLog = () => {
       subjectColorsFromPlan[s.subject] = s.color;
     }
   });
+
+  // Initialize today's daily log if not exists
+  useEffect(() => {
+    if (!user || !todayPlan || todayPlan.sessions.length === 0) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const existingLog = dailyLogs.find(log => log.date === today);
+    
+    if (!existingLog) {
+      // Create initial log for today with 0 progress
+      const initialLog: DailyLogType = {
+        id: `${today}-${user.id}`,
+        date: today,
+        totalStudyHours: 0,
+        totalTests: 0,
+        completedSessions: 0,
+        totalSessions: todayPlan.sessions.length,
+        overallScore: 0,
+        feedback: '',
+        sessions: todayPlan.sessions.map(s => ({
+          subject: s.subject,
+          targetHours: s.targetHours,
+          actualHours: 0,
+          targetTests: s.targetTests,
+          actualTests: 0,
+          completed: false,
+          color: s.color || '#8B5CF6',
+        })),
+      };
+      
+      saveDailyLog(initialLog);
+      setDailyLogs([initialLog, ...dailyLogs]);
+    }
+  }, [user, todayPlan, dailyLogs, saveDailyLog, setDailyLogs]);
 
   const handleWakeUp = async () => {
     if (!user) return;
@@ -373,6 +407,9 @@ const DailyLog = () => {
       setActivities(mapped);
     }
 
+    // Update daily log for performance history
+    await updateTodayDailyLog();
+
     toast({
       title: '✅ پایان مطالعه',
       description: `${currentStudySession.subject} - ${durationMinutes} دقیقه`,
@@ -481,6 +518,71 @@ const DailyLog = () => {
   const currentSessionMinutes = currentStudySession 
     ? Math.floor((Date.now() - currentStudySession.startTime.getTime()) / 60000)
     : 0;
+
+  // Function to update and save today's daily log
+  const updateTodayDailyLog = useCallback(async () => {
+    if (!user || !todayPlan) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Calculate totals from today's plan
+    let totalStudyHours = 0;
+    let totalTests = 0;
+    let completedSessions = 0;
+    const sessionsData: DailyLogSession[] = [];
+    
+    todayPlan.sessions.forEach(session => {
+      totalStudyHours += session.actualHours || 0;
+      totalTests += session.actualTests || 0;
+      
+      // Check if session is completed (at least 50% of target)
+      const hoursProgress = session.targetHours > 0 ? (session.actualHours / session.targetHours) : 0;
+      const testsProgress = session.targetTests > 0 ? (session.actualTests / session.targetTests) : 0;
+      const avgProgress = (hoursProgress + testsProgress) / 2;
+      
+      if (avgProgress >= 0.5) {
+        completedSessions++;
+      }
+      
+      sessionsData.push({
+        subject: session.subject,
+        targetHours: session.targetHours,
+        actualHours: session.actualHours || 0,
+        targetTests: session.targetTests,
+        actualTests: session.actualTests || 0,
+        completed: avgProgress >= 0.5,
+        color: session.color || '#8B5CF6',
+      });
+    });
+    
+    const totalSessions = todayPlan.sessions.length;
+    const overallScore = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+    
+    const dailyLogData: DailyLogType = {
+      id: `${today}-${user.id}`,
+      date: today,
+      totalStudyHours,
+      totalTests,
+      completedSessions,
+      totalSessions,
+      overallScore,
+      feedback: '',
+      sessions: sessionsData,
+    };
+    
+    // Save to cloud
+    await saveDailyLog(dailyLogData);
+    
+    // Update local store
+    const existingIndex = dailyLogs.findIndex(log => log.date === today);
+    if (existingIndex >= 0) {
+      const updatedLogs = [...dailyLogs];
+      updatedLogs[existingIndex] = dailyLogData;
+      setDailyLogs(updatedLogs);
+    } else {
+      setDailyLogs([dailyLogData, ...dailyLogs]);
+    }
+  }, [user, todayPlan, saveDailyLog, dailyLogs, setDailyLogs]);
 
   return (
     <AppLayout>
@@ -625,7 +727,7 @@ const DailyLog = () => {
                     const progressHours = (session.actualHours / session.targetHours) * 100 || 0;
                     const progressTests = (session.actualTests / session.targetTests) * 100 || 0;
                     
-                    const handleAddTests = (amount: number) => {
+                    const handleAddTests = async (amount: number) => {
                       const newTests = Math.max(0, session.actualTests + amount);
                       updateSession(todayPlan.id, session.id, { actualTests: newTests });
                       
@@ -633,7 +735,10 @@ const DailyLog = () => {
                       const updatedSessions = todayPlan.sessions.map(s => 
                         s.id === session.id ? { ...s, actualTests: newTests } : s
                       );
-                      saveWeeklyPlan(todayPlan.id, updatedSessions);
+                      await saveWeeklyPlan(todayPlan.id, updatedSessions);
+                      
+                      // Update daily log for performance history
+                      setTimeout(() => updateTodayDailyLog(), 100);
                     };
                     
                     return (
