@@ -785,22 +785,6 @@ const DailyLog = () => {
                             </div>
                             {/* Test input buttons */}
                             <div className="flex items-center gap-1 mt-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 w-6 p-0 text-xs"
-                                onClick={() => handleAddTests(-5)}
-                              >
-                                -5
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 w-6 p-0 text-xs"
-                                onClick={() => handleAddTests(-1)}
-                              >
-                                -1
-                              </Button>
                               <Input
                                 type="number"
                                 value={session.actualTests}

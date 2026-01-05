@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMemo } from 'react';
+import VirtualAnswerSheet from '@/components/study/VirtualAnswerSheet';
 
 const studyDeskItems = [
   { 
@@ -114,6 +115,11 @@ const StudyDesk = () => {
               </button>
             </GlassCard>
           ))}
+        </div>
+
+        {/* Virtual Answer Sheet Section */}
+        <div className="max-w-2xl mx-auto mt-8">
+          <VirtualAnswerSheet />
         </div>
       </div>
     </AppLayout>
