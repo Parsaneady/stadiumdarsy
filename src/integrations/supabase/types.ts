@@ -569,6 +569,39 @@ export type Database = {
         }
         Relationships: []
       }
+      test_books: {
+        Row: {
+          answers: Json | null
+          correct_answers: Json | null
+          created_at: string
+          id: string
+          name: string
+          total_questions: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          correct_answers?: Json | null
+          created_at?: string
+          id?: string
+          name: string
+          total_questions?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json | null
+          correct_answers?: Json | null
+          created_at?: string
+          id?: string
+          name?: string
+          total_questions?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
