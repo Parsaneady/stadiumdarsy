@@ -20,6 +20,7 @@ const PensionInvite = lazy(() => import("./pages/PensionInvite"));
 const ExamPanel = lazy(() => import("./pages/TestExam"));
 const Profile = lazy(() => import("./pages/Profile"));
 const StudyDesk = lazy(() => import("./pages/StudyDesk"));
+const TestBookPanel = lazy(() => import("./pages/TestBookPanel"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -63,6 +64,7 @@ const App = () => (
                 <Route path="/pension/invite/:code" element={<PensionInvite />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/study-desk" element={<StudyDesk />} />
+                <Route path="/test-book" element={<TestBookPanel />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

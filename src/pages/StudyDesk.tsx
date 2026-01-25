@@ -3,8 +3,7 @@ import { Calendar, ClipboardList, FileText, Users, Clock, BookOpen } from 'lucid
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { useStudyStore } from '@/stores/studyStore';
-import { useMemo, useState } from 'react';
-import { TestBookAnswerSheet } from '@/components/study/TestBookAnswerSheet';
+import { useMemo } from 'react';
 
 const studyDeskItems = [
   { 
@@ -47,7 +46,6 @@ const formatHoursToHHMM = (hours: number): string => {
 const StudyDesk = () => {
   const navigate = useNavigate();
   const { weeklyPlan, getTodayIndex } = useStudyStore();
-  const [showAnswerSheet, setShowAnswerSheet] = useState(false);
   
   // Calculate today's stats
   const todayStats = useMemo(() => {
@@ -92,49 +90,53 @@ const StudyDesk = () => {
           </div>
         </div>
 
-        {/* Islands Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-8">
-          {studyDeskItems.map((item, index) => (
-            <GlassCard key={item.path} delay={index * 0.1}>
+          {/* Islands Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-8">
+            {studyDeskItems.map((item, index) => (
+              <GlassCard key={item.path} delay={index * 0.1}>
+                <button
+                  onClick={() => navigate(item.path)}
+                  className="w-full text-right p-6 rounded-xl transition-all duration-300 hover:scale-[1.02] group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shrink-0 group-hover:shadow-lg group-hover:shadow-primary/30 transition-shadow`}>
+                      <item.icon className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
+                        {item.label}
+                      </h3>
+                      <p className="text-muted-foreground text-sm">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </GlassCard>
+            ))}
+            
+            {/* Answer Sheet Island */}
+            <GlassCard delay={studyDeskItems.length * 0.1}>
               <button
-                onClick={() => navigate(item.path)}
+                onClick={() => navigate('/test-book')}
                 className="w-full text-right p-6 rounded-xl transition-all duration-300 hover:scale-[1.02] group"
               >
                 <div className="flex items-start gap-4">
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shrink-0 group-hover:shadow-lg group-hover:shadow-primary/30 transition-shadow`}>
-                    <item.icon className="w-8 h-8 text-white" />
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-warning to-success flex items-center justify-center shrink-0 group-hover:shadow-lg group-hover:shadow-primary/30 transition-shadow">
+                    <BookOpen className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
-                      {item.label}
+                      پاسخ‌برگ کتاب تست
                     </h3>
                     <p className="text-muted-foreground text-sm">
-                      {item.description}
+                      مدیریت و پیگیری پاسخ‌های کتاب‌های تستی
                     </p>
                   </div>
                 </div>
               </button>
             </GlassCard>
-          ))}
-          
-          {/* Answer Sheet Island */}
-          <GlassCard delay={studyDeskItems.length * 0.1} className="md:col-span-2 lg:col-span-3">
-            <div className="p-6">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-warning to-success flex items-center justify-center shrink-0">
-                  <BookOpen className="w-8 h-8 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">پاسخ‌برگ کتاب تست</h3>
-                  <p className="text-muted-foreground text-sm">
-                    مدیریت و پیگیری پاسخ‌های کتاب‌های تستی
-                  </p>
-                </div>
-              </div>
-              <TestBookAnswerSheet />
-            </div>
-          </GlassCard>
-        </div>
+          </div>
       </div>
     </AppLayout>
   );
