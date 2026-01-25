@@ -347,23 +347,16 @@ export const useCloudSync = () => {
     }
   }, [user]);
 
-  // Check and reset weekly data in cloud (every Saturday)
+  // Check and reset weekly data in cloud (checks if a Saturday passed since last reset)
   const checkAndResetWeeklyInCloud = useCallback(async () => {
     if (!user) return;
 
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
     
-    console.log('[Weekly Reset] Checking... dayOfWeek:', dayOfWeek, '(6 = Saturday)');
-    
-    // Only reset on Saturday (6 in JS)
-    if (dayOfWeek !== 6) {
-      console.log('[Weekly Reset] Not Saturday, skipping reset');
-      return;
-    }
+    console.log('[Weekly Reset] Checking for missed Saturday reset...');
 
     try {
-      // Check if we already reset today
+      // Check last reset date
       const { data: settings } = await supabase
         .from('user_settings')
         .select('last_weekly_reset')
@@ -372,17 +365,42 @@ export const useCloudSync = () => {
 
       console.log('[Weekly Reset] Last reset date:', settings?.last_weekly_reset);
 
-      if (settings?.last_weekly_reset) {
+      // Find the most recent Saturday (including today if it's Saturday)
+      const getMostRecentSaturday = (date: Date): Date => {
+        const result = new Date(date);
+        const dayOfWeek = result.getDay(); // 0 = Sunday, 6 = Saturday
+        // Days since Saturday: Sunday=1, Monday=2, ..., Friday=6, Saturday=0
+        const daysSinceSaturday = dayOfWeek === 6 ? 0 : (dayOfWeek + 1);
+        result.setDate(result.getDate() - daysSinceSaturday);
+        result.setHours(0, 0, 0, 0);
+        return result;
+      };
+
+      const mostRecentSaturday = getMostRecentSaturday(today);
+      console.log('[Weekly Reset] Most recent Saturday:', mostRecentSaturday.toISOString());
+
+      // Check if we need to reset
+      let needsReset = false;
+      
+      if (!settings?.last_weekly_reset) {
+        // Never reset before, need to reset
+        needsReset = true;
+        console.log('[Weekly Reset] No previous reset found');
+      } else {
         const lastReset = new Date(settings.last_weekly_reset);
-        const isSameDay = 
-          lastReset.getFullYear() === today.getFullYear() &&
-          lastReset.getMonth() === today.getMonth() &&
-          lastReset.getDate() === today.getDate();
+        lastReset.setHours(0, 0, 0, 0);
         
-        if (isSameDay) {
-          console.log('[Weekly Reset] Already reset today, skipping');
-          return;
+        // If last reset was before the most recent Saturday, we need to reset
+        if (lastReset < mostRecentSaturday) {
+          needsReset = true;
+          console.log('[Weekly Reset] Last reset was before most recent Saturday');
+        } else {
+          console.log('[Weekly Reset] Already reset for this week');
         }
+      }
+
+      if (!needsReset) {
+        return;
       }
 
       console.log('[Weekly Reset] Starting weekly reset...');

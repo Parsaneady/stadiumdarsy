@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ClipboardList, FileText, Users, Clock } from 'lucide-react';
+import { Calendar, ClipboardList, FileText, Users, Clock, BookOpen } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { useStudyStore } from '@/stores/studyStore';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { TestBookAnswerSheet } from '@/components/study/TestBookAnswerSheet';
 
 const studyDeskItems = [
   { 
@@ -46,6 +47,7 @@ const formatHoursToHHMM = (hours: number): string => {
 const StudyDesk = () => {
   const navigate = useNavigate();
   const { weeklyPlan, getTodayIndex } = useStudyStore();
+  const [showAnswerSheet, setShowAnswerSheet] = useState(false);
   
   // Calculate today's stats
   const todayStats = useMemo(() => {
@@ -91,7 +93,7 @@ const StudyDesk = () => {
         </div>
 
         {/* Islands Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-8">
           {studyDeskItems.map((item, index) => (
             <GlassCard key={item.path} delay={index * 0.1}>
               <button
@@ -114,6 +116,24 @@ const StudyDesk = () => {
               </button>
             </GlassCard>
           ))}
+          
+          {/* Answer Sheet Island */}
+          <GlassCard delay={studyDeskItems.length * 0.1} className="md:col-span-2 lg:col-span-3">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-warning to-success flex items-center justify-center shrink-0">
+                  <BookOpen className="w-8 h-8 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold mb-2">پاسخ‌برگ کتاب تست</h3>
+                  <p className="text-muted-foreground text-sm">
+                    مدیریت و پیگیری پاسخ‌های کتاب‌های تستی
+                  </p>
+                </div>
+              </div>
+              <TestBookAnswerSheet />
+            </div>
+          </GlassCard>
         </div>
       </div>
     </AppLayout>
