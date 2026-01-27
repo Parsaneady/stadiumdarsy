@@ -21,6 +21,7 @@ const studyDeskItems = [
   { path: '/weekly-plan', icon: Calendar, label: 'برنامه هفتگی' },
   { path: '/daily-log', icon: ClipboardList, label: 'ثبت روزانه' },
   { path: '/exam', icon: FileText, label: 'پنل آزمون' },
+  { path: '/test-book', icon: BookOpen, label: 'پاسخ‌برگ تست' },
   { path: '/pension', icon: Users, label: 'پانسیون' },
 ];
 
