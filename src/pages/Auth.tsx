@@ -10,26 +10,28 @@ import { toast } from 'sonner';
 import { Mail, Lock, User, Loader2, AtSign } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-
 const emailSchema = z.string().email('ایمیل معتبر وارد کنید');
 const passwordSchema = z.string().min(6, 'رمز عبور باید حداقل ۶ کاراکتر باشد');
 const usernameSchema = z.string().min(3, 'نام کاربری باید حداقل ۳ کاراکتر باشد').regex(/^[a-zA-Z0-9_]+$/, 'فقط حروف انگلیسی، اعداد و _ مجاز است');
-
 const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get('invite');
-  const { user, signIn, signUp, loading } = useAuth();
+  const {
+    user,
+    signIn,
+    signUp,
+    loading
+  } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     username: '',
     email: '',
-    password: '',
+    password: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   useEffect(() => {
     if (user && !loading) {
       // If there's an invite code, redirect to pension invite page
@@ -40,19 +42,14 @@ const Auth = () => {
       }
     }
   }, [user, loading, navigate, inviteCode]);
-
   const checkUsernameAvailable = async (username: string): Promise<boolean> => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', username)
-      .maybeSingle();
+    const {
+      data
+    } = await supabase.from('profiles').select('username').eq('username', username).maybeSingle();
     return !data;
   };
-
   const validateForm = async (isSignUp: boolean) => {
     const newErrors: Record<string, string> = {};
-
     try {
       emailSchema.parse(formData.email);
     } catch (e) {
@@ -60,7 +57,6 @@ const Auth = () => {
         newErrors.email = e.errors[0].message;
       }
     }
-
     try {
       passwordSchema.parse(formData.password);
     } catch (e) {
@@ -68,7 +64,6 @@ const Auth = () => {
         newErrors.password = e.errors[0].message;
       }
     }
-
     if (isSignUp) {
       if (!formData.firstName.trim()) {
         newErrors.firstName = 'نام الزامی است';
@@ -76,7 +71,6 @@ const Auth = () => {
       if (!formData.lastName.trim()) {
         newErrors.lastName = 'نام خانوادگی الزامی است';
       }
-      
       try {
         usernameSchema.parse(formData.username);
         // Check if username is available
@@ -90,19 +84,17 @@ const Auth = () => {
         }
       }
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!(await validateForm(false))) return;
-
     setIsSubmitting(true);
-    const { error } = await signIn(formData.email, formData.password);
+    const {
+      error
+    } = await signIn(formData.email, formData.password);
     setIsSubmitting(false);
-
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
         toast.error('ایمیل یا رمز عبور اشتباه است');
@@ -113,22 +105,14 @@ const Auth = () => {
       toast.success('ورود موفق!');
     }
   };
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!(await validateForm(true))) return;
-
     setIsSubmitting(true);
-    const { error } = await signUp(
-      formData.email, 
-      formData.password, 
-      `${formData.firstName} ${formData.lastName}`,
-      formData.firstName,
-      formData.lastName,
-      formData.username
-    );
+    const {
+      error
+    } = await signUp(formData.email, formData.password, `${formData.firstName} ${formData.lastName}`, formData.firstName, formData.lastName, formData.username);
     setIsSubmitting(false);
-
     if (error) {
       if (error.message.includes('already registered')) {
         toast.error('این ایمیل قبلاً ثبت‌نام شده است');
@@ -139,18 +123,12 @@ const Auth = () => {
       toast.success('ثبت‌نام موفق! خوش آمدید');
     }
   };
-
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+    return <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+  return <div className="min-h-screen flex items-center justify-center bg-background p-4">
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
@@ -159,7 +137,7 @@ const Auth = () => {
 
       <Card className="w-full max-w-md glass-card border-white/10 relative z-10">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl gradient-text">استادیوم</CardTitle>
+          <CardTitle className="text-2xl gradient-text">استادیوم درسی</CardTitle>
           <CardDescription className="text-muted-foreground">
             {inviteCode ? 'برای پیوستن به پانسیون ابتدا وارد شوید' : 'به حساب کاربری خود وارد شوید'}
           </CardDescription>
@@ -178,15 +156,10 @@ const Auth = () => {
                     <Mail className="h-4 w-4" />
                     ایمیل
                   </Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="example@email.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="bg-white/5 border-white/10"
-                    dir="ltr"
-                  />
+                  <Input id="login-email" type="email" placeholder="example@email.com" value={formData.email} onChange={e => setFormData({
+                  ...formData,
+                  email: e.target.value
+                })} className="bg-white/5 border-white/10" dir="ltr" />
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
 
@@ -195,23 +168,14 @@ const Auth = () => {
                     <Lock className="h-4 w-4" />
                     رمز عبور
                   </Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="bg-white/5 border-white/10"
-                    dir="ltr"
-                  />
+                  <Input id="login-password" type="password" placeholder="••••••••" value={formData.password} onChange={e => setFormData({
+                  ...formData,
+                  password: e.target.value
+                })} className="bg-white/5 border-white/10" dir="ltr" />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                   ورود
                 </Button>
@@ -226,26 +190,18 @@ const Auth = () => {
                       <User className="h-4 w-4" />
                       نام
                     </Label>
-                    <Input
-                      id="register-firstName"
-                      type="text"
-                      placeholder="نام"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="bg-white/5 border-white/10"
-                    />
+                    <Input id="register-firstName" type="text" placeholder="نام" value={formData.firstName} onChange={e => setFormData({
+                    ...formData,
+                    firstName: e.target.value
+                  })} className="bg-white/5 border-white/10" />
                     {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-lastName">نام خانوادگی</Label>
-                    <Input
-                      id="register-lastName"
-                      type="text"
-                      placeholder="نام خانوادگی"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="bg-white/5 border-white/10"
-                    />
+                    <Input id="register-lastName" type="text" placeholder="نام خانوادگی" value={formData.lastName} onChange={e => setFormData({
+                    ...formData,
+                    lastName: e.target.value
+                  })} className="bg-white/5 border-white/10" />
                     {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
                   </div>
                 </div>
@@ -255,15 +211,10 @@ const Auth = () => {
                     <AtSign className="h-4 w-4" />
                     نام کاربری (یونیک)
                   </Label>
-                  <Input
-                    id="register-username"
-                    type="text"
-                    placeholder="username123"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
-                    className="bg-white/5 border-white/10"
-                    dir="ltr"
-                  />
+                  <Input id="register-username" type="text" placeholder="username123" value={formData.username} onChange={e => setFormData({
+                  ...formData,
+                  username: e.target.value.toLowerCase()
+                })} className="bg-white/5 border-white/10" dir="ltr" />
                   {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
                 </div>
 
@@ -272,15 +223,10 @@ const Auth = () => {
                     <Mail className="h-4 w-4" />
                     ایمیل
                   </Label>
-                  <Input
-                    id="register-email"
-                    type="email"
-                    placeholder="example@email.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="bg-white/5 border-white/10"
-                    dir="ltr"
-                  />
+                  <Input id="register-email" type="email" placeholder="example@email.com" value={formData.email} onChange={e => setFormData({
+                  ...formData,
+                  email: e.target.value
+                })} className="bg-white/5 border-white/10" dir="ltr" />
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
 
@@ -289,23 +235,14 @@ const Auth = () => {
                     <Lock className="h-4 w-4" />
                     رمز عبور
                   </Label>
-                  <Input
-                    id="register-password"
-                    type="password"
-                    placeholder="حداقل ۶ کاراکتر"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="bg-white/5 border-white/10"
-                    dir="ltr"
-                  />
+                  <Input id="register-password" type="password" placeholder="حداقل ۶ کاراکتر" value={formData.password} onChange={e => setFormData({
+                  ...formData,
+                  password: e.target.value
+                })} className="bg-white/5 border-white/10" dir="ltr" />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                   ثبت‌نام
                 </Button>
@@ -319,8 +256,6 @@ const Auth = () => {
           </p>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 };
-
 export default Auth;
