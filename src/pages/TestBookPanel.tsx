@@ -49,6 +49,9 @@ const TestBookPanel = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetStart, setResetStart] = useState(1);
   const [resetEnd, setResetEnd] = useState(100);
+  
+  // Marked questions state
+  const [markedQuestions, setMarkedQuestions] = useState<Set<number>>(new Set());
 
   // Load books from database
   const loadBooks = useCallback(async () => {
@@ -544,6 +547,20 @@ const TestBookPanel = () => {
                   answers={getFilteredAnswers}
                   onAnswerSelect={handleAnswerSelect}
                   startIndex={rangeStart - 1}
+                  markedQuestions={markedQuestions}
+                  onToggleMark={(idx) => {
+                    const actualIndex = rangeStart - 1 + idx;
+                    setMarkedQuestions(prev => {
+                      const newSet = new Set(prev);
+                      if (newSet.has(actualIndex)) {
+                        newSet.delete(actualIndex);
+                      } else {
+                        newSet.add(actualIndex);
+                      }
+                      return newSet;
+                    });
+                  }}
+                  showMarkOption={true}
                 />
               </div>
             </div>
