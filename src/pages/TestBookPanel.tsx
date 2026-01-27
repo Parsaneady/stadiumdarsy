@@ -6,8 +6,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AnswerSheet } from '@/components/exam/AnswerSheet';
-import { CorrectAnswerSheet } from '@/components/exam/CorrectAnswerSheet';
+import { ExamStyleAnswerSheet } from '@/components/exam/ExamStyleAnswerSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -540,10 +539,11 @@ const TestBookPanel = () => {
               <RangeFilter />
               
               <div className="h-[calc(100vh-300px)] min-h-[400px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
-                <AnswerSheet
+                <ExamStyleAnswerSheet
                   questionCount={rangeEnd - rangeStart + 1}
                   answers={getFilteredAnswers}
                   onAnswerSelect={handleAnswerSelect}
+                  startIndex={rangeStart - 1}
                 />
               </div>
             </div>
@@ -619,10 +619,11 @@ const TestBookPanel = () => {
               <RangeFilter />
               
               <div className="h-[calc(100vh-300px)] min-h-[400px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
-                <CorrectAnswerSheet
+                <ExamStyleAnswerSheet
                   questionCount={rangeEnd - rangeStart + 1}
-                  correctAnswers={getFilteredCorrectAnswers}
-                  onCorrectAnswerSelect={handleCorrectAnswerSelect}
+                  answers={getFilteredCorrectAnswers}
+                  onAnswerSelect={handleCorrectAnswerSelect}
+                  startIndex={rangeStart - 1}
                 />
               </div>
             </div>
@@ -683,12 +684,13 @@ const TestBookPanel = () => {
               
               {/* Answer sheet with results */}
               <div className="h-[calc(100vh-400px)] min-h-[300px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
-                <AnswerSheet
+                <ExamStyleAnswerSheet
                   questionCount={rangeEnd - rangeStart + 1}
                   answers={getFilteredAnswers}
                   onAnswerSelect={() => {}}
                   correctAnswers={getFilteredCorrectAnswers}
                   showResults={true}
+                  startIndex={rangeStart - 1}
                 />
               </div>
             </div>
