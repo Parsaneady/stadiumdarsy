@@ -13,7 +13,7 @@ interface ExamStyleAnswerSheetProps {
   showMarkOption?: boolean;
 }
 
-const options = [1, 2, 3, 4];
+const options = [4, 3, 2, 1]; // RTL order: 4 on left, 1 on right
 
 export const ExamStyleAnswerSheet = memo(({
   questionCount,
@@ -31,7 +31,7 @@ export const ExamStyleAnswerSheet = memo(({
     const isCorrect = correctAnswers && correctAnswers[qIndex] === option;
     const userWrong = showResults && isSelected && correctAnswers && correctAnswers[qIndex] !== option;
 
-    let classes = "w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer ";
+    let classes = "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer ";
 
     if (showResults) {
       if (isCorrect) {
@@ -41,13 +41,13 @@ export const ExamStyleAnswerSheet = memo(({
       } else if (isSelected) {
         classes += "bg-muted text-muted-foreground ";
       } else {
-        classes += "bg-white/10 text-muted-foreground hover:bg-white/20 ";
+        classes += "bg-white/10 text-muted-foreground ";
       }
     } else {
       if (isSelected) {
-        classes += "bg-primary text-primary-foreground shadow-lg shadow-primary/30 ";
+        classes += "bg-cyan-500 text-white shadow-lg shadow-cyan-500/40 ";
       } else {
-        classes += "bg-white/10 text-foreground/70 hover:bg-primary/20 hover:text-primary ";
+        classes += "bg-slate-700/80 text-slate-300 hover:bg-slate-600 ";
       }
     }
 
@@ -66,18 +66,22 @@ export const ExamStyleAnswerSheet = memo(({
     return 'wrong';
   };
 
+  const answeredCount = Object.keys(answers).filter(k => answers[Number(k)] !== undefined).length;
+  const unansweredCount = questionCount - answeredCount;
+  const progressPercent = Math.round((answeredCount / questionCount) * 100);
+
   return (
     <div className="h-full overflow-hidden flex flex-col" dir="rtl">
       {/* Header */}
-      <div className="py-4 px-6 border-b border-white/10 bg-white/5 sticky top-0 z-10">
-        <div className="text-center text-base font-semibold text-primary">
+      <div className="py-4 px-6 border-b border-white/10 sticky top-0 z-10">
+        <div className="text-center text-lg font-bold text-cyan-400">
           پاسخنامه
         </div>
       </div>
 
       {/* Questions Grid - 5 columns RTL */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid grid-cols-5 gap-4">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="grid grid-cols-5 gap-3">
           {Array.from({ length: questionCount }, (_, i) => {
             const status = getQuestionStatus(i);
             const actualQuestionNumber = startIndex + i + 1;
@@ -86,42 +90,46 @@ export const ExamStyleAnswerSheet = memo(({
             return (
               <div
                 key={i}
-                className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                className={`p-3 rounded-xl transition-all duration-200 ${
                   isMarked 
-                    ? 'ring-2 ring-yellow-400/60 ring-offset-2 ring-offset-background border-yellow-400/50 bg-yellow-400/5 shadow-lg shadow-yellow-400/20' 
-                    : status === 'correct' ? 'bg-success/10 border-success/30' 
-                    : status === 'wrong' ? 'bg-destructive/10 border-destructive/30' 
-                    : status === 'blank' ? 'bg-muted/10 border-muted/30' 
-                    : answers[i] ? 'bg-primary/5 border-primary/30' 
-                    : 'bg-white/5 border-white/10'
+                    ? 'ring-2 ring-yellow-400/60 ring-offset-2 ring-offset-background bg-slate-800/90 shadow-lg shadow-yellow-400/20' 
+                    : status === 'correct' ? 'bg-success/20' 
+                    : status === 'wrong' ? 'bg-destructive/20' 
+                    : status === 'blank' ? 'bg-slate-800/60' 
+                    : 'bg-slate-800/80'
                 }`}
               >
-                {/* Question number with status and mark button */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-base font-bold text-foreground">
-                    سوال {actualQuestionNumber}
-                  </span>
+                {/* Question header with number and mark */}
+                <div className="flex items-center justify-between mb-2">
+                  {/* Mark button on left */}
+                  {showMarkOption && onToggleMark && !showResults ? (
+                    <button
+                      onClick={() => onToggleMark(i)}
+                      className={`p-0.5 transition-all duration-200 ${
+                        isMarked 
+                          ? 'text-yellow-400' 
+                          : 'text-slate-500 hover:text-yellow-400'
+                      }`}
+                      title={isMarked ? 'حذف علامت' : 'علامت‌گذاری'}
+                    >
+                      <Star className={`w-4 h-4 ${isMarked ? 'fill-yellow-400' : ''}`} />
+                    </button>
+                  ) : (
+                    <div className="w-4" />
+                  )}
+                  
+                  {/* Question number on right */}
                   <div className="flex items-center gap-1">
-                    {showMarkOption && onToggleMark && !showResults && (
-                      <button
-                        onClick={() => onToggleMark(i)}
-                        className={`p-1 rounded-lg transition-all duration-200 ${
-                          isMarked 
-                            ? 'text-yellow-400 hover:text-yellow-300' 
-                            : 'text-muted-foreground/50 hover:text-yellow-400'
-                        }`}
-                        title={isMarked ? 'حذف علامت' : 'علامت‌گذاری'}
-                      >
-                        <Star className={`w-4 h-4 ${isMarked ? 'fill-yellow-400' : ''}`} />
-                      </button>
-                    )}
-                    {status === 'correct' && <Check className="w-5 h-5 text-success" />}
-                    {status === 'wrong' && <X className="w-5 h-5 text-destructive" />}
+                    {status === 'correct' && <Check className="w-4 h-4 text-success" />}
+                    {status === 'wrong' && <X className="w-4 h-4 text-destructive" />}
+                    <span className="text-sm font-bold text-slate-200">
+                      سوال {actualQuestionNumber}
+                    </span>
                   </div>
                 </div>
                 
-                {/* Options row */}
-                <div className="flex gap-2 justify-start">
+                {/* Options row - 4 3 2 1 from left to right */}
+                <div className="flex gap-1.5 justify-center">
                   {options.map((opt) => (
                     <button
                       key={opt}
@@ -139,25 +147,25 @@ export const ExamStyleAnswerSheet = memo(({
         </div>
       </div>
 
-      {/* Footer Stats */}
-      <div className="grid grid-cols-3 border-t border-white/10 bg-white/5">
-        <div className="py-4 px-6 text-center border-l border-white/10">
-          <div className="text-xl font-bold text-primary">
-            {Object.keys(answers).filter(k => answers[Number(k)] !== undefined).length}
+      {/* Footer Stats - colored backgrounds like reference */}
+      <div className="grid grid-cols-3">
+        <div className="py-4 px-4 text-center bg-teal-600/90">
+          <div className="text-2xl font-bold text-white">
+            {progressPercent}%
           </div>
-          <div className="text-sm text-muted-foreground">پاسخ داده شده</div>
+          <div className="text-sm text-white/80">پیشرفت</div>
         </div>
-        <div className="py-4 px-6 text-center border-l border-white/10">
-          <div className="text-xl font-bold text-muted-foreground">
-            {questionCount - Object.keys(answers).filter(k => answers[Number(k)] !== undefined).length}
+        <div className="py-4 px-4 text-center bg-cyan-700/90">
+          <div className="text-2xl font-bold text-white">
+            {unansweredCount}
           </div>
-          <div className="text-sm text-muted-foreground">بدون پاسخ</div>
+          <div className="text-sm text-white/80">بدون پاسخ</div>
         </div>
-        <div className="py-4 px-6 text-center">
-          <div className="text-xl font-bold text-success">
-            {Math.round((Object.keys(answers).filter(k => answers[Number(k)] !== undefined).length / questionCount) * 100)}%
+        <div className="py-4 px-4 text-center bg-slate-700/90">
+          <div className="text-2xl font-bold text-white">
+            {answeredCount}
           </div>
-          <div className="text-sm text-muted-foreground">پیشرفت</div>
+          <div className="text-sm text-white/80">پاسخ داده شده</div>
         </div>
       </div>
     </div>
