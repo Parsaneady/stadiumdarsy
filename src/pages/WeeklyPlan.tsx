@@ -97,7 +97,7 @@ const WeeklyPlan = () => {
 
         {/* Days List */}
         <div className="space-y-4">
-          {weeklyPlan.map((day, index) => (
+          {[...weeklyPlan].sort((a, b) => a.dayIndex - b.dayIndex).map((day, index) => (
             <DayCard key={day.id} day={day} delay={index * 0.05} />
           ))}
         </div>
