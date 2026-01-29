@@ -31,7 +31,7 @@ export const ExamStyleAnswerSheet = memo(({
     const isCorrect = correctAnswers && correctAnswers[qIndex] === option;
     const userWrong = showResults && isSelected && correctAnswers && correctAnswers[qIndex] !== option;
 
-    let classes = "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer ";
+    let classes = "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer ";
 
     if (showResults) {
       if (isCorrect) {
@@ -41,13 +41,13 @@ export const ExamStyleAnswerSheet = memo(({
       } else if (isSelected) {
         classes += "bg-muted text-muted-foreground ";
       } else {
-        classes += "bg-white/10 text-muted-foreground ";
+        classes += "bg-slate-600 text-slate-400 ";
       }
     } else {
       if (isSelected) {
         classes += "bg-cyan-500 text-white shadow-lg shadow-cyan-500/40 ";
       } else {
-        classes += "bg-slate-700/80 text-slate-300 hover:bg-slate-600 ";
+        classes += "bg-slate-600 text-slate-300 hover:bg-slate-500 ";
       }
     }
 
@@ -80,8 +80,8 @@ export const ExamStyleAnswerSheet = memo(({
       </div>
 
       {/* Questions Grid - 5 columns RTL */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-5 gap-3">
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="grid grid-cols-5 gap-4">
           {Array.from({ length: questionCount }, (_, i) => {
             const status = getQuestionStatus(i);
             const actualQuestionNumber = startIndex + i + 1;
@@ -90,46 +90,48 @@ export const ExamStyleAnswerSheet = memo(({
             return (
               <div
                 key={i}
-                className={`p-3 rounded-xl transition-all duration-200 ${
+                className={`p-4 rounded-2xl transition-all duration-200 ${
                   isMarked 
-                    ? 'ring-2 ring-yellow-400/60 ring-offset-2 ring-offset-background bg-slate-800/90 shadow-lg shadow-yellow-400/20' 
-                    : status === 'correct' ? 'bg-success/20' 
-                    : status === 'wrong' ? 'bg-destructive/20' 
-                    : status === 'blank' ? 'bg-slate-800/60' 
-                    : 'bg-slate-800/80'
+                    ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-background shadow-lg shadow-yellow-400/30' 
+                    : ''
+                } ${
+                  status === 'correct' ? 'bg-success/20' 
+                  : status === 'wrong' ? 'bg-destructive/20' 
+                  : status === 'blank' ? 'bg-slate-800/60' 
+                  : 'bg-slate-800/90'
                 }`}
               >
-                {/* Question header with number and mark */}
-                <div className="flex items-center justify-between mb-2">
+                {/* Question header with mark and number */}
+                <div className="flex items-center justify-between mb-3">
                   {/* Mark button on left */}
                   {showMarkOption && onToggleMark && !showResults ? (
                     <button
                       onClick={() => onToggleMark(i)}
-                      className={`p-0.5 transition-all duration-200 ${
+                      className={`p-1 transition-all duration-200 ${
                         isMarked 
                           ? 'text-yellow-400' 
                           : 'text-slate-500 hover:text-yellow-400'
                       }`}
                       title={isMarked ? 'حذف علامت' : 'علامت‌گذاری'}
                     >
-                      <Star className={`w-4 h-4 ${isMarked ? 'fill-yellow-400' : ''}`} />
+                      <Star className={`w-5 h-5 ${isMarked ? 'fill-yellow-400' : ''}`} />
                     </button>
                   ) : (
-                    <div className="w-4" />
+                    <div className="w-5" />
                   )}
                   
-                  {/* Question number on right */}
-                  <div className="flex items-center gap-1">
+                  {/* Question number and status on right */}
+                  <div className="flex items-center gap-2">
                     {status === 'correct' && <Check className="w-4 h-4 text-success" />}
                     {status === 'wrong' && <X className="w-4 h-4 text-destructive" />}
-                    <span className="text-sm font-bold text-slate-200">
+                    <span className="text-base font-bold text-white">
                       سوال {actualQuestionNumber}
                     </span>
                   </div>
                 </div>
                 
                 {/* Options row - 4 3 2 1 from left to right */}
-                <div className="flex gap-1.5 justify-center">
+                <div className="flex gap-2 justify-center">
                   {options.map((opt) => (
                     <button
                       key={opt}
@@ -147,7 +149,7 @@ export const ExamStyleAnswerSheet = memo(({
         </div>
       </div>
 
-      {/* Footer Stats - colored backgrounds like reference */}
+      {/* Footer Stats */}
       <div className="grid grid-cols-3">
         <div className="py-4 px-4 text-center bg-teal-600/90">
           <div className="text-2xl font-bold text-white">
