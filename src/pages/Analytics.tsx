@@ -1,6 +1,6 @@
 import { useEffect, useMemo, memo, lazy, Suspense } from 'react';
 import { BarChart3, Award, Clock, FileText, Target, BookOpen } from 'lucide-react';
-import { useStudyStore } from '@/stores/studyStore';
+import { useStudyStore, DailyLog } from '@/stores/studyStore';
 import { GlassCard } from '@/components/GlassCard';
 import { CircularProgress } from '@/components/CircularProgress';
 import { formatHoursShort, formatHoursDisplay } from '@/lib/timeUtils';
@@ -36,8 +36,46 @@ const QuickStat = memo(({ icon: Icon, label, value, unit, color }: {
 
 QuickStat.displayName = 'QuickStat';
 
+// Calculate stats from daily logs (historical data from database)
+const calculateStatsFromLogs = (dailyLogs: DailyLog[]) => {
+  const subjectStats: Record<string, { hours: number; tests: number; sessions: number }> = {};
+  let totalHours = 0;
+  let totalTests = 0;
+  let totalCompletion = 0;
+  let sessionCount = 0;
+
+  dailyLogs.forEach(log => {
+    if (log.sessions) {
+      log.sessions.forEach(session => {
+        totalHours += session.actualHours || 0;
+        totalTests += session.actualTests || 0;
+        sessionCount++;
+
+        // Calculate completion for this session
+        const hoursProgress = session.targetHours > 0 ? (session.actualHours / session.targetHours) * 100 : 0;
+        const testsProgress = session.targetTests > 0 ? (session.actualTests / session.targetTests) * 100 : 0;
+        totalCompletion += (hoursProgress + testsProgress) / 2;
+
+        if (!subjectStats[session.subject]) {
+          subjectStats[session.subject] = { hours: 0, tests: 0, sessions: 0 };
+        }
+        subjectStats[session.subject].hours += session.actualHours || 0;
+        subjectStats[session.subject].tests += session.actualTests || 0;
+        subjectStats[session.subject].sessions++;
+      });
+    }
+  });
+
+  return {
+    totalHours: Math.round(totalHours * 100) / 100,
+    totalTests,
+    avgCompletion: sessionCount > 0 ? Math.round((totalCompletion / sessionCount) * 100) / 100 : 0,
+    subjectStats,
+  };
+};
+
 const Analytics = () => {
-  const { weeklyPlan, initializeWeek, getStats } = useStudyStore();
+  const { weeklyPlan, dailyLogs, initializeWeek } = useStudyStore();
 
   useEffect(() => {
     if (weeklyPlan.length === 0) {
@@ -45,15 +83,25 @@ const Analytics = () => {
     }
   }, [weeklyPlan.length, initializeWeek]);
 
-  const stats = useMemo(() => getStats(), [getStats, weeklyPlan]);
+  // Calculate stats from daily logs instead of weekly plan
+  const stats = useMemo(() => calculateStatsFromLogs(dailyLogs), [dailyLogs]);
 
-  // Memoize all chart data
+  // Memoize all chart data - use daily logs for historical data
   const chartData = useMemo(() => {
-    const weeklyProgressData = weeklyPlan.map(day => {
-      const actual = day.sessions.reduce((sum, s) => sum + s.actualHours, 0);
-      const target = day.sessions.reduce((sum, s) => sum + s.targetHours, 0);
+    // Group daily logs by day of week for weekly progress
+    const PERSIAN_DAYS = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+    
+    // Get last 7 days of logs
+    const last7Days = dailyLogs.slice(0, 7);
+    
+    const weeklyProgressData = PERSIAN_DAYS.map((dayName, dayIndex) => {
+      // Find today's data for this day from current week plan
+      const dayPlan = weeklyPlan.find(d => d.dayIndex === dayIndex);
+      const actual = dayPlan?.sessions.reduce((sum, s) => sum + (s.actualHours || 0), 0) || 0;
+      const target = dayPlan?.sessions.reduce((sum, s) => sum + s.targetHours, 0) || 0;
+      
       return {
-        name: day.dayName,
+        name: dayName,
         عملکرد: actual,
         هدف: target,
         درصد: target > 0 ? Math.round((actual / target) * 100) : 0,
@@ -99,7 +147,7 @@ const Analytics = () => {
       completionByDay,
       subjectRankings,
     };
-  }, [weeklyPlan, stats.subjectStats]);
+  }, [weeklyPlan, dailyLogs, stats.subjectStats]);
 
   const quickStats = useMemo(() => [
     { icon: Clock, label: 'کل ساعات', value: formatHoursShort(stats.totalHours), unit: '', color: '#06b6d4' },
