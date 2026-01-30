@@ -356,18 +356,26 @@ const DailyLog = () => {
     if (durationMinutes > 0) {
       await addPomodoroSession(currentStudySession.subject, durationMinutes);
       
+      // Get fresh state from store to avoid stale closure issues
+      const freshState = useStudyStore.getState();
+      const freshTodayIndex = freshState.getTodayIndex();
+      const freshTodayPlan = freshState.weeklyPlan[freshTodayIndex];
+      
       // Update weekly plan session with actual hours
-      if (todayPlan) {
-        const targetSession = todayPlan.sessions.find(s => s.subject === currentStudySession.subject);
+      if (freshTodayPlan) {
+        const targetSession = freshTodayPlan.sessions.find(s => s.subject === currentStudySession.subject);
         if (targetSession) {
-          const newHours = targetSession.actualHours + durationHours;
-          updateSession(todayPlan.id, targetSession.id, { actualHours: newHours });
+          const newHours = (targetSession.actualHours || 0) + durationHours;
+          console.log('[Study] Updating hours:', { subject: currentStudySession.subject, oldHours: targetSession.actualHours, newHours, durationMinutes });
           
-          // Save to cloud
-          const updatedSessions = todayPlan.sessions.map(s => 
+          // Update local store first
+          updateSession(freshTodayPlan.id, targetSession.id, { actualHours: newHours });
+          
+          // Then save to cloud with fresh state
+          const updatedSessions = freshTodayPlan.sessions.map(s => 
             s.id === targetSession.id ? { ...s, actualHours: newHours } : s
           );
-          saveWeeklyPlan(todayPlan.id, updatedSessions);
+          await saveWeeklyPlan(freshTodayPlan.id, updatedSessions);
         }
       }
     }
@@ -407,8 +415,10 @@ const DailyLog = () => {
       setActivities(mapped);
     }
 
-    // Update daily log for performance history
-    await updateTodayDailyLog();
+    // Update daily log for performance history - small delay to ensure store is updated
+    setTimeout(async () => {
+      await updateTodayDailyLog();
+    }, 200);
 
     toast({
       title: '✅ پایان مطالعه',
@@ -519,19 +529,26 @@ const DailyLog = () => {
     ? Math.floor((Date.now() - currentStudySession.startTime.getTime()) / 60000)
     : 0;
 
-  // Function to update and save today's daily log
+  // Function to update and save today's daily log - reads from fresh store state
   const updateTodayDailyLog = useCallback(async () => {
-    if (!user || !todayPlan) return;
+    if (!user) return;
+    
+    // Get fresh state from store
+    const freshState = useStudyStore.getState();
+    const freshTodayIndex = freshState.getTodayIndex();
+    const freshTodayPlan = freshState.weeklyPlan[freshTodayIndex];
+    
+    if (!freshTodayPlan) return;
     
     const today = new Date().toISOString().split('T')[0];
     
-    // Calculate totals from today's plan
+    // Calculate totals from fresh plan state
     let totalStudyHours = 0;
     let totalTests = 0;
     let completedSessions = 0;
     const sessionsData: DailyLogSession[] = [];
     
-    todayPlan.sessions.forEach(session => {
+    freshTodayPlan.sessions.forEach(session => {
       totalStudyHours += session.actualHours || 0;
       totalTests += session.actualTests || 0;
       
@@ -556,7 +573,7 @@ const DailyLog = () => {
       });
     });
     
-    const totalSessions = todayPlan.sessions.length;
+    const totalSessions = freshTodayPlan.sessions.length;
     const overallScore = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
     
     const dailyLogData: DailyLogType = {
@@ -571,19 +588,22 @@ const DailyLog = () => {
       sessions: sessionsData,
     };
     
+    console.log('[DailyLog] Saving daily log:', { date: today, totalStudyHours, sessionsData });
+    
     // Save to cloud
     await saveDailyLog(dailyLogData);
     
-    // Update local store
-    const existingIndex = dailyLogs.findIndex(log => log.date === today);
+    // Update local store with fresh data
+    const freshLogs = useStudyStore.getState().dailyLogs;
+    const existingIndex = freshLogs.findIndex(log => log.date === today);
     if (existingIndex >= 0) {
-      const updatedLogs = [...dailyLogs];
+      const updatedLogs = [...freshLogs];
       updatedLogs[existingIndex] = dailyLogData;
       setDailyLogs(updatedLogs);
     } else {
-      setDailyLogs([dailyLogData, ...dailyLogs]);
+      setDailyLogs([dailyLogData, ...freshLogs]);
     }
-  }, [user, todayPlan, saveDailyLog, dailyLogs, setDailyLogs]);
+  }, [user, saveDailyLog, setDailyLogs]);
 
   return (
     <AppLayout>
