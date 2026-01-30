@@ -552,6 +552,7 @@ const DailyLog = () => {
         actualTests: session.actualTests || 0,
         completed: avgProgress >= 0.5,
         color: session.color || '#8B5CF6',
+        notes: session.notes || '',
       });
     });
     
@@ -834,6 +835,12 @@ const DailyLog = () => {
                             </div>
                           </div>
                         </div>
+                        {/* Show notes if exists */}
+                        {session.notes && (
+                          <div className="mt-2 p-2 rounded bg-muted/20 text-xs text-muted-foreground">
+                            <span className="font-medium">یادداشت: </span>{session.notes}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
