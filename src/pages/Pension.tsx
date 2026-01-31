@@ -630,6 +630,38 @@ const Pension = () => {
     }
   };
 
+  // Kick member from pension (leader only)
+  const handleKickMember = async (memberId: string, memberUserId: string) => {
+    if (!pension || !user || !isLeader) return;
+    
+    // Can't kick yourself
+    if (memberUserId === user.id) {
+      toast.error('نمی‌توانید خودتان را اخراج کنید');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('pension_members')
+        .delete()
+        .eq('id', memberId)
+        .eq('pension_id', pension.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setMembers(members.filter(m => m.id !== memberId));
+      
+      // Update pension member count
+      setPension(prev => prev ? { ...prev, member_count: prev.member_count - 1 } : null);
+      
+      toast.success('عضو از پانسیون اخراج شد');
+    } catch (error) {
+      console.error('Error kicking member:', error);
+      toast.error('خطا در اخراج عضو');
+    }
+  };
+
   const handleCreateAnnouncement = async () => {
     if (!announcementTitle.trim() || !announcementContent.trim() || !pension || !user) {
       toast.error('عنوان و محتوای اعلان را وارد کنید');
@@ -2018,9 +2050,9 @@ const Pension = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-sm">
                       {member.wakeTime && (
-                        <div className="flex items-center gap-1 text-green-500">
+                        <div className="flex items-center gap-1 text-success">
                           <Clock className="w-4 h-4" />
                           <span>{member.wakeTime.substring(0, 5)}</span>
                         </div>
@@ -2033,6 +2065,39 @@ const Pension = () => {
                         <FileText className="w-4 h-4" />
                         <span>{member.weeklyStats?.totalTests || 0} تست</span>
                       </div>
+                      
+                      {/* Kick member button (leader only, can't kick self) */}
+                      {isLeader && member.user_id !== user?.id && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>اخراج عضو از پانسیون</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                آیا مطمئنید که می‌خواهید «{member.profile?.display_name || member.profile?.username || 'این عضو'}» را از پانسیون اخراج کنید؟
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="gap-2">
+                              <AlertDialogCancel>انصراف</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleKickMember(member.id, member.user_id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                اخراج
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 ))}
