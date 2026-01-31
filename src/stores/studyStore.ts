@@ -111,6 +111,7 @@ interface StudyStore {
   setDailyLogs: (logs: DailyLog[]) => void;
   setCalendarEvents: (events: CalendarEvent[]) => void;
   setStreak: (streak: number) => void;
+  setLastStudyDate: (date: string | null) => void;
   setLastWeeklyReset: (date: string | null) => void;
 }
 
@@ -301,24 +302,25 @@ export const useStudyStore = create<StudyStore>()(
       },
 
       updateStreak: () => {
-        const today = new Date().toDateString();
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format for reliable comparison
         const state = get();
         
-        if (state.lastStudyDate === today) {
+        if (state.lastStudyDate === todayStr) {
           // Already counted today
           return;
         }
         
-        const yesterday = new Date();
+        const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayString = yesterday.toDateString();
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
         
-        if (state.lastStudyDate === yesterdayString) {
-          // Consecutive day
-          set({ streak: state.streak + 1, lastStudyDate: today });
-        } else if (state.lastStudyDate === null || state.lastStudyDate !== today) {
-          // First day or missed a day
-          set({ streak: 1, lastStudyDate: today });
+        if (state.lastStudyDate === yesterdayStr) {
+          // Consecutive day - increment streak
+          set({ streak: state.streak + 1, lastStudyDate: todayStr });
+        } else {
+          // First day or missed a day - start new streak at 1
+          set({ streak: 1, lastStudyDate: todayStr });
         }
       },
 
@@ -518,6 +520,10 @@ export const useStudyStore = create<StudyStore>()(
 
       setStreak: (streak) => {
         set({ streak });
+      },
+
+      setLastStudyDate: (date) => {
+        set({ lastStudyDate: date });
       },
 
       setLastWeeklyReset: (date) => {

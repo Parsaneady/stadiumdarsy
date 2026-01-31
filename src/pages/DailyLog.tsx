@@ -59,7 +59,7 @@ const DailyLog = () => {
     setMode, setTimeLeft, setIsRunning, setCurrentCycle, 
     incrementCycle, setPomodoroSubject, decrementTime
   } = usePomodoroStore();
-  const { saveWeeklyPlan, addPomodoroSession, saveDailyLog } = useCloudSync();
+  const { saveWeeklyPlan, addPomodoroSession, saveDailyLog, saveStreak } = useCloudSync();
   const { playPomodoroComplete, playBreakComplete } = usePomodoroSound();
 
   // State
@@ -378,6 +378,11 @@ const DailyLog = () => {
           await saveWeeklyPlan(freshTodayPlan.id, updatedSessions);
         }
       }
+      
+      // Update streak and save to cloud
+      useStudyStore.getState().updateStreak();
+      const updatedState = useStudyStore.getState();
+      await saveStreak(updatedState.streak, updatedState.lastStudyDate);
     }
 
     // Add end marker with subject color
@@ -574,7 +579,21 @@ const DailyLog = () => {
     });
     
     const totalSessions = freshTodayPlan.sessions.length;
-    const overallScore = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+    
+    // Calculate overallScore based on actual progress vs targets (not just completion count)
+    let totalTargetHours = 0;
+    let totalTargetTests = 0;
+    freshTodayPlan.sessions.forEach(session => {
+      totalTargetHours += session.targetHours || 0;
+      totalTargetTests += session.targetTests || 0;
+    });
+    
+    const hoursProgress = totalTargetHours > 0 ? Math.min(100, (totalStudyHours / totalTargetHours) * 100) : 0;
+    const testsProgress = totalTargetTests > 0 ? Math.min(100, (totalTests / totalTargetTests) * 100) : 0;
+    const completionProgress = totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0;
+    
+    // Weighted average: 40% hours, 40% tests, 20% session completion
+    const overallScore = Math.round((hoursProgress * 0.4) + (testsProgress * 0.4) + (completionProgress * 0.2));
     
     const dailyLogData: DailyLogType = {
       id: `${today}-${user.id}`,
