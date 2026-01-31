@@ -97,7 +97,30 @@ export const useCloudSync = () => {
           longBreak: settings.pomodoro_long_break,
           cycles: settings.pomodoro_cycles,
         });
-        store.setStreak(settings.streak);
+        
+        // Load streak and last study date, then validate
+        const lastStudyDate = settings.last_study_date;
+        let streak = settings.streak || 0;
+        
+        if (lastStudyDate) {
+          const today = new Date();
+          const todayStr = today.toISOString().split('T')[0];
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          
+          // Reset streak if last study was before yesterday
+          if (lastStudyDate !== todayStr && lastStudyDate !== yesterdayStr) {
+            streak = 0;
+          }
+          
+          // Set the lastStudyDate in store for proper continuation
+          store.setStreak(streak);
+          store.setLastStudyDate(lastStudyDate);
+        } else {
+          store.setStreak(0);
+          store.setLastStudyDate(null);
+        }
       }
 
     } catch (error) {
