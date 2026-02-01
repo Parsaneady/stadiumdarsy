@@ -102,15 +102,18 @@ export const useCloudSync = () => {
         const lastStudyDate = settings.last_study_date;
         let streak = settings.streak || 0;
         
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        
+        console.log('[Cloud] Validating streak:', { lastStudyDate, streak, todayStr, yesterdayStr });
+        
         if (lastStudyDate) {
-          const today = new Date();
-          const todayStr = today.toISOString().split('T')[0];
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toISOString().split('T')[0];
-          
           // Reset streak if last study was before yesterday
           if (lastStudyDate !== todayStr && lastStudyDate !== yesterdayStr) {
+            console.log('[Cloud] Streak reset - last study too old:', lastStudyDate);
             streak = 0;
           }
           
@@ -118,8 +121,18 @@ export const useCloudSync = () => {
           store.setStreak(streak);
           store.setLastStudyDate(lastStudyDate);
         } else {
+          console.log('[Cloud] No last study date found, streak = 0');
           store.setStreak(0);
           store.setLastStudyDate(null);
+        }
+        
+        // Save validated streak back to cloud if it changed
+        if (streak !== settings.streak) {
+          console.log('[Cloud] Saving corrected streak to cloud:', streak);
+          await supabase
+            .from('user_settings')
+            .update({ streak })
+            .eq('user_id', user.id);
         }
       }
 

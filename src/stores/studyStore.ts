@@ -306,8 +306,11 @@ export const useStudyStore = create<StudyStore>()(
         const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format for reliable comparison
         const state = get();
         
+        console.log('[Streak] Updating streak:', { currentStreak: state.streak, lastStudyDate: state.lastStudyDate, today: todayStr });
+        
         if (state.lastStudyDate === todayStr) {
           // Already counted today
+          console.log('[Streak] Already counted today, skipping');
           return;
         }
         
@@ -317,9 +320,12 @@ export const useStudyStore = create<StudyStore>()(
         
         if (state.lastStudyDate === yesterdayStr) {
           // Consecutive day - increment streak
-          set({ streak: state.streak + 1, lastStudyDate: todayStr });
+          const newStreak = state.streak + 1;
+          console.log('[Streak] Consecutive day - incrementing to:', newStreak);
+          set({ streak: newStreak, lastStudyDate: todayStr });
         } else {
           // First day or missed a day - start new streak at 1
+          console.log('[Streak] First day or gap - setting to 1');
           set({ streak: 1, lastStudyDate: todayStr });
         }
       },

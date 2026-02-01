@@ -438,7 +438,8 @@ const Pension = () => {
                     .maybeSingle()
                 ]);
 
-                // Calculate weekly stats from weekly_plans
+                // Calculate weekly stats from weekly_plans (reset happens every Saturday)
+                // The weekly_plans.sessions.actualHours/actualTests are reset to 0 on Saturdays
                 let weeklyHours = 0;
                 let weeklyTests = 0;
                 if (weeklyPlansRes.data) {
