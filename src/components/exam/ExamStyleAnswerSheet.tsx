@@ -86,6 +86,7 @@ export const ExamStyleAnswerSheet = memo(({
             const status = getQuestionStatus(i);
             const actualQuestionNumber = startIndex + i + 1;
             const isMarked = markedQuestions.has(i);
+            const isAnswered = answers[i] !== undefined;
             
             return (
               <div
@@ -98,7 +99,8 @@ export const ExamStyleAnswerSheet = memo(({
                   status === 'correct' ? 'bg-success/20' 
                   : status === 'wrong' ? 'bg-destructive/20' 
                   : status === 'blank' ? 'bg-slate-800/60' 
-                  : 'bg-slate-800/90'
+                  : isAnswered && !showResults ? 'bg-slate-800/90 border-2 border-emerald-500/60'
+                  : 'bg-slate-800/90 border border-slate-700/50'
                 }`}
               >
                 {/* Question header with mark and number */}
