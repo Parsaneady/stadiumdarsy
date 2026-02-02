@@ -99,8 +99,8 @@ export const ExamStyleAnswerSheet = memo(({
                   status === 'correct' ? 'bg-success/20' 
                   : status === 'wrong' ? 'bg-destructive/20' 
                   : status === 'blank' ? 'bg-slate-800/60' 
-                  : isAnswered && !showResults ? 'bg-slate-800/90 border-2 border-emerald-500/60'
-                  : 'bg-slate-800/90 border border-slate-700/50'
+                  : isAnswered && !showResults ? 'bg-slate-700/95 shadow-md'
+                  : 'bg-slate-800/90'
                 }`}
               >
                 {/* Question header with mark and number */}
