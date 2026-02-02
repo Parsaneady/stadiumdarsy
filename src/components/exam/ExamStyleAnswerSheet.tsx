@@ -11,6 +11,7 @@ interface ExamStyleAnswerSheetProps {
   markedQuestions?: Set<number>;
   onToggleMark?: (questionIndex: number) => void;
   showMarkOption?: boolean;
+  actualQuestionNumbers?: number[];
 }
 
 const options = [1, 2, 3, 4]; // RTL order: 1 on right, 4 on left
@@ -24,7 +25,8 @@ export const ExamStyleAnswerSheet = memo(({
   startIndex = 0,
   markedQuestions = new Set(),
   onToggleMark,
-  showMarkOption = false
+  showMarkOption = false,
+  actualQuestionNumbers
 }: ExamStyleAnswerSheetProps) => {
   const getOptionClass = (qIndex: number, option: number) => {
     const isSelected = answers[qIndex] === option;
@@ -84,7 +86,10 @@ export const ExamStyleAnswerSheet = memo(({
         <div className="grid grid-cols-5 gap-4">
           {Array.from({ length: questionCount }, (_, i) => {
             const status = getQuestionStatus(i);
-            const actualQuestionNumber = startIndex + i + 1;
+            // Use actualQuestionNumbers if provided, otherwise fallback to startIndex
+            const actualQuestionNumber = actualQuestionNumbers 
+              ? actualQuestionNumbers[i] 
+              : startIndex + i + 1;
             const isMarked = markedQuestions.has(i);
             const isAnswered = answers[i] !== undefined;
             

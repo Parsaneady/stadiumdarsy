@@ -24,6 +24,7 @@ interface TestBook {
   total_questions: number;
   answers: Record<number, number>;
   correct_answers: Record<number, number>;
+  marked_questions: number[];
   created_at: string;
 }
 
@@ -44,14 +45,12 @@ const TestBookPanel = () => {
   const [rangeStart, setRangeStart] = useState(1);
   const [rangeEnd, setRangeEnd] = useState(100);
   const [showRangeFilter, setShowRangeFilter] = useState(false);
+  const [stepMultiplier, setStepMultiplier] = useState(1);
   
   // Reset dialog state
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetStart, setResetStart] = useState(1);
   const [resetEnd, setResetEnd] = useState(100);
-  
-  // Marked questions state
-  const [markedQuestions, setMarkedQuestions] = useState<Set<number>>(new Set());
 
   // Load books from database
   const loadBooks = useCallback(async () => {
@@ -70,6 +69,7 @@ const TestBookPanel = () => {
         ...book,
         answers: (book.answers as Record<number, number>) || {},
         correct_answers: (book.correct_answers as Record<number, number>) || {},
+        marked_questions: (book.marked_questions as number[]) || [],
       })) || []);
     } catch (error) {
       console.error('Error loading books:', error);
@@ -89,6 +89,7 @@ const TestBookPanel = () => {
       setRangeEnd(selectedBook.total_questions);
       setResetStart(1);
       setResetEnd(selectedBook.total_questions);
+      setStepMultiplier(1);
     }
   }, [selectedBook]);
 
@@ -105,6 +106,7 @@ const TestBookPanel = () => {
           total_questions: newBookQuestions,
           answers: {},
           correct_answers: {},
+          marked_questions: [],
         })
         .select()
         .single();
@@ -115,6 +117,7 @@ const TestBookPanel = () => {
         ...data,
         answers: {},
         correct_answers: {},
+        marked_questions: [],
       };
       
       setBooks(prev => [newBook, ...prev]);
@@ -190,12 +193,58 @@ const TestBookPanel = () => {
     }
   }, [user]);
 
-  // Handle answer select
-  const handleAnswerSelect = (questionIndex: number, option: number) => {
+  // Save marked questions
+  const saveMarkedQuestions = useCallback(async (book: TestBook, markedArr: number[]) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('test_books')
+        .update({ marked_questions: markedArr as unknown as any })
+        .eq('id', book.id);
+
+      if (error) throw error;
+
+      setBooks(prev => prev.map(b => 
+        b.id === book.id ? { ...b, marked_questions: markedArr } : b
+      ));
+      setSelectedBook(prev => prev ? { ...prev, marked_questions: markedArr } : null);
+    } catch (error) {
+      console.error('Error saving marked questions:', error);
+    }
+  }, [user]);
+
+  // Handle toggle mark
+  const handleToggleMark = useCallback((localIndex: number, filteredIndices: number[]) => {
     if (!selectedBook) return;
     
-    // Adjust index based on range
-    const actualIndex = rangeStart - 1 + questionIndex;
+    const actualIndex = filteredIndices[localIndex];
+    const newMarked = [...selectedBook.marked_questions];
+    const existingIdx = newMarked.indexOf(actualIndex);
+    
+    if (existingIdx >= 0) {
+      newMarked.splice(existingIdx, 1);
+    } else {
+      newMarked.push(actualIndex);
+    }
+    
+    saveMarkedQuestions(selectedBook, newMarked);
+  }, [selectedBook, saveMarkedQuestions]);
+
+  // Get filtered question indices based on range and step
+  const getFilteredIndices = useMemo(() => {
+    const indices: number[] = [];
+    for (let i = rangeStart - 1; i < rangeEnd; i += stepMultiplier) {
+      indices.push(i);
+    }
+    return indices;
+  }, [rangeStart, rangeEnd, stepMultiplier]);
+
+  // Handle answer select with step support
+  const handleAnswerSelectWithStep = (questionIndex: number, option: number) => {
+    if (!selectedBook) return;
+    
+    const actualIndex = getFilteredIndices[questionIndex];
     
     const newAnswers = { ...selectedBook.answers };
     if (newAnswers[actualIndex] === option) {
@@ -207,12 +256,11 @@ const TestBookPanel = () => {
     saveAnswers(selectedBook, newAnswers);
   };
 
-  // Handle correct answer select
-  const handleCorrectAnswerSelect = (questionIndex: number, option: number) => {
+  // Handle correct answer select with step support
+  const handleCorrectAnswerSelectWithStep = (questionIndex: number, option: number) => {
     if (!selectedBook) return;
     
-    // Adjust index based on range
-    const actualIndex = rangeStart - 1 + questionIndex;
+    const actualIndex = getFilteredIndices[questionIndex];
     
     const newCorrectAnswers = { ...selectedBook.correct_answers };
     if (newCorrectAnswers[actualIndex] === option) {
@@ -273,30 +321,43 @@ const TestBookPanel = () => {
     return calculateRangeStats(book, 1, book.total_questions);
   };
 
-  // Get filtered answers for display
-  const getFilteredAnswers = useMemo(() => {
+  // Get filtered answers for display (with step support)
+  const getFilteredAnswersWithStep = useMemo(() => {
     if (!selectedBook) return {};
     
     const filtered: Record<number, number> = {};
-    for (let i = rangeStart - 1; i < rangeEnd; i++) {
-      if (selectedBook.answers[i] !== undefined) {
-        filtered[i - (rangeStart - 1)] = selectedBook.answers[i];
+    getFilteredIndices.forEach((actualIdx, displayIdx) => {
+      if (selectedBook.answers[actualIdx] !== undefined) {
+        filtered[displayIdx] = selectedBook.answers[actualIdx];
       }
-    }
+    });
     return filtered;
-  }, [selectedBook, rangeStart, rangeEnd]);
+  }, [selectedBook, getFilteredIndices]);
 
-  const getFilteredCorrectAnswers = useMemo(() => {
+  const getFilteredCorrectAnswersWithStep = useMemo(() => {
     if (!selectedBook) return {};
     
     const filtered: Record<number, number> = {};
-    for (let i = rangeStart - 1; i < rangeEnd; i++) {
-      if (selectedBook.correct_answers[i] !== undefined) {
-        filtered[i - (rangeStart - 1)] = selectedBook.correct_answers[i];
+    getFilteredIndices.forEach((actualIdx, displayIdx) => {
+      if (selectedBook.correct_answers[actualIdx] !== undefined) {
+        filtered[displayIdx] = selectedBook.correct_answers[actualIdx];
       }
-    }
+    });
     return filtered;
-  }, [selectedBook, rangeStart, rangeEnd]);
+  }, [selectedBook, getFilteredIndices]);
+
+  // Get filtered marked questions for display
+  const getFilteredMarkedQuestions = useMemo(() => {
+    if (!selectedBook) return new Set<number>();
+    
+    const markedSet = new Set<number>();
+    getFilteredIndices.forEach((actualIdx, displayIdx) => {
+      if (selectedBook.marked_questions.includes(actualIdx)) {
+        markedSet.add(displayIdx);
+      }
+    });
+    return markedSet;
+  }, [selectedBook, getFilteredIndices]);
 
   // Back to list
   const handleBack = () => {
@@ -304,38 +365,63 @@ const TestBookPanel = () => {
     setViewMode('list');
   };
 
-  // Range filter component
+  // Range filter component with step multiplier
   const RangeFilter = () => (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-      <Filter className="w-4 h-4 text-muted-foreground" />
-      <span className="text-sm text-muted-foreground">از</span>
-      <Input
-        type="number"
-        value={rangeStart}
-        onChange={(e) => setRangeStart(Math.max(1, Math.min(Number(e.target.value), rangeEnd)))}
-        min={1}
-        max={selectedBook?.total_questions || 100}
-        className="w-20 h-8"
-      />
-      <span className="text-sm text-muted-foreground">تا</span>
-      <Input
-        type="number"
-        value={rangeEnd}
-        onChange={(e) => setRangeEnd(Math.min(selectedBook?.total_questions || 100, Math.max(Number(e.target.value), rangeStart)))}
-        min={1}
-        max={selectedBook?.total_questions || 100}
-        className="w-20 h-8"
-      />
+    <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+      <div className="flex items-center gap-2">
+        <Filter className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">از</span>
+        <Input
+          type="number"
+          value={rangeStart}
+          onChange={(e) => setRangeStart(Math.max(1, Math.min(Number(e.target.value), rangeEnd)))}
+          min={1}
+          max={selectedBook?.total_questions || 100}
+          className="w-20 h-8"
+        />
+        <span className="text-sm text-muted-foreground">تا</span>
+        <Input
+          type="number"
+          value={rangeEnd}
+          onChange={(e) => setRangeEnd(Math.min(selectedBook?.total_questions || 100, Math.max(Number(e.target.value), rangeStart)))}
+          min={1}
+          max={selectedBook?.total_questions || 100}
+          className="w-20 h-8"
+        />
+      </div>
+      
+      <div className="flex items-center gap-2 border-r border-white/20 pr-3">
+        <span className="text-sm text-muted-foreground">ضریب:</span>
+        <div className="flex gap-1">
+          {[1, 2, 3, 5].map((step) => (
+            <Button
+              key={step}
+              size="sm"
+              variant={stepMultiplier === step ? "default" : "ghost"}
+              className={`w-8 h-8 p-0 ${stepMultiplier === step ? 'bg-primary' : ''}`}
+              onClick={() => setStepMultiplier(step)}
+            >
+              {step}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       <Button
         size="sm"
         variant="ghost"
         onClick={() => {
           setRangeStart(1);
           setRangeEnd(selectedBook?.total_questions || 100);
+          setStepMultiplier(1);
         }}
       >
-        همه
+        ریست فیلتر
       </Button>
+      
+      <span className="text-xs text-muted-foreground">
+        ({getFilteredIndices.length} سوال)
+      </span>
     </div>
   );
 
@@ -541,26 +627,16 @@ const TestBookPanel = () => {
               
               <RangeFilter />
               
-              <div className="h-[calc(100vh-300px)] min-h-[400px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
+              <div className="h-[calc(100vh-340px)] min-h-[400px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
                 <ExamStyleAnswerSheet
-                  questionCount={rangeEnd - rangeStart + 1}
-                  answers={getFilteredAnswers}
-                  onAnswerSelect={handleAnswerSelect}
-                  startIndex={rangeStart - 1}
-                  markedQuestions={markedQuestions}
-                  onToggleMark={(idx) => {
-                    const actualIndex = rangeStart - 1 + idx;
-                    setMarkedQuestions(prev => {
-                      const newSet = new Set(prev);
-                      if (newSet.has(actualIndex)) {
-                        newSet.delete(actualIndex);
-                      } else {
-                        newSet.add(actualIndex);
-                      }
-                      return newSet;
-                    });
-                  }}
+                  questionCount={getFilteredIndices.length}
+                  answers={getFilteredAnswersWithStep}
+                  onAnswerSelect={handleAnswerSelectWithStep}
+                  startIndex={0}
+                  markedQuestions={getFilteredMarkedQuestions}
+                  onToggleMark={(idx) => handleToggleMark(idx, getFilteredIndices)}
                   showMarkOption={true}
+                  actualQuestionNumbers={getFilteredIndices.map(i => i + 1)}
                 />
               </div>
             </div>
@@ -635,12 +711,13 @@ const TestBookPanel = () => {
               
               <RangeFilter />
               
-              <div className="h-[calc(100vh-300px)] min-h-[400px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
+              <div className="h-[calc(100vh-340px)] min-h-[400px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
                 <ExamStyleAnswerSheet
-                  questionCount={rangeEnd - rangeStart + 1}
-                  answers={getFilteredCorrectAnswers}
-                  onAnswerSelect={handleCorrectAnswerSelect}
-                  startIndex={rangeStart - 1}
+                  questionCount={getFilteredIndices.length}
+                  answers={getFilteredCorrectAnswersWithStep}
+                  onAnswerSelect={handleCorrectAnswerSelectWithStep}
+                  startIndex={0}
+                  actualQuestionNumbers={getFilteredIndices.map(i => i + 1)}
                 />
               </div>
             </div>
@@ -700,14 +777,15 @@ const TestBookPanel = () => {
               </div>
               
               {/* Answer sheet with results */}
-              <div className="h-[calc(100vh-400px)] min-h-[300px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
+              <div className="h-[calc(100vh-440px)] min-h-[300px] rounded-xl border border-white/10 overflow-hidden bg-white/5">
                 <ExamStyleAnswerSheet
-                  questionCount={rangeEnd - rangeStart + 1}
-                  answers={getFilteredAnswers}
+                  questionCount={getFilteredIndices.length}
+                  answers={getFilteredAnswersWithStep}
                   onAnswerSelect={() => {}}
-                  correctAnswers={getFilteredCorrectAnswers}
+                  correctAnswers={getFilteredCorrectAnswersWithStep}
                   showResults={true}
-                  startIndex={rangeStart - 1}
+                  startIndex={0}
+                  actualQuestionNumbers={getFilteredIndices.map(i => i + 1)}
                 />
               </div>
             </div>
