@@ -13,7 +13,7 @@ interface ExamStyleAnswerSheetProps {
   showMarkOption?: boolean;
 }
 
-const options = [4, 3, 2, 1]; // RTL order: 4 on left, 1 on right
+const options = [1, 2, 3, 4]; // RTL order: 1 on right, 4 on left
 
 export const ExamStyleAnswerSheet = memo(({
   questionCount,
