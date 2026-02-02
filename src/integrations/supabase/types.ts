@@ -575,6 +575,7 @@ export type Database = {
           correct_answers: Json | null
           created_at: string
           id: string
+          marked_questions: Json | null
           name: string
           total_questions: number
           updated_at: string
@@ -585,6 +586,7 @@ export type Database = {
           correct_answers?: Json | null
           created_at?: string
           id?: string
+          marked_questions?: Json | null
           name: string
           total_questions?: number
           updated_at?: string
@@ -595,6 +597,7 @@ export type Database = {
           correct_answers?: Json | null
           created_at?: string
           id?: string
+          marked_questions?: Json | null
           name?: string
           total_questions?: number
           updated_at?: string
