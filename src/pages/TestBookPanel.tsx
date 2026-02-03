@@ -82,19 +82,23 @@ const TestBookPanel = () => {
     loadBooks();
   }, [loadBooks]);
 
-  // Update range when book changes (only on initial book selection)
-  const [prevBookId, setPrevBookId] = useState<string | null>(null);
+  // Track the book ID separately to avoid resetting filters on every answer save
+  const [activeBookId, setActiveBookId] = useState<string | null>(null);
   
-  useEffect(() => {
-    if (selectedBook && selectedBook.id !== prevBookId) {
+  // Only reset filters when a NEW book is selected (not on answer updates)
+  const selectBook = useCallback((book: TestBook) => {
+    const isNewBook = book.id !== activeBookId;
+    setSelectedBook(book);
+    
+    if (isNewBook) {
+      setActiveBookId(book.id);
       setRangeStart(1);
-      setRangeEnd(selectedBook.total_questions);
+      setRangeEnd(book.total_questions);
       setResetStart(1);
-      setResetEnd(selectedBook.total_questions);
+      setResetEnd(book.total_questions);
       setStepMultiplier(1);
-      setPrevBookId(selectedBook.id);
     }
-  }, [selectedBook, prevBookId]);
+  }, [activeBookId]);
 
   // Create new book
   const handleCreateBook = async () => {
@@ -365,6 +369,7 @@ const TestBookPanel = () => {
   // Back to list
   const handleBack = () => {
     setSelectedBook(null);
+    setActiveBookId(null);
     setViewMode('list');
   };
 
@@ -554,7 +559,7 @@ const TestBookPanel = () => {
                             variant="outline"
                             className="gap-2 flex-1"
                             onClick={() => {
-                              setSelectedBook(book);
+                              selectBook(book);
                               setViewMode('answers');
                             }}
                           >
@@ -566,7 +571,7 @@ const TestBookPanel = () => {
                             variant="outline"
                             className="gap-2 flex-1"
                             onClick={() => {
-                              setSelectedBook(book);
+                              selectBook(book);
                               setViewMode('correction');
                             }}
                           >
@@ -579,7 +584,7 @@ const TestBookPanel = () => {
                               variant="outline"
                               className="gap-2 flex-1"
                               onClick={() => {
-                                setSelectedBook(book);
+                                selectBook(book);
                                 setViewMode('results');
                               }}
                             >
