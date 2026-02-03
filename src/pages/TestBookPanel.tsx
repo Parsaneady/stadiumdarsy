@@ -82,16 +82,19 @@ const TestBookPanel = () => {
     loadBooks();
   }, [loadBooks]);
 
-  // Update range when book changes
+  // Update range when book changes (only on initial book selection)
+  const [prevBookId, setPrevBookId] = useState<string | null>(null);
+  
   useEffect(() => {
-    if (selectedBook) {
+    if (selectedBook && selectedBook.id !== prevBookId) {
       setRangeStart(1);
       setRangeEnd(selectedBook.total_questions);
       setResetStart(1);
       setResetEnd(selectedBook.total_questions);
       setStepMultiplier(1);
+      setPrevBookId(selectedBook.id);
     }
-  }, [selectedBook]);
+  }, [selectedBook, prevBookId]);
 
   // Create new book
   const handleCreateBook = async () => {
