@@ -296,6 +296,38 @@ export type Database = {
           },
         ]
       }
+      pension_chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          pension_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          pension_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          pension_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pension_chat_messages_pension_id_fkey"
+            columns: ["pension_id"]
+            isOneToOne: false
+            referencedRelation: "pensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pension_exams: {
         Row: {
           answer_key: Json | null
