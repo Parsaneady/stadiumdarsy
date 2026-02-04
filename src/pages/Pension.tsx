@@ -31,8 +31,10 @@ import {
   X,
   Target,
   ExternalLink,
-  ArrowRight
+  ArrowRight,
+  MessageCircle
 } from 'lucide-react';
+import { PensionChat } from '@/components/pension/PensionChat';
 import { format } from 'date-fns-jalali';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
 import { formatHoursDisplay } from '@/lib/timeUtils';
@@ -374,6 +376,9 @@ const Pension = () => {
   const [viewingExamRankings, setViewingExamRankings] = useState<PensionExam | null>(null);
   const [examRankingsResults, setExamRankingsResults] = useState<ExamResult[]>([]);
   const [loadingRankings, setLoadingRankings] = useState(false);
+  
+  // Chat state
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1934,10 +1939,14 @@ const Pension = () => {
 
         {/* Pension Tabs */}
         <Tabs defaultValue="leaderboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="leaderboard">
               <Trophy className="w-4 h-4 ml-1" />
               امتیازات
+            </TabsTrigger>
+            <TabsTrigger value="chat">
+              <MessageCircle className="w-4 h-4 ml-1" />
+              چت
             </TabsTrigger>
             <TabsTrigger value="exams">
               <FileText className="w-4 h-4 ml-1" />
@@ -2103,6 +2112,19 @@ const Pension = () => {
                   </div>
                 ))}
               </div>
+            </GlassCard>
+          </TabsContent>
+
+          {/* Chat Tab */}
+          <TabsContent value="chat">
+            <GlassCard className="min-h-[500px]">
+              {pension && (
+                <PensionChat 
+                  pensionId={pension.id} 
+                  pensionName={pension.name}
+                  onBack={() => {}}
+                />
+              )}
             </GlassCard>
           </TabsContent>
 
