@@ -22,12 +22,12 @@ const mainNavItems = [
 
 export const Sidebar = () => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
-
+  const { user, profile, signOut } = useAuth();
   const displayName = useMemo(() => {
+    if (profile?.display_name) return profile.display_name;
     if (!user) return '';
     return user.user_metadata?.display_name || user.email?.split('@')[0] || 'کاربر';
-  }, [user]);
+  }, [user, profile]);
 
   const email = user?.email || '';
 
