@@ -50,7 +50,7 @@ const StudyDesk = () => {
   // Calculate today's stats
   const todayStats = useMemo(() => {
     const todayIndex = getTodayIndex();
-    const todayPlan = weeklyPlan[todayIndex];
+    const todayPlan = weeklyPlan.find(d => d.dayIndex === todayIndex);
     
     if (!todayPlan) return { totalHours: 0, actualHours: 0, totalTests: 0, actualTests: 0 };
     
