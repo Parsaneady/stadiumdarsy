@@ -4,6 +4,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Clock, Trophy } from 'lucide-react';
 
+import studentAvatar1 from '@/assets/avatars/student-1.png';
+import studentAvatar2 from '@/assets/avatars/student-2.png';
+import studentAvatar3 from '@/assets/avatars/student-3.png';
+import studentAvatar4 from '@/assets/avatars/student-4.png';
+import studentAvatar5 from '@/assets/avatars/student-5.png';
+import studentAvatar6 from '@/assets/avatars/student-6.png';
+
+const AVATAR_IMAGES: Record<string, string> = {
+  'student-1': studentAvatar1,
+  'student-2': studentAvatar2,
+  'student-3': studentAvatar3,
+  'student-4': studentAvatar4,
+  'student-5': studentAvatar5,
+  'student-6': studentAvatar6,
+};
+
+const getAvatarSrc = (avatarUrl?: string): string | undefined => {
+  if (!avatarUrl) return undefined;
+  if (avatarUrl.startsWith('student-')) return AVATAR_IMAGES[avatarUrl];
+  if (avatarUrl.length > 4) return avatarUrl;
+  return undefined;
+};
+
 interface MemberStudyTime {
   userId: string;
   displayName: string;
@@ -157,7 +180,7 @@ export const PensionMembersStudyTime = () => {
             </div>
 
             <Avatar className="w-8 h-8 border-2 border-white/20">
-              <AvatarImage src={member.avatarUrl} />
+              <AvatarImage src={getAvatarSrc(member.avatarUrl)} />
               <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
                 {member.displayName.slice(0, 2)}
               </AvatarFallback>

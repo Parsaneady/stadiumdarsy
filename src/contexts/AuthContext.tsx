@@ -170,6 +170,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (!error) {
       setProfile(prev => prev ? { ...prev, ...updates } : null);
+      
+      // Also update auth user metadata so it stays in sync
+      if (updates.display_name) {
+        await supabase.auth.updateUser({
+          data: { full_name: updates.display_name, display_name: updates.display_name }
+        });
+      }
     }
 
     return { error };
