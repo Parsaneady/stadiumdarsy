@@ -132,7 +132,7 @@ const Dashboard = () => {
   const stats = useMemo(() => getStats(), [getStats, weeklyPlan]);
   const upcomingEvents = useMemo(() => getUpcomingEvents(), [getUpcomingEvents]);
   const todayIndex = getTodayIndex();
-  const todayPlan = weeklyPlan[todayIndex];
+  const todayPlan = weeklyPlan.find(d => d.dayIndex === todayIndex);
 
   // Memoize today's calculations
   const { todayCompleted, todayTotal, todayPercent, todayActualHours, todayTargetHours } = useMemo(() => {

@@ -451,7 +451,7 @@ export const useStudyStore = create<StudyStore>()(
         // Add to the specific subject session - use fresh state
         const freshState = get();
         const todayIndex = freshState.getTodayIndex();
-        const todayPlan = freshState.weeklyPlan[todayIndex];
+        const todayPlan = freshState.weeklyPlan.find(d => d.dayIndex === todayIndex);
         
         console.log('Pomodoro completed:', { subject, minutes, todayIndex, todayPlan: todayPlan?.dayName, sessions: todayPlan?.sessions?.map(s => s.subject) });
         

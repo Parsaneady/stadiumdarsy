@@ -57,6 +57,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [totalSessions, setTotalSessions] = useState(0);
@@ -74,6 +75,7 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name || '');
+      setUsername(profile.username || '');
       setSelectedAvatar(profile.avatar_url || '');
     }
   }, [profile]);
@@ -104,12 +106,15 @@ const Profile = () => {
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      toast.error('نام کاربری نمی‌تواند خالی باشد');
+      toast.error('نام نمایشی نمی‌تواند خالی باشد');
       return;
     }
 
     setIsSaving(true);
-    const { error } = await updateProfile({ display_name: displayName });
+    const { error } = await updateProfile({ 
+      display_name: displayName.trim(),
+      username: username.trim() || null,
+    });
     setIsSaving(false);
 
     if (error) {
@@ -231,28 +236,53 @@ const Profile = () => {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <User className="h-4 w-4" />
+                    نام نمایشی
+                  </Label>
+                  {isEditing ? (
+                    <Input
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="bg-white/5 border-white/10"
+                      placeholder="نام نمایشی"
+                    />
+                  ) : (
+                    <p className="text-foreground">{profile?.display_name || 'تنظیم نشده'}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
                     نام کاربری
                   </Label>
                   {isEditing ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        className="bg-white/5 border-white/10"
-                      />
-                      <Button onClick={handleSave} disabled={isSaving} size="sm">
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      </Button>
-                    </div>
+                    <Input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="bg-white/5 border-white/10"
+                      placeholder="نام کاربری (اختیاری)"
+                      dir="ltr"
+                    />
                   ) : (
-                    <div className="flex justify-between items-center">
-                      <p className="text-foreground">{profile?.display_name || 'تنظیم نشده'}</p>
-                      <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                        ویرایش
-                      </Button>
-                    </div>
+                    <p className="text-foreground">{profile?.username ? `@${profile.username}` : 'تنظیم نشده'}</p>
                   )}
                 </div>
+
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    <Button onClick={handleSave} disabled={isSaving} className="flex-1">
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
+                      ذخیره
+                    </Button>
+                    <Button variant="ghost" onClick={() => setIsEditing(false)}>
+                      انصراف
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="w-full">
+                    ویرایش پروفایل
+                  </Button>
+                )}
 
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">

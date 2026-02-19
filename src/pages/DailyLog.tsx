@@ -181,7 +181,7 @@ const DailyLog = () => {
 
   // Get available subjects from today's plan with their colors
   const todayIndex = getTodayIndex();
-  const todayPlan = weeklyPlan[todayIndex];
+  const todayPlan = weeklyPlan.find(d => d.dayIndex === todayIndex);
   const availableSubjects = todayPlan?.sessions.map(s => s.subject) || [];
   
   // Build subject colors map from weekly plan
@@ -359,7 +359,7 @@ const DailyLog = () => {
       // Get fresh state from store to avoid stale closure issues
       const freshState = useStudyStore.getState();
       const freshTodayIndex = freshState.getTodayIndex();
-      const freshTodayPlan = freshState.weeklyPlan[freshTodayIndex];
+      const freshTodayPlan = freshState.weeklyPlan.find(d => d.dayIndex === freshTodayIndex);
       
       // Update weekly plan session with actual hours
       if (freshTodayPlan) {
@@ -541,7 +541,7 @@ const DailyLog = () => {
     // Get fresh state from store
     const freshState = useStudyStore.getState();
     const freshTodayIndex = freshState.getTodayIndex();
-    const freshTodayPlan = freshState.weeklyPlan[freshTodayIndex];
+    const freshTodayPlan = freshState.weeklyPlan.find(d => d.dayIndex === freshTodayIndex);
     
     if (!freshTodayPlan) return;
     
