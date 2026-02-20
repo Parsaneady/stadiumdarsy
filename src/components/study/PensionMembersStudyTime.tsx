@@ -102,9 +102,9 @@ export const PensionMembersStudyTime = () => {
           
           return {
             userId,
-            displayName: profile?.first_name && profile?.last_name 
+            displayName: profile?.display_name || (profile?.first_name && profile?.last_name 
               ? `${profile.first_name} ${profile.last_name}`
-              : profile?.display_name || 'کاربر',
+              : profile?.first_name || 'کاربر'),
             avatarUrl: profile?.avatar_url || undefined,
             totalMinutes: todayMinutesMap[userId] || 0,
           };
@@ -125,7 +125,39 @@ export const PensionMembersStudyTime = () => {
 
     // Refresh every 2 minutes
     const interval = setInterval(fetchMembersStudyTime, 120000);
-    return () => clearInterval(interval);
+
+    // Subscribe to profile changes so display names update in real-time
+    const profileChannel = supabase
+      .channel('profile-changes-studytime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          const updatedProfile = payload.new as any;
+          setMembers(prev => prev.map(m => {
+            if (m.userId === updatedProfile.user_id) {
+              return {
+                ...m,
+                displayName: updatedProfile.display_name || (updatedProfile.first_name && updatedProfile.last_name
+                  ? `${updatedProfile.first_name} ${updatedProfile.last_name}`
+                  : updatedProfile.first_name || m.displayName),
+                avatarUrl: updatedProfile.avatar_url || m.avatarUrl,
+              };
+            }
+            return m;
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(profileChannel);
+    };
   }, [user]);
 
   const formatTime = (minutes: number) => {

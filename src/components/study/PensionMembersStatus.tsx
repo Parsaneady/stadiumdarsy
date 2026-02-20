@@ -90,9 +90,9 @@ export const PensionMembersStatus = () => {
           
           return {
             userId,
-            displayName: profile?.first_name && profile?.last_name 
+            displayName: profile?.display_name || (profile?.first_name && profile?.last_name 
               ? `${profile.first_name} ${profile.last_name}`
-              : profile?.display_name || 'کاربر',
+              : profile?.first_name || 'کاربر'),
             avatarUrl: profile?.avatar_url || undefined,
             isStudying: status?.is_studying || false,
             currentSubject: status?.current_subject || undefined,
@@ -113,8 +113,8 @@ export const PensionMembersStatus = () => {
 
     fetchMembers();
 
-    // Subscribe to realtime updates
-    const channel = supabase
+    // Subscribe to study status realtime updates
+    const studyChannel = supabase
       .channel('study-status-changes')
       .on(
         'postgres_changes',
@@ -124,7 +124,6 @@ export const PensionMembersStatus = () => {
           table: 'user_study_status',
         },
         (payload) => {
-          // Update the specific member's status
           setMembers(prev => {
             const updated = [...prev];
             const index = updated.findIndex(m => m.userId === (payload.new as any)?.user_id);
@@ -135,7 +134,6 @@ export const PensionMembersStatus = () => {
                 currentSubject: (payload.new as any)?.current_subject,
                 studyMode: (payload.new as any)?.study_mode,
               };
-              // Re-sort
               updated.sort((a, b) => (b.isStudying ? 1 : 0) - (a.isStudying ? 1 : 0));
             }
             return updated;
@@ -144,8 +142,37 @@ export const PensionMembersStatus = () => {
       )
       .subscribe();
 
+    // Subscribe to profile changes so display names update in real-time
+    const profileChannel = supabase
+      .channel('profile-changes-status')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          const updatedProfile = payload.new as any;
+          setMembers(prev => prev.map(m => {
+            if (m.userId === updatedProfile.user_id) {
+              return {
+                ...m,
+                displayName: updatedProfile.display_name || (updatedProfile.first_name && updatedProfile.last_name
+                  ? `${updatedProfile.first_name} ${updatedProfile.last_name}`
+                  : updatedProfile.first_name || m.displayName),
+                avatarUrl: updatedProfile.avatar_url || m.avatarUrl,
+              };
+            }
+            return m;
+          }));
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(studyChannel);
+      supabase.removeChannel(profileChannel);
     };
   }, [user]);
 

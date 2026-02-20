@@ -386,6 +386,46 @@ const Pension = () => {
     }
   }, [user]);
 
+  // Subscribe to profile changes so member names/avatars update in real-time
+  useEffect(() => {
+    if (!user) return;
+
+    const profileChannel = supabase
+      .channel('pension-profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          const updatedProfile = payload.new as any;
+          setMembers(prev => prev.map(member => {
+            if (member.user_id === updatedProfile.user_id) {
+              return {
+                ...member,
+                profile: member.profile ? {
+                  ...member.profile,
+                  display_name: updatedProfile.display_name,
+                  username: updatedProfile.username,
+                  avatar_url: updatedProfile.avatar_url,
+                  first_name: updatedProfile.first_name,
+                  last_name: updatedProfile.last_name,
+                } : member.profile,
+              };
+            }
+            return member;
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+    };
+  }, [user]);
+
   const fetchPension = async () => {
     if (!user) return;
 
