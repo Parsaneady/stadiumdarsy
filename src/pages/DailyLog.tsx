@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings, Target } from 'lucide-react';
+import { getEffectiveDateString } from '@/lib/timeUtils';
 import { useStudyStore, StudySession, DailyLog as DailyLogType, DailyLogSession } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
@@ -91,7 +92,7 @@ const DailyLog = () => {
     if (!user) return;
 
     const loadTodayData = async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getEffectiveDateString();
       
       // Check wake-up log
       const { data: wakeUpData } = await supabase
@@ -196,7 +197,7 @@ const DailyLog = () => {
   useEffect(() => {
     if (!user || !todayPlan || todayPlan.sessions.length === 0) return;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getEffectiveDateString();
     const existingLog = dailyLogs.find(log => log.date === today);
     
     if (!existingLog) {
@@ -235,7 +236,7 @@ const DailyLog = () => {
     const minutes = now.getMinutes();
     const wakeHour = hours + minutes / 60;
     
-    const today = now.toISOString().split('T')[0];
+    const today = getEffectiveDateString();
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     
     // Get user's pension
@@ -280,7 +281,7 @@ const DailyLog = () => {
     }, { onConflict: 'user_id' });
 
     // Create activity record
-    const today = now.toISOString().split('T')[0];
+    const today = getEffectiveDateString();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
     const subjectColor = subjectColorsFromPlan[subject] || SUBJECT_COLORS[subject] || '#8B5CF6';
     
@@ -337,7 +338,7 @@ const DailyLog = () => {
     }).eq('user_id', user.id);
 
     // Update activity end time
-    const today = now.toISOString().split('T')[0];
+    const today = getEffectiveDateString();
     const endTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
     
     await supabase.from('study_activities').update({
@@ -545,7 +546,7 @@ const DailyLog = () => {
     
     if (!freshTodayPlan) return;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getEffectiveDateString();
     
     // Calculate totals from fresh plan state
     let totalStudyHours = 0;

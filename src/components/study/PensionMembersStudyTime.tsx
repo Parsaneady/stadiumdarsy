@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getEffectiveDateString } from '@/lib/timeUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -76,7 +77,7 @@ export const PensionMembersStudyTime = () => {
           .in('user_id', memberIds);
 
         // Get today's activities for each member
-        const today = new Date().toISOString().split('T')[0];
+        const today = getEffectiveDateString();
         const { data: todayActivities } = await supabase
           .from('study_activities')
           .select('user_id, start_time, end_time')

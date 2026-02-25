@@ -61,3 +61,20 @@ export const persianToEnglish = (str: string): string => {
   const persianNums = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   return str.replace(/[۰-۹]/g, (d) => persianNums.indexOf(d).toString());
 };
+
+// Get effective date considering 3 AM boundary
+// Before 3 AM, we still consider it the previous day
+export const getEffectiveDate = (): Date => {
+  const now = new Date();
+  if (now.getHours() < 3) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  }
+  return now;
+};
+
+// Get effective date string (YYYY-MM-DD) considering 3 AM boundary
+export const getEffectiveDateString = (): string => {
+  return getEffectiveDate().toISOString().split('T')[0];
+};
