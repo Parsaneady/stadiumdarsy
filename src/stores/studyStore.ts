@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getEffectiveDate, getEffectiveDateString } from '@/lib/timeUtils';
 
 export interface StudySession {
   id: string;
@@ -165,9 +166,18 @@ export const useStudyStore = create<StudyStore>()(
       lastWeeklyReset: null,
 
       getTodayIndex: () => {
-        const today = new Date().getDay();
+        const now = new Date();
+        const hour = now.getHours();
+        // If before 3 AM, consider it still the previous day
+        let day = now.getDay();
+        if (hour < 3) {
+          // Go back one day
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          day = yesterday.getDay();
+        }
         // Convert JS day (0=Sunday) to Persian day (0=Saturday)
-        return today === 6 ? 0 : today + 1;
+        return day === 6 ? 0 : day + 1;
       },
 
       initializeWeek: () => {
@@ -205,19 +215,27 @@ export const useStudyStore = create<StudyStore>()(
 
       checkAndResetWeekly: () => {
         const state = get();
-        const today = new Date();
-        const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+        const now = new Date();
+        const hour = now.getHours();
         
-        // Check if today is Saturday (6 in JS, which is 0 in Persian week)
+        // If before 3 AM, it's still "yesterday" - don't reset yet
+        let effectiveDate = new Date(now);
+        if (hour < 3) {
+          effectiveDate.setDate(effectiveDate.getDate() - 1);
+        }
+        
+        const dayOfWeek = effectiveDate.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        // Check if effective day is Saturday (6 in JS, which is 0 in Persian week)
         if (dayOfWeek !== 6) return;
         
         // Check if we already reset today
         if (state.lastWeeklyReset) {
           const lastReset = new Date(state.lastWeeklyReset);
           const isSameDay = 
-            lastReset.getFullYear() === today.getFullYear() &&
-            lastReset.getMonth() === today.getMonth() &&
-            lastReset.getDate() === today.getDate();
+            lastReset.getFullYear() === effectiveDate.getFullYear() &&
+            lastReset.getMonth() === effectiveDate.getMonth() &&
+            lastReset.getDate() === effectiveDate.getDate();
           
           if (isSameDay) return;
         }
@@ -362,9 +380,9 @@ export const useStudyStore = create<StudyStore>()(
           notes: s.notes,
         }));
 
-        // Use today's date directly
-        const today = new Date();
-        const todayKey = today.toISOString().split('T')[0];
+        // Use effective date (before 3 AM = still previous day)
+        const effectiveDate = getEffectiveDate();
+        const todayKey = getEffectiveDateString();
 
         // Check for existing log for today
         const existingLogIndex = state.dailyLogs.findIndex(log => 
@@ -378,7 +396,7 @@ export const useStudyStore = create<StudyStore>()(
               idx === existingLogIndex
                 ? {
                     ...log,
-                    date: today.toISOString(),
+                    date: effectiveDate.toISOString(),
                     totalStudyHours,
                     totalTests,
                     completedSessions,
@@ -394,7 +412,7 @@ export const useStudyStore = create<StudyStore>()(
           // Create new log
           const newLog: DailyLog = {
             id: generateId(),
-            date: today.toISOString(),
+            date: effectiveDate.toISOString(),
             totalStudyHours,
             totalTests,
             completedSessions,
@@ -422,7 +440,7 @@ export const useStudyStore = create<StudyStore>()(
       },
 
       addPomodoroTime: (minutes, subject) => {
-        const today = new Date().toDateString();
+        const today = getEffectiveDate().toDateString();
         const state = get();
         
         // Create new pomodoro session record
@@ -473,7 +491,7 @@ export const useStudyStore = create<StudyStore>()(
       },
 
       getTodayPomodoros: () => {
-        const today = new Date().toDateString();
+        const today = getEffectiveDate().toDateString();
         const state = get();
         return state.pomodoroHistory.filter(p => p.date === today);
       },

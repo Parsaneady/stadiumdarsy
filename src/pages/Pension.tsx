@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { getEffectiveDateString } from '@/lib/timeUtils';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
@@ -459,7 +460,7 @@ const Pension = () => {
 
           if (membersData) {
             // Get today's date for wake up logs
-            const today = new Date().toISOString().split('T')[0];
+            const today = getEffectiveDateString();
             
             // Fetch profiles, weekly plans, and wake up logs for each member
             const membersWithProfiles = await Promise.all(
