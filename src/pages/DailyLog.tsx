@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings, Target } from 'lucide-react';
+import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings, Target, Moon } from 'lucide-react';
 import { getEffectiveDateString } from '@/lib/timeUtils';
 import { useStudyStore, StudySession, DailyLog as DailyLogType, DailyLogSession } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
@@ -134,7 +134,9 @@ const DailyLog = () => {
           if (a.activity_type === 'study' && a.end_time) {
             const [startH, startM] = a.start_time.split(':').map(Number);
             const [endH, endM] = a.end_time.split(':').map(Number);
-            totalMins += (endH * 60 + endM) - (startH * 60 + startM);
+            let diff = (endH * 60 + endM) - (startH * 60 + startM);
+            if (diff < 0) diff += 24 * 60; // handle midnight crossing
+            totalMins += diff;
           }
         });
         setTotalStudyMinutes(totalMins);
@@ -638,6 +640,12 @@ const DailyLog = () => {
             <p className="text-muted-foreground mt-1">
               {todayPlan?.dayName || 'امروز'} - مطالعه و ثبت فعالیت
             </p>
+            {new Date().getHours() < 3 && (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-accent">
+                <Moon className="w-3.5 h-3.5" />
+                <span>حالت شب‌زنده‌داری — ادامه برنامه دیروز</span>
+              </div>
+            )}
           </div>
         </div>
 

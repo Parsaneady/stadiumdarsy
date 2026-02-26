@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Moon } from 'lucide-react';
 
 interface Activity {
   id: string;
@@ -328,10 +329,24 @@ export const DayClockCircle = ({
             className="fill-primary"
           />
 
+          {/* Night owl indicator */}
+          {tehranTime.hours < 3 && (
+            <g>
+              <text
+                x={center}
+                y={center - 28}
+                textAnchor="middle"
+                className="fill-accent text-[10px]"
+              >
+                🌙 شب‌زنده‌داری
+              </text>
+            </g>
+          )}
+
           {/* Center text - Study time HH:MM */}
           <text
             x={center}
-            y={center - 10}
+            y={tehranTime.hours < 3 ? center - 5 : center - 10}
             textAnchor="middle"
             className="fill-foreground text-lg font-bold font-mono"
           >
@@ -339,7 +354,7 @@ export const DayClockCircle = ({
           </text>
           <text
             x={center}
-            y={center + 12}
+            y={tehranTime.hours < 3 ? center + 17 : center + 12}
             textAnchor="middle"
             className="fill-muted-foreground text-xs"
           >
