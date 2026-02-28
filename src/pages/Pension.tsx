@@ -462,58 +462,98 @@ const Pension = () => {
             // Get today's date for wake up logs
             const today = getEffectiveDateString();
             
-            // Fetch profiles, weekly plans, and wake up logs for each member
-            const membersWithProfiles = await Promise.all(
-              membersData.map(async (member) => {
-                const [profileRes, weeklyPlansRes, wakeLogRes] = await Promise.all([
-                  supabase
-                    .from('profiles')
-                    .select('username, display_name, first_name, last_name, avatar_url, total_study_minutes, total_tests')
-                    .eq('user_id', member.user_id)
-                    .maybeSingle(),
-                  supabase
-                    .from('weekly_plans')
-                    .select('sessions')
-                    .eq('user_id', member.user_id),
-                  supabase
-                    .from('wake_up_logs')
-                    .select('wake_time')
-                    .eq('user_id', member.user_id)
-                    .eq('pension_id', pensionData.id)
-                    .eq('logged_date', today)
-                    .maybeSingle()
-                ]);
+            // Calculate the most recent Saturday for weekly stats
+            const getMostRecentSaturday = (date: Date): string => {
+              const result = new Date(date);
+              const dayOfWeek = result.getDay(); // 0=Sun, 6=Sat
+              const daysSinceSaturday = dayOfWeek === 6 ? 0 : (dayOfWeek + 1);
+              result.setDate(result.getDate() - daysSinceSaturday);
+              return `${result.getFullYear()}-${String(result.getMonth() + 1).padStart(2, '0')}-${String(result.getDate()).padStart(2, '0')}`;
+            };
+            
+            const weekStartDate = getMostRecentSaturday(new Date());
+            const memberIds = membersData.map(m => m.user_id);
 
-                // Calculate weekly stats from weekly_plans (reset happens every Saturday)
-                // The weekly_plans.sessions.actualHours/actualTests are reset to 0 on Saturdays
-                let weeklyHours = 0;
-                let weeklyTests = 0;
-                if (weeklyPlansRes.data) {
-                  weeklyPlansRes.data.forEach((plan: any) => {
-                    const sessions = plan.sessions || [];
-                    sessions.forEach((session: any) => {
-                      weeklyHours += session.actualHours || 0;
-                      weeklyTests += session.actualTests || 0;
-                    });
-                  });
-                }
-                
-                // Check if this is current user's wake time
-                if (member.user_id === user?.id && wakeLogRes.data?.wake_time) {
-                  setMyWakeTime(wakeLogRes.data.wake_time);
-                }
+            // Fetch profiles, study activities for this week, and wake up logs in parallel
+            const [profilesRes, weekActivitiesRes, wakeLogsRes, weeklyTestsRes] = await Promise.all([
+              supabase.from('profiles')
+                .select('user_id, username, display_name, first_name, last_name, avatar_url, total_study_minutes, total_tests')
+                .in('user_id', memberIds),
+              supabase.from('study_activities')
+                .select('user_id, start_time, end_time')
+                .in('user_id', memberIds)
+                .gte('activity_date', weekStartDate)
+                .eq('activity_type', 'study'),
+              supabase.from('wake_up_logs')
+                .select('user_id, wake_time')
+                .in('user_id', memberIds)
+                .eq('pension_id', pensionData.id)
+                .eq('logged_date', today),
+              supabase.from('daily_logs')
+                .select('user_id, total_tests')
+                .in('user_id', memberIds)
+                .gte('date', weekStartDate),
+            ]);
 
-                return { 
-                  ...member, 
-                  profile: profileRes.data,
-                  weeklyStats: {
-                    totalHours: weeklyHours,
-                    totalTests: weeklyTests
-                  },
-                  wakeTime: wakeLogRes.data?.wake_time || null
-                } as PensionMember;
-              })
-            );
+            // Calculate weekly study minutes per member from activities
+            const weeklyMinutesMap: Record<string, number> = {};
+            weekActivitiesRes.data?.forEach(activity => {
+              if (activity.end_time && activity.start_time) {
+                const [startH, startM] = activity.start_time.split(':').map(Number);
+                const [endH, endM] = activity.end_time.split(':').map(Number);
+                let diff = (endH * 60 + endM) - (startH * 60 + startM);
+                if (diff < 0) diff += 24 * 60; // handle midnight crossing
+                if (diff > 0) {
+                  weeklyMinutesMap[activity.user_id] = (weeklyMinutesMap[activity.user_id] || 0) + diff;
+                }
+              }
+            });
+
+            // Calculate weekly tests per member from daily_logs
+            const weeklyTestsMap: Record<string, number> = {};
+            weeklyTestsRes.data?.forEach(log => {
+              weeklyTestsMap[log.user_id] = (weeklyTestsMap[log.user_id] || 0) + (log.total_tests || 0);
+            });
+
+            // Build wake time map
+            const wakeTimeMap: Record<string, string> = {};
+            wakeLogsRes.data?.forEach(log => {
+              wakeTimeMap[log.user_id] = log.wake_time;
+            });
+
+            // Build profiles map
+            const profilesMap: Record<string, any> = {};
+            profilesRes.data?.forEach(p => {
+              profilesMap[p.user_id] = p;
+            });
+
+            const membersWithProfiles = membersData.map(member => {
+              const profile = profilesMap[member.user_id];
+              const weeklyHours = (weeklyMinutesMap[member.user_id] || 0) / 60;
+              const weeklyTests = weeklyTestsMap[member.user_id] || 0;
+
+              if (member.user_id === user?.id && wakeTimeMap[member.user_id]) {
+                setMyWakeTime(wakeTimeMap[member.user_id]);
+              }
+
+              return {
+                ...member,
+                profile: profile ? {
+                  username: profile.username,
+                  display_name: profile.display_name,
+                  first_name: profile.first_name,
+                  last_name: profile.last_name,
+                  avatar_url: profile.avatar_url,
+                  total_study_minutes: profile.total_study_minutes || 0,
+                  total_tests: profile.total_tests || 0,
+                } : undefined,
+                weeklyStats: {
+                  totalHours: weeklyHours,
+                  totalTests: weeklyTests,
+                },
+                wakeTime: wakeTimeMap[member.user_id] || null,
+              } as PensionMember;
+            });
             
             // Sort by weekly study hours (leaderboard)
             membersWithProfiles.sort((a, b) => 

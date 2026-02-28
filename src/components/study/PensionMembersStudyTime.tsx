@@ -91,7 +91,8 @@ export const PensionMembersStudyTime = () => {
           if (activity.end_time && activity.start_time) {
             const [startH, startM] = activity.start_time.split(':').map(Number);
             const [endH, endM] = activity.end_time.split(':').map(Number);
-            const minutes = (endH * 60 + endM) - (startH * 60 + startM);
+            let minutes = (endH * 60 + endM) - (startH * 60 + startM);
+            if (minutes < 0) minutes += 24 * 60; // handle midnight crossing
             if (minutes > 0) {
               todayMinutesMap[activity.user_id] = (todayMinutesMap[activity.user_id] || 0) + minutes;
             }
