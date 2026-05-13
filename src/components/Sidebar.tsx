@@ -6,14 +6,16 @@ import {
   User,
   BarChart3,
   History,
-  GraduationCap,
-  LogOut
+  GraduationCap, 
+  LogOut,
+  TreePine
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
 const mainNavItems = [
   { path: '/study-desk', icon: BookOpen, label: 'میز مطالعه', subtitle: 'برنامه، تایمر، آزمون' },
+  { path: '/discipline-tree', icon: TreePine, label: 'درخت دیسیپلین', subtitle: 'فضای ذهنی و آرامش' },
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
   { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
