@@ -15,6 +15,7 @@ import {
   User,
   BookOpen,
   GraduationCap,
+  TreePine,
   Menu,
   X
 } from 'lucide-react';
@@ -26,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const otherNavItems = [
   { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
+  { path: '/discipline-tree', icon: TreePine, label: 'درخت دیسیپلین' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
   { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
   { path: '/profile', icon: User, label: 'پروفایل' },
