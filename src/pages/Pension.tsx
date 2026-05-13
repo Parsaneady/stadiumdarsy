@@ -1232,7 +1232,7 @@ const Pension = () => {
 
   // Timer effect
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     if (isExamRunning && examTimeLeft > 0) {
       timer = setInterval(() => {
         setExamTimeLeft(prev => {
