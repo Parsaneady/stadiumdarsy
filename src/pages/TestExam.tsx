@@ -55,7 +55,7 @@ const TestExam = () => {
   const [noWrongPenalty, setNoWrongPenalty] = useState(false);
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load saved results with safe JSON parsing
   useEffect(() => {

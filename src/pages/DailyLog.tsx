@@ -77,7 +77,7 @@ const DailyLog = () => {
   const [freeTimeElapsed, setFreeTimeElapsed] = useState(0);
   const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTickRef = useRef<number>(Date.now());
 
   // Initialize week if needed
