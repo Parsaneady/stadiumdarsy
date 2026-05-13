@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Calendar, ClipboardList, FileText, Users, Clock, BookOpen } from 'lucide-react';
+import { Calendar, ClipboardList, FileText, Users, Clock, BookOpen, TreePine } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { GlassCard } from '@/components/GlassCard';
 import { useStudyStore } from '@/stores/studyStore';
@@ -115,8 +115,31 @@ const StudyDesk = () => {
               </GlassCard>
             ))}
             
-            {/* Answer Sheet Island */}
+            {/* Discipline Tree Island */}
             <GlassCard delay={studyDeskItems.length * 0.1}>
+              <button
+                onClick={() => navigate('/discipline-tree')}
+                className="w-full text-right p-6 rounded-xl transition-all duration-300 hover:scale-[1.02] group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-400 flex items-center justify-center shrink-0 group-hover:shadow-lg group-hover:shadow-emerald-300/40 transition-shadow relative overflow-hidden">
+                    <div className="absolute inset-0 bg-white/10 blur-xl" />
+                    <TreePine className="w-8 h-8 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] relative z-10" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">
+                      درخت دیسیپلین
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      نقشه ذهنی برنامه هفتگی در فضای آرامش
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </GlassCard>
+
+            {/* Answer Sheet Island */}
+            <GlassCard delay={(studyDeskItems.length + 1) * 0.1}>
               <button
                 onClick={() => navigate('/test-book')}
                 className="w-full text-right p-6 rounded-xl transition-all duration-300 hover:scale-[1.02] group"
