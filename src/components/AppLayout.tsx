@@ -17,11 +17,19 @@ import {
   GraduationCap,
   TreePine,
   Menu,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from '@/hooks/use-toast';
+
+// برای فعال‌سازی دانلود ZIP، ابتدا پروژه را در Lovable به GitHub متصل کن
+// (دکمه + کنار چت → GitHub → Connect project) سپس آدرس ریپو را اینجا قرار بده.
+// مثال: "https://github.com/username/my-repo"
+const GITHUB_REPO_URL = "";
+const GITHUB_DEFAULT_BRANCH = "main";
 
 // Study desk items - removed from sidebar, now on StudyDesk page
 
