@@ -192,6 +192,32 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
               <NavItem key={item.path} item={item} />
             ))}
           </div>
+
+          {/* Download Code ZIP */}
+          <button
+            onClick={() => {
+              if (!GITHUB_REPO_URL) {
+                toast({
+                  title: "اتصال GitHub لازم است",
+                  description: "ابتدا از منوی + کنار چت لاوبل، گزینه GitHub → Connect project را بزن، بعد آدرس ریپو در فایل AppLayout.tsx قرار می‌گیرد.",
+                });
+                return;
+              }
+              const zipUrl = `${GITHUB_REPO_URL.replace(/\/$/, '')}/archive/refs/heads/${GITHUB_DEFAULT_BRANCH}.zip`;
+              window.open(zipUrl, '_blank');
+            }}
+            className="w-full p-3 rounded-xl bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                <Download className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-right flex-1">
+                <span className="font-semibold text-emerald-400">دانلود کد (ZIP)</span>
+                <p className="text-[10px] text-muted-foreground">از GitHub</p>
+              </div>
+            </div>
+          </button>
         </nav>
 
         {/* Logout & Footer */}
