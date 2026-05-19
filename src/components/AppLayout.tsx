@@ -17,11 +17,19 @@ import {
   GraduationCap,
   TreePine,
   Menu,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from '@/hooks/use-toast';
+
+// برای فعال‌سازی دانلود ZIP، ابتدا پروژه را در Lovable به GitHub متصل کن
+// (دکمه + کنار چت → GitHub → Connect project) سپس آدرس ریپو را اینجا قرار بده.
+// مثال: "https://github.com/username/my-repo"
+const GITHUB_REPO_URL: string = "";
+const GITHUB_DEFAULT_BRANCH = "main";
 
 // Study desk items - removed from sidebar, now on StudyDesk page
 
@@ -184,6 +192,32 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
               <NavItem key={item.path} item={item} />
             ))}
           </div>
+
+          {/* Download Code ZIP */}
+          <button
+            onClick={() => {
+              if (!GITHUB_REPO_URL) {
+                toast({
+                  title: "اتصال GitHub لازم است",
+                  description: "ابتدا از منوی + کنار چت لاوبل، گزینه GitHub → Connect project را بزن، بعد آدرس ریپو در فایل AppLayout.tsx قرار می‌گیرد.",
+                });
+                return;
+              }
+              const zipUrl = `${GITHUB_REPO_URL.replace(/\/$/, '')}/archive/refs/heads/${GITHUB_DEFAULT_BRANCH}.zip`;
+              window.open(zipUrl, '_blank');
+            }}
+            className="w-full p-3 rounded-xl bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                <Download className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-right flex-1">
+                <span className="font-semibold text-emerald-400">دانلود کد (ZIP)</span>
+                <p className="text-[10px] text-muted-foreground">از GitHub</p>
+              </div>
+            </div>
+          </button>
         </nav>
 
         {/* Logout & Footer */}
