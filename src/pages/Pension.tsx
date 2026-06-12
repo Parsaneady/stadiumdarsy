@@ -333,6 +333,9 @@ const Pension = () => {
   const [examDuration, setExamDuration] = useState('60');
   const [examQuestionCount, setExamQuestionCount] = useState('60');
   const [examPdfFile, setExamPdfFile] = useState<File | null>(null);
+  const [examIsDescriptive, setExamIsDescriptive] = useState(false);
+  const [descriptiveScoreInput, setDescriptiveScoreInput] = useState('');
+  const [showDescriptiveScoreDialog, setShowDescriptiveScoreDialog] = useState(false);
   
   // Exam taking state
   const [takingExam, setTakingExam] = useState<PensionExam | null>(null);
