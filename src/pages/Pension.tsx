@@ -1748,9 +1748,11 @@ const Pension = () => {
 
   // Taking exam view - exactly like ExamPanel (TestExam.tsx) reference
   if (takingExam) {
+    const isSelfScore = takingExam.exam_type === 'self_score' || takingExam.question_count === 0;
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
     const unansweredCount = takingExam.question_count - answeredCount;
     const progressPercent = takingExam.question_count > 0 ? Math.round((answeredCount / takingExam.question_count) * 100) : 0;
+    
     
     return (
       <div className="fixed inset-0 z-50 bg-background overflow-hidden">
