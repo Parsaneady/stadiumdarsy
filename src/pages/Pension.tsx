@@ -2402,7 +2402,19 @@ const Pension = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <label className="flex items-center gap-2 p-3 rounded-lg border border-white/10 bg-white/5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={examIsDescriptive}
+                            onChange={(e) => setExamIsDescriptive(e.target.checked)}
+                            className="w-4 h-4 accent-primary"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">آزمون تشریحی (بدون گزینه)</p>
+                            <p className="text-xs text-muted-foreground">دانش‌آموز پس از پایان، خودش نمره را وارد می‌کند</p>
+                          </div>
+                        </label>
+                        <div className={cn("grid gap-3", examIsDescriptive ? "grid-cols-1" : "grid-cols-2")}>
                           <div>
                             <label className="text-sm text-muted-foreground mb-1 block">مدت زمان (دقیقه)</label>
                             <Input
@@ -2413,19 +2425,22 @@ const Pension = () => {
                               className="bg-white/5"
                             />
                           </div>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-1 block">تعداد سوالات</label>
-                            <Input
-                              type="number"
-                              value={examQuestionCount}
-                              onChange={(e) => setExamQuestionCount(e.target.value)}
-                              placeholder="مثال: 60"
-                              className="bg-white/5"
-                              min={1}
-                              max={200}
-                            />
-                          </div>
+                          {!examIsDescriptive && (
+                            <div>
+                              <label className="text-sm text-muted-foreground mb-1 block">تعداد سوالات</label>
+                              <Input
+                                type="number"
+                                value={examQuestionCount}
+                                onChange={(e) => setExamQuestionCount(e.target.value)}
+                                placeholder="مثال: 60"
+                                className="bg-white/5"
+                                min={1}
+                                max={200}
+                              />
+                            </div>
+                          )}
                         </div>
+
                         <div>
                           <label className="text-sm text-muted-foreground mb-1 block">
                             فایل سوالات (PDF) <span className="text-destructive">*</span>
