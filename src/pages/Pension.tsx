@@ -840,8 +840,8 @@ const Pension = () => {
       return;
     }
 
-    const qCount = parseInt(examQuestionCount) || 60;
-    if (qCount < 1 || qCount > 200) {
+    const qCount = examIsDescriptive ? 0 : (parseInt(examQuestionCount) || 60);
+    if (!examIsDescriptive && (qCount < 1 || qCount > 200)) {
       toast.error('تعداد سوالات باید بین ۱ تا ۲۰۰ باشد');
       return;
     }
