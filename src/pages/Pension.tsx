@@ -1072,6 +1072,52 @@ const Pension = () => {
     setIsExamRunning(false);
   };
 
+  const handleSubmitDescriptiveScore = async () => {
+    if (!takingExam || !user || !pension) return;
+    const score = parseFloat(descriptiveScoreInput);
+    if (isNaN(score) || score < 0 || score > 100) {
+      toast.error('نمره را بین ۰ تا ۱۰۰ وارد کنید');
+      return;
+    }
+    try {
+      const insertData = {
+        user_id: user.id,
+        exam_type: 'pension',
+        pension_id: pension.id,
+        pension_exam_id: takingExam.id,
+        lesson_name: takingExam.title,
+        total_questions: 0,
+        correct_answers: 0,
+        wrong_answers: 0,
+        blank_answers: 0,
+        percentage: Math.round(score * 100) / 100,
+        lessons_data: { self_score: score },
+      };
+      const { data: insertedResult, error } = await supabase
+        .from('exam_results')
+        .insert(insertData)
+        .select()
+        .single();
+      if (error) throw error;
+      if (insertedResult) {
+        setUserExamResults(prev => [...prev, insertedResult as ExamResult]);
+        toast.success(`نمره شما ثبت شد: ${score}`);
+      }
+      setShowDescriptiveScoreDialog(false);
+      setDescriptiveScoreInput('');
+      setIsExamRunning(false);
+      setTakingExam(null);
+    } catch (e: any) {
+      console.error('[Self-score] error:', e);
+      if (e?.message?.includes('duplicate')) {
+        toast.error('شما قبلاً نمره این آزمون را ثبت کرده‌اید');
+      } else {
+        toast.error('خطا در ثبت نمره');
+      }
+    }
+  };
+
+
   // Check if user has already taken this exam
   const hasUserTakenExam = (examId: string) => {
     return userExamResults.some(r => r.pension_exam_id === examId || r.exam_id === examId);
