@@ -2489,6 +2489,7 @@ const Pension = () => {
                   {exams.map((exam) => {
                     const status = getExamStatus(exam);
                     const canTake = canTakeExam(exam);
+                    const isSelfScoreExam = exam.exam_type === 'self_score' || exam.question_count === 0;
                     return (
                       <div 
                         key={exam.id}
@@ -2496,7 +2497,14 @@ const Pension = () => {
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-medium">{exam.title}</h3>
+                            <h3 className="font-medium flex items-center gap-2">
+                              {exam.title}
+                              {isSelfScoreExam && (
+                                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 text-xs">
+                                  تشریحی
+                                </Badge>
+                              )}
+                            </h3>
                             {exam.description && (
                               <p className="text-sm text-muted-foreground mt-1">{exam.description}</p>
                             )}
@@ -2520,10 +2528,12 @@ const Pension = () => {
                               <span>مدت: {exam.duration_minutes} دقیقه</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-1">
-                            <FileText className="w-4 h-4" />
-                            <span>{exam.question_count} سوال</span>
-                          </div>
+                          {!isSelfScoreExam && (
+                            <div className="flex items-center gap-1">
+                              <FileText className="w-4 h-4" />
+                              <span>{exam.question_count} سوال</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {/* User hasn't taken this exam yet and can take it */}
@@ -2538,18 +2548,20 @@ const Pension = () => {
                             </Button>
                           )}
                           
-                          {/* User has already taken this exam - show view answer sheet button */}
+                          {/* User has already taken this exam */}
                           {hasUserTakenExam(exam.id) && (
                             <>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="gap-1"
-                                onClick={() => handleViewAnswerSheet(exam)}
-                              >
-                                <FileText className="w-4 h-4" />
-                                مشاهده پاسخبرگ
-                              </Button>
+                              {!isSelfScoreExam && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => handleViewAnswerSheet(exam)}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  مشاهده پاسخبرگ
+                                </Button>
+                              )}
                               <Button 
                                 size="sm" 
                                 variant="outline"
@@ -2557,10 +2569,10 @@ const Pension = () => {
                                 onClick={() => setViewingReportCard(getUserExamResult(exam.id) || null)}
                               >
                                 <Trophy className="w-4 h-4" />
-                                مشاهده کارنامه
+                                {isSelfScoreExam ? `نمره: ${(getUserExamResult(exam.id)?.percentage || 0).toFixed(1)}` : 'مشاهده کارنامه'}
                               </Button>
                               <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                                آزمون داده شده ✓
+                                {isSelfScoreExam ? 'نمره ثبت شد ✓' : 'آزمون داده شده ✓'}
                               </Badge>
                             </>
                           )}
@@ -2576,26 +2588,29 @@ const Pension = () => {
                                 <Target className="w-4 h-4" />
                                 عملکرد اعضا
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="gap-1"
-                                onClick={() => handleEditAnswerKey(exam)}
-                              >
-                                <Edit className="w-4 h-4" />
-                                {exam.answer_key && Object.keys(exam.answer_key).length > 0 ? 'ویرایش پاسخنامه' : 'افزودن پاسخنامه'}
-                              </Button>
+                              {!isSelfScoreExam && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => handleEditAnswerKey(exam)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  {exam.answer_key && Object.keys(exam.answer_key).length > 0 ? 'ویرایش پاسخنامه' : 'افزودن پاسخنامه'}
+                                </Button>
+                              )}
                               {exam.pdf_url && (
                                 <Badge variant="outline" className="bg-success/10 text-success border-success/30">
                                   <FileText className="w-3 h-3 ml-1" />
                                   PDF
                                 </Badge>
                               )}
-                              {exam.answer_key && Object.keys(exam.answer_key).length > 0 && (
+                              {!isSelfScoreExam && exam.answer_key && Object.keys(exam.answer_key).length > 0 && (
                                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                                   کلید: {Object.keys(exam.answer_key).length} سوال
                                 </Badge>
                               )}
+
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button 
