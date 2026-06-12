@@ -896,7 +896,7 @@ const Pension = () => {
           created_by: user.id,
           title: examTitle,
           description: examDescription || null,
-          exam_type: 'tashrihi',
+          exam_type: examIsDescriptive ? 'self_score' : 'tashrihi',
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
           duration_minutes: examDuration ? parseInt(examDuration) : 60,
