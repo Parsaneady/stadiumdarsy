@@ -1954,9 +1954,43 @@ const Pension = () => {
             </div>
           )}
         </div>
+
+        {/* Self-score submission dialog (descriptive exams) */}
+        <Dialog open={showDescriptiveScoreDialog} onOpenChange={setShowDescriptiveScoreDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>ثبت نمره آزمون تشریحی</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <p className="text-sm text-muted-foreground">
+                لطفاً نمره خود را از ۰ تا ۱۰۰ وارد کنید.
+              </p>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={descriptiveScoreInput}
+                onChange={(e) => setDescriptiveScoreInput(e.target.value)}
+                placeholder="مثال: 85"
+                className="bg-white/5 text-center text-lg"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowDescriptiveScoreDialog(false)}>
+                  انصراف
+                </Button>
+                <Button className="flex-1" onClick={handleSubmitDescriptiveScore}>
+                  ثبت نمره
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
+
 
   if (loading) {
     return (
