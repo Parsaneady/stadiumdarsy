@@ -333,6 +333,9 @@ const Pension = () => {
   const [examDuration, setExamDuration] = useState('60');
   const [examQuestionCount, setExamQuestionCount] = useState('60');
   const [examPdfFile, setExamPdfFile] = useState<File | null>(null);
+  const [examIsDescriptive, setExamIsDescriptive] = useState(false);
+  const [descriptiveScoreInput, setDescriptiveScoreInput] = useState('');
+  const [showDescriptiveScoreDialog, setShowDescriptiveScoreDialog] = useState(false);
   
   // Exam taking state
   const [takingExam, setTakingExam] = useState<PensionExam | null>(null);
@@ -837,8 +840,8 @@ const Pension = () => {
       return;
     }
 
-    const qCount = parseInt(examQuestionCount) || 60;
-    if (qCount < 1 || qCount > 200) {
+    const qCount = examIsDescriptive ? 0 : (parseInt(examQuestionCount) || 60);
+    if (!examIsDescriptive && (qCount < 1 || qCount > 200)) {
       toast.error('تعداد سوالات باید بین ۱ تا ۲۰۰ باشد');
       return;
     }
@@ -893,7 +896,7 @@ const Pension = () => {
           created_by: user.id,
           title: examTitle,
           description: examDescription || null,
-          exam_type: 'tashrihi',
+          exam_type: examIsDescriptive ? 'self_score' : 'tashrihi',
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
           duration_minutes: examDuration ? parseInt(examDuration) : 60,
@@ -923,6 +926,7 @@ const Pension = () => {
       setExamDuration('60');
       setExamQuestionCount('60');
       setExamPdfFile(null);
+      setExamIsDescriptive(false);
       toast.dismiss('upload-toast');
       toast.success('آزمون با موفقیت ایجاد شد');
     } catch (error: any) {
@@ -1067,6 +1071,52 @@ const Pension = () => {
     setExamAnswers({});
     setIsExamRunning(false);
   };
+
+  const handleSubmitDescriptiveScore = async () => {
+    if (!takingExam || !user || !pension) return;
+    const score = parseFloat(descriptiveScoreInput);
+    if (isNaN(score) || score < 0 || score > 100) {
+      toast.error('نمره را بین ۰ تا ۱۰۰ وارد کنید');
+      return;
+    }
+    try {
+      const insertData = {
+        user_id: user.id,
+        exam_type: 'pension',
+        pension_id: pension.id,
+        pension_exam_id: takingExam.id,
+        lesson_name: takingExam.title,
+        total_questions: 0,
+        correct_answers: 0,
+        wrong_answers: 0,
+        blank_answers: 0,
+        percentage: Math.round(score * 100) / 100,
+        lessons_data: { self_score: score },
+      };
+      const { data: insertedResult, error } = await supabase
+        .from('exam_results')
+        .insert(insertData)
+        .select()
+        .single();
+      if (error) throw error;
+      if (insertedResult) {
+        setUserExamResults(prev => [...prev, insertedResult as ExamResult]);
+        toast.success(`نمره شما ثبت شد: ${score}`);
+      }
+      setShowDescriptiveScoreDialog(false);
+      setDescriptiveScoreInput('');
+      setIsExamRunning(false);
+      setTakingExam(null);
+    } catch (e: any) {
+      console.error('[Self-score] error:', e);
+      if (e?.message?.includes('duplicate')) {
+        toast.error('شما قبلاً نمره این آزمون را ثبت کرده‌اید');
+      } else {
+        toast.error('خطا در ثبت نمره');
+      }
+    }
+  };
+
 
   // Check if user has already taken this exam
   const hasUserTakenExam = (examId: string) => {
@@ -1698,9 +1748,11 @@ const Pension = () => {
 
   // Taking exam view - exactly like ExamPanel (TestExam.tsx) reference
   if (takingExam) {
+    const isSelfScore = takingExam.exam_type === 'self_score' || takingExam.question_count === 0;
     const answeredCount = Object.values(examAnswers).filter(a => a !== null).length;
     const unansweredCount = takingExam.question_count - answeredCount;
     const progressPercent = takingExam.question_count > 0 ? Math.round((answeredCount / takingExam.question_count) * 100) : 0;
+    
     
     return (
       <div className="fixed inset-0 z-50 bg-background overflow-hidden">
@@ -1728,19 +1780,22 @@ const Pension = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Progress */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">پیشرفت:</span>
-              <span className="font-bold text-primary">{answeredCount}/{takingExam.question_count}</span>
-              <div className="w-24 h-2 bg-muted/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="h-6 w-px bg-white/20" />
+            {/* Progress - hidden for self-score exams */}
+            {!isSelfScore && (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">پیشرفت:</span>
+                  <span className="font-bold text-primary">{answeredCount}/{takingExam.question_count}</span>
+                  <div className="w-24 h-2 bg-muted/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="h-6 w-px bg-white/20" />
+              </>
+            )}
 
             {/* Timer */}
             {isExamRunning && (
@@ -1753,47 +1808,62 @@ const Pension = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
-              <Button
-                variant={examViewMode === 'exam' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  // Save current state before switching
-                  if (examPdfRef.current && examViewMode === 'exam') {
-                    setExamPdfState(examPdfRef.current.getState());
-                  }
-                  setExamViewMode('exam');
-                }}
-                className="gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                آزمون
-              </Button>
-              <Button
-                variant={examViewMode === 'answer' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  // Save current state before switching
-                  if (examPdfRef.current && examViewMode === 'exam') {
-                    setExamPdfState(examPdfRef.current.getState());
-                  }
-                  setExamViewMode('answer');
-                }}
-                className="gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                پاسخنامه
-              </Button>
-            </div>
+            {!isSelfScore && (
+              <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+                <Button
+                  variant={examViewMode === 'exam' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    if (examPdfRef.current && examViewMode === 'exam') {
+                      setExamPdfState(examPdfRef.current.getState());
+                    }
+                    setExamViewMode('exam');
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  آزمون
+                </Button>
+                <Button
+                  variant={examViewMode === 'answer' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    if (examPdfRef.current && examViewMode === 'exam') {
+                      setExamPdfState(examPdfRef.current.getState());
+                    }
+                    setExamViewMode('answer');
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  پاسخنامه
+                </Button>
+              </div>
+            )}
+
+            {isSelfScore && (
+              <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+                آزمون تشریحی
+              </Badge>
+            )}
 
             <Button
-              onClick={handleFinishAndSaveExam}
+              onClick={() => {
+                if (isSelfScore) {
+                  setIsExamRunning(false);
+                  setDescriptiveScoreInput('');
+                  setShowDescriptiveScoreDialog(true);
+                } else {
+                  handleFinishAndSaveExam();
+                }
+              }}
               className="bg-warning hover:bg-warning/90 text-warning-foreground"
             >
-              پایان آزمون
+              {isSelfScore ? 'پایان و ثبت نمره' : 'پایان آزمون'}
             </Button>
           </div>
         </div>
+
 
         {/* Main Content Area */}
         <div className="absolute top-16 bottom-0 left-0 right-0 flex">
@@ -1884,9 +1954,43 @@ const Pension = () => {
             </div>
           )}
         </div>
+
+        {/* Self-score submission dialog (descriptive exams) */}
+        <Dialog open={showDescriptiveScoreDialog} onOpenChange={setShowDescriptiveScoreDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>ثبت نمره آزمون تشریحی</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <p className="text-sm text-muted-foreground">
+                لطفاً نمره خود را از ۰ تا ۱۰۰ وارد کنید.
+              </p>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={descriptiveScoreInput}
+                onChange={(e) => setDescriptiveScoreInput(e.target.value)}
+                placeholder="مثال: 85"
+                className="bg-white/5 text-center text-lg"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowDescriptiveScoreDialog(false)}>
+                  انصراف
+                </Button>
+                <Button className="flex-1" onClick={handleSubmitDescriptiveScore}>
+                  ثبت نمره
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
+
 
   if (loading) {
     return (
@@ -2298,7 +2402,19 @@ const Pension = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <label className="flex items-center gap-2 p-3 rounded-lg border border-white/10 bg-white/5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={examIsDescriptive}
+                            onChange={(e) => setExamIsDescriptive(e.target.checked)}
+                            className="w-4 h-4 accent-primary"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">آزمون تشریحی (بدون گزینه)</p>
+                            <p className="text-xs text-muted-foreground">دانش‌آموز پس از پایان، خودش نمره را وارد می‌کند</p>
+                          </div>
+                        </label>
+                        <div className={cn("grid gap-3", examIsDescriptive ? "grid-cols-1" : "grid-cols-2")}>
                           <div>
                             <label className="text-sm text-muted-foreground mb-1 block">مدت زمان (دقیقه)</label>
                             <Input
@@ -2309,19 +2425,22 @@ const Pension = () => {
                               className="bg-white/5"
                             />
                           </div>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-1 block">تعداد سوالات</label>
-                            <Input
-                              type="number"
-                              value={examQuestionCount}
-                              onChange={(e) => setExamQuestionCount(e.target.value)}
-                              placeholder="مثال: 60"
-                              className="bg-white/5"
-                              min={1}
-                              max={200}
-                            />
-                          </div>
+                          {!examIsDescriptive && (
+                            <div>
+                              <label className="text-sm text-muted-foreground mb-1 block">تعداد سوالات</label>
+                              <Input
+                                type="number"
+                                value={examQuestionCount}
+                                onChange={(e) => setExamQuestionCount(e.target.value)}
+                                placeholder="مثال: 60"
+                                className="bg-white/5"
+                                min={1}
+                                max={200}
+                              />
+                            </div>
+                          )}
                         </div>
+
                         <div>
                           <label className="text-sm text-muted-foreground mb-1 block">
                             فایل سوالات (PDF) <span className="text-destructive">*</span>
@@ -2370,6 +2489,7 @@ const Pension = () => {
                   {exams.map((exam) => {
                     const status = getExamStatus(exam);
                     const canTake = canTakeExam(exam);
+                    const isSelfScoreExam = exam.exam_type === 'self_score' || exam.question_count === 0;
                     return (
                       <div 
                         key={exam.id}
@@ -2377,7 +2497,14 @@ const Pension = () => {
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-medium">{exam.title}</h3>
+                            <h3 className="font-medium flex items-center gap-2">
+                              {exam.title}
+                              {isSelfScoreExam && (
+                                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 text-xs">
+                                  تشریحی
+                                </Badge>
+                              )}
+                            </h3>
                             {exam.description && (
                               <p className="text-sm text-muted-foreground mt-1">{exam.description}</p>
                             )}
@@ -2401,10 +2528,12 @@ const Pension = () => {
                               <span>مدت: {exam.duration_minutes} دقیقه</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-1">
-                            <FileText className="w-4 h-4" />
-                            <span>{exam.question_count} سوال</span>
-                          </div>
+                          {!isSelfScoreExam && (
+                            <div className="flex items-center gap-1">
+                              <FileText className="w-4 h-4" />
+                              <span>{exam.question_count} سوال</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {/* User hasn't taken this exam yet and can take it */}
@@ -2419,18 +2548,20 @@ const Pension = () => {
                             </Button>
                           )}
                           
-                          {/* User has already taken this exam - show view answer sheet button */}
+                          {/* User has already taken this exam */}
                           {hasUserTakenExam(exam.id) && (
                             <>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="gap-1"
-                                onClick={() => handleViewAnswerSheet(exam)}
-                              >
-                                <FileText className="w-4 h-4" />
-                                مشاهده پاسخبرگ
-                              </Button>
+                              {!isSelfScoreExam && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => handleViewAnswerSheet(exam)}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  مشاهده پاسخبرگ
+                                </Button>
+                              )}
                               <Button 
                                 size="sm" 
                                 variant="outline"
@@ -2438,10 +2569,10 @@ const Pension = () => {
                                 onClick={() => setViewingReportCard(getUserExamResult(exam.id) || null)}
                               >
                                 <Trophy className="w-4 h-4" />
-                                مشاهده کارنامه
+                                {isSelfScoreExam ? `نمره: ${(getUserExamResult(exam.id)?.percentage || 0).toFixed(1)}` : 'مشاهده کارنامه'}
                               </Button>
                               <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                                آزمون داده شده ✓
+                                {isSelfScoreExam ? 'نمره ثبت شد ✓' : 'آزمون داده شده ✓'}
                               </Badge>
                             </>
                           )}
@@ -2457,26 +2588,29 @@ const Pension = () => {
                                 <Target className="w-4 h-4" />
                                 عملکرد اعضا
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="gap-1"
-                                onClick={() => handleEditAnswerKey(exam)}
-                              >
-                                <Edit className="w-4 h-4" />
-                                {exam.answer_key && Object.keys(exam.answer_key).length > 0 ? 'ویرایش پاسخنامه' : 'افزودن پاسخنامه'}
-                              </Button>
+                              {!isSelfScoreExam && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => handleEditAnswerKey(exam)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  {exam.answer_key && Object.keys(exam.answer_key).length > 0 ? 'ویرایش پاسخنامه' : 'افزودن پاسخنامه'}
+                                </Button>
+                              )}
                               {exam.pdf_url && (
                                 <Badge variant="outline" className="bg-success/10 text-success border-success/30">
                                   <FileText className="w-3 h-3 ml-1" />
                                   PDF
                                 </Badge>
                               )}
-                              {exam.answer_key && Object.keys(exam.answer_key).length > 0 && (
+                              {!isSelfScoreExam && exam.answer_key && Object.keys(exam.answer_key).length > 0 && (
                                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                                   کلید: {Object.keys(exam.answer_key).length} سوال
                                 </Badge>
                               )}
+
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button 
