@@ -926,6 +926,7 @@ const Pension = () => {
       setExamDuration('60');
       setExamQuestionCount('60');
       setExamPdfFile(null);
+      setExamIsDescriptive(false);
       toast.dismiss('upload-toast');
       toast.success('آزمون با موفقیت ایجاد شد');
     } catch (error: any) {
