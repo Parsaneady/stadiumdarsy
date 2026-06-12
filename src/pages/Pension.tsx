@@ -1780,19 +1780,22 @@ const Pension = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Progress */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">پیشرفت:</span>
-              <span className="font-bold text-primary">{answeredCount}/{takingExam.question_count}</span>
-              <div className="w-24 h-2 bg-muted/30 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="h-6 w-px bg-white/20" />
+            {/* Progress - hidden for self-score exams */}
+            {!isSelfScore && (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">پیشرفت:</span>
+                  <span className="font-bold text-primary">{answeredCount}/{takingExam.question_count}</span>
+                  <div className="w-24 h-2 bg-muted/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="h-6 w-px bg-white/20" />
+              </>
+            )}
 
             {/* Timer */}
             {isExamRunning && (
@@ -1805,47 +1808,62 @@ const Pension = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
-              <Button
-                variant={examViewMode === 'exam' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  // Save current state before switching
-                  if (examPdfRef.current && examViewMode === 'exam') {
-                    setExamPdfState(examPdfRef.current.getState());
-                  }
-                  setExamViewMode('exam');
-                }}
-                className="gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                آزمون
-              </Button>
-              <Button
-                variant={examViewMode === 'answer' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => {
-                  // Save current state before switching
-                  if (examPdfRef.current && examViewMode === 'exam') {
-                    setExamPdfState(examPdfRef.current.getState());
-                  }
-                  setExamViewMode('answer');
-                }}
-                className="gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                پاسخنامه
-              </Button>
-            </div>
+            {!isSelfScore && (
+              <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+                <Button
+                  variant={examViewMode === 'exam' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    if (examPdfRef.current && examViewMode === 'exam') {
+                      setExamPdfState(examPdfRef.current.getState());
+                    }
+                    setExamViewMode('exam');
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  آزمون
+                </Button>
+                <Button
+                  variant={examViewMode === 'answer' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    if (examPdfRef.current && examViewMode === 'exam') {
+                      setExamPdfState(examPdfRef.current.getState());
+                    }
+                    setExamViewMode('answer');
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  پاسخنامه
+                </Button>
+              </div>
+            )}
+
+            {isSelfScore && (
+              <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+                آزمون تشریحی
+              </Badge>
+            )}
 
             <Button
-              onClick={handleFinishAndSaveExam}
+              onClick={() => {
+                if (isSelfScore) {
+                  setIsExamRunning(false);
+                  setDescriptiveScoreInput('');
+                  setShowDescriptiveScoreDialog(true);
+                } else {
+                  handleFinishAndSaveExam();
+                }
+              }}
               className="bg-warning hover:bg-warning/90 text-warning-foreground"
             >
-              پایان آزمون
+              {isSelfScore ? 'پایان و ثبت نمره' : 'پایان آزمون'}
             </Button>
           </div>
         </div>
+
 
         {/* Main Content Area */}
         <div className="absolute top-16 bottom-0 left-0 right-0 flex">
