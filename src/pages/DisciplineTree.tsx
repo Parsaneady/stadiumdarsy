@@ -312,7 +312,7 @@ export default function DisciplineTree() {
           </div>
 
           <GlassCard className="!p-8 min-h-[60vh] overflow-auto">
-            <div className="flex justify-end">
+            <div className="flex justify-start">
               <NodeBubble
                 node={tree}
                 depth={0}
