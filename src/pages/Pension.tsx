@@ -1075,10 +1075,11 @@ const Pension = () => {
   const handleSubmitDescriptiveScore = async () => {
     if (!takingExam || !user || !pension) return;
     const score = parseFloat(descriptiveScoreInput);
-    if (isNaN(score) || score < 0 || score > 100) {
-      toast.error('نمره را بین ۰ تا ۱۰۰ وارد کنید');
+    if (isNaN(score) || score < 0 || score > 20) {
+      toast.error('نمره را بین ۰ تا ۲۰ وارد کنید');
       return;
     }
+    const percentage = Math.round((score / 20) * 10000) / 100;
     try {
       const insertData = {
         user_id: user.id,
@@ -1090,8 +1091,8 @@ const Pension = () => {
         correct_answers: 0,
         wrong_answers: 0,
         blank_answers: 0,
-        percentage: Math.round(score * 100) / 100,
-        lessons_data: { self_score: score },
+        percentage,
+        lessons_data: { self_score: score, max_score: 20 },
       };
       const { data: insertedResult, error } = await supabase
         .from('exam_results')
@@ -1101,7 +1102,7 @@ const Pension = () => {
       if (error) throw error;
       if (insertedResult) {
         setUserExamResults(prev => [...prev, insertedResult as ExamResult]);
-        toast.success(`نمره شما ثبت شد: ${score}`);
+        toast.success(`نمره شما ثبت شد: ${score} از ۲۰`);
       }
       setShowDescriptiveScoreDialog(false);
       setDescriptiveScoreInput('');
@@ -1963,16 +1964,16 @@ const Pension = () => {
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <p className="text-sm text-muted-foreground">
-                لطفاً نمره خود را از ۰ تا ۱۰۰ وارد کنید.
+                لطفاً نمره خود را از ۰ تا ۲۰ وارد کنید.
               </p>
               <Input
                 type="number"
                 min={0}
-                max={100}
-                step="0.01"
+                max={20}
+                step="0.25"
                 value={descriptiveScoreInput}
                 onChange={(e) => setDescriptiveScoreInput(e.target.value)}
-                placeholder="مثال: 85"
+                placeholder="مثال: 17.5"
                 className="bg-white/5 text-center text-lg"
                 autoFocus
               />
