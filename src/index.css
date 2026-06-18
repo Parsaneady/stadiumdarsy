@@ -5,7 +5,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
-  :root {
+  /* ============================================
+     CLASSIC THEME (dark, the original look)
+     ============================================ */
+  :root,
+  [data-theme="classic"] {
     --background: 230 25% 8%;
     --foreground: 220 20% 95%;
 
@@ -42,7 +46,6 @@
 
     --radius: 1rem;
 
-    /* Custom gradients */
     --gradient-primary: linear-gradient(135deg, hsl(250 85% 65%) 0%, hsl(280 70% 60%) 100%);
     --gradient-secondary: linear-gradient(135deg, hsl(200 80% 55%) 0%, hsl(250 85% 65%) 100%);
     --gradient-success: linear-gradient(135deg, hsl(150 70% 45%) 0%, hsl(180 70% 50%) 100%);
@@ -50,7 +53,6 @@
     --gradient-danger: linear-gradient(135deg, hsl(0 75% 55%) 0%, hsl(330 70% 55%) 100%);
     --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
 
-    /* Glass effect */
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -63,6 +65,124 @@
     --sidebar-accent-foreground: 220 20% 95%;
     --sidebar-border: 230 15% 20%;
     --sidebar-ring: 250 85% 65%;
+  }
+
+  /* ============================================
+     MODERN DARK — Glass Aurora palette
+     ============================================ */
+  [data-theme="modern-dark"] {
+    --background: 240 28% 10%;
+    --foreground: 220 30% 96%;
+
+    --card: 222 45% 14%;
+    --card-foreground: 220 30% 96%;
+
+    --popover: 222 45% 14%;
+    --popover-foreground: 220 30% 96%;
+
+    --primary: 255 92% 76%;
+    --primary-foreground: 240 28% 10%;
+
+    --secondary: 142 71% 58%;
+    --secondary-foreground: 240 28% 10%;
+
+    --muted: 222 30% 20%;
+    --muted-foreground: 220 15% 70%;
+
+    --accent: 142 71% 58%;
+    --accent-foreground: 240 28% 10%;
+
+    --success: 142 71% 58%;
+    --success-foreground: 240 28% 10%;
+
+    --warning: 45 95% 60%;
+    --warning-foreground: 240 28% 10%;
+
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 35% 22%;
+    --input: 222 35% 18%;
+    --ring: 255 92% 76%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(255 92% 76%) 0%, hsl(142 71% 58%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(220 70% 55%) 0%, hsl(255 92% 76%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 58%) 0%, hsl(170 70% 55%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(45 95% 60%) 0%, hsl(30 90% 58%) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(0 75% 60%) 0%, hsl(330 75% 60%) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(167,139,250,0.12) 0%, rgba(74,222,128,0.06) 100%);
+
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(167, 139, 250, 0.18);
+    --glass-shadow: 0 8px 32px rgba(10, 10, 30, 0.45);
+
+    --sidebar-background: 240 30% 8%;
+    --sidebar-foreground: 220 30% 96%;
+    --sidebar-primary: 255 92% 76%;
+    --sidebar-primary-foreground: 240 28% 10%;
+    --sidebar-accent: 222 35% 16%;
+    --sidebar-accent-foreground: 220 30% 96%;
+    --sidebar-border: 222 35% 20%;
+    --sidebar-ring: 255 92% 76%;
+  }
+
+  /* ============================================
+     MODERN LIGHT — Glass Aurora light interpretation
+     ============================================ */
+  [data-theme="modern-light"] {
+    --background: 220 40% 98%;
+    --foreground: 240 30% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 30% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 30% 14%;
+
+    --primary: 255 70% 62%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 142 60% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 25% 94%;
+    --muted-foreground: 230 15% 40%;
+
+    --accent: 142 60% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 65% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 88%;
+    --input: 220 25% 94%;
+    --ring: 255 70% 62%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(255 70% 62%) 0%, hsl(142 60% 50%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(220 80% 60%) 0%, hsl(255 70% 62%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 60% 45%) 0%, hsl(170 65% 48%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(25 90% 55%) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(0 75% 55%) 0%, hsl(330 72% 58%) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(167,139,250,0.18) 0%, rgba(74,222,128,0.10) 100%);
+
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(167, 139, 250, 0.25);
+    --glass-shadow: 0 8px 32px rgba(120, 120, 180, 0.18);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 30% 14%;
+    --sidebar-primary: 255 70% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 94%;
+    --sidebar-accent-foreground: 240 30% 14%;
+    --sidebar-border: 220 20% 88%;
+    --sidebar-ring: 255 70% 62%;
   }
 
   /* Seasonal Themes */
