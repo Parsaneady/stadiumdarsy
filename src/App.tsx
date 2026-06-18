@@ -73,8 +73,9 @@ const App = () => (
               </Routes>
             </Suspense>
           </BrowserRouter>
-        </TooltipProvider>
-      </SeasonProvider>
+          </TooltipProvider>
+        </SeasonProvider>
+      </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
