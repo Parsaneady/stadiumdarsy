@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SeasonProvider } from "./contexts/SeasonContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -46,8 +47,9 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <SeasonProvider>
-        <TooltipProvider delayDuration={300}>
+      <ThemeProvider>
+        <SeasonProvider>
+          <TooltipProvider delayDuration={300}>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -71,8 +73,9 @@ const App = () => (
               </Routes>
             </Suspense>
           </BrowserRouter>
-        </TooltipProvider>
-      </SeasonProvider>
+          </TooltipProvider>
+        </SeasonProvider>
+      </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
