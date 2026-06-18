@@ -191,8 +191,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           </div>
         </nav>
 
-        {/* Logout & Footer */}
-        <div className="p-3 border-t border-white/10">
         {/* Theme Switcher */}
         <div className="p-3 border-t border-white/10">
           <p className="text-[10px] text-muted-foreground mb-2 px-1">حالت نمایش</p>
