@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { 
   LayoutDashboard, 
@@ -17,7 +18,10 @@ import {
   GraduationCap,
   TreePine,
   Menu,
-  X
+  X,
+  Sun,
+  Moon,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -42,6 +46,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { theme, setTheme } = useTheme();
   
   // Enable cloud sync for logged in users
   useCloudSync();
