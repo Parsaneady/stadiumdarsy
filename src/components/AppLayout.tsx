@@ -1,7 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { useCloudSync } from '@/hooks/useCloudSync';
 import { 
   LayoutDashboard, 
@@ -18,10 +17,7 @@ import {
   GraduationCap,
   TreePine,
   Menu,
-  X,
-  Sun,
-  Moon,
-  Sparkles
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -46,7 +42,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { theme, setTheme } = useTheme();
   
   // Enable cloud sync for logged in users
   useCloudSync();
@@ -190,36 +185,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
             ))}
           </div>
         </nav>
-
-        {/* Theme Switcher */}
-        <div className="p-3 border-t border-white/10">
-          <p className="text-[10px] text-muted-foreground mb-2 px-1">حالت نمایش</p>
-          <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/40 border border-white/5">
-            {([
-              { id: 'modern-light', icon: Sun, label: 'روشن' },
-              { id: 'modern-dark', icon: Moon, label: 'تاریک' },
-              { id: 'classic', icon: Sparkles, label: 'کلاسیک' },
-            ] as { id: ThemeMode; icon: any; label: string }[]).map((t) => {
-              const active = theme === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTheme(t.id)}
-                  className={cn(
-                    'flex flex-col items-center justify-center gap-1 py-2 rounded-lg text-[10px] transition-all',
-                    active
-                      ? 'bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-md'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                  )}
-                  aria-label={t.label}
-                >
-                  <t.icon className="w-4 h-4" />
-                  <span>{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Logout & Footer */}
         <div className="p-3 border-t border-white/10">
