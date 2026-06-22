@@ -15,7 +15,6 @@ export default {
     extend: {
       fontFamily: {
         vazir: ["Vazirmatn", "sans-serif"],
-        display: ["Estedad", "Vazirmatn", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
