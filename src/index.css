@@ -2,11 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Persian typography: Vazirmatn (body) + Estedad (display luxury) */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/aminroosta/estedad-font@main/dist/font-face.css');
 
 @layer base {
   /* ============================================
-     CLASSIC THEME (dark, the original look)
+     CLASSIC THEME (preserved — do not change)
      ============================================ */
   :root,
   [data-theme="classic"] {
@@ -52,6 +54,7 @@
     --gradient-warning: linear-gradient(135deg, hsl(45 90% 55%) 0%, hsl(30 85% 55%) 100%);
     --gradient-danger: linear-gradient(135deg, hsl(0 75% 55%) 0%, hsl(330 70% 55%) 100%);
     --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(250 85% 65%) 0%, hsl(280 70% 60%) 100%);
 
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
@@ -65,124 +68,138 @@
     --sidebar-accent-foreground: 220 20% 95%;
     --sidebar-border: 230 15% 20%;
     --sidebar-ring: 250 85% 65%;
+
+    --font-display: 'Vazirmatn', sans-serif;
   }
 
   /* ============================================
-     MODERN DARK — Glass Aurora palette
-     ============================================ */
-  [data-theme="modern-dark"] {
-    --background: 240 28% 10%;
-    --foreground: 220 30% 96%;
-
-    --card: 222 45% 14%;
-    --card-foreground: 220 30% 96%;
-
-    --popover: 222 45% 14%;
-    --popover-foreground: 220 30% 96%;
-
-    --primary: 255 92% 76%;
-    --primary-foreground: 240 28% 10%;
-
-    --secondary: 142 71% 58%;
-    --secondary-foreground: 240 28% 10%;
-
-    --muted: 222 30% 20%;
-    --muted-foreground: 220 15% 70%;
-
-    --accent: 142 71% 58%;
-    --accent-foreground: 240 28% 10%;
-
-    --success: 142 71% 58%;
-    --success-foreground: 240 28% 10%;
-
-    --warning: 45 95% 60%;
-    --warning-foreground: 240 28% 10%;
-
-    --destructive: 0 75% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 222 35% 22%;
-    --input: 222 35% 18%;
-    --ring: 255 92% 76%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(255 92% 76%) 0%, hsl(142 71% 58%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(220 70% 55%) 0%, hsl(255 92% 76%) 100%);
-    --gradient-success: linear-gradient(135deg, hsl(142 71% 58%) 0%, hsl(170 70% 55%) 100%);
-    --gradient-warning: linear-gradient(135deg, hsl(45 95% 60%) 0%, hsl(30 90% 58%) 100%);
-    --gradient-danger: linear-gradient(135deg, hsl(0 75% 60%) 0%, hsl(330 75% 60%) 100%);
-    --gradient-glass: linear-gradient(135deg, rgba(167,139,250,0.12) 0%, rgba(74,222,128,0.06) 100%);
-
-    --glass-bg: rgba(255, 255, 255, 0.04);
-    --glass-border: rgba(167, 139, 250, 0.18);
-    --glass-shadow: 0 8px 32px rgba(10, 10, 30, 0.45);
-
-    --sidebar-background: 240 30% 8%;
-    --sidebar-foreground: 220 30% 96%;
-    --sidebar-primary: 255 92% 76%;
-    --sidebar-primary-foreground: 240 28% 10%;
-    --sidebar-accent: 222 35% 16%;
-    --sidebar-accent-foreground: 220 30% 96%;
-    --sidebar-border: 222 35% 20%;
-    --sidebar-ring: 255 92% 76%;
-  }
-
-  /* ============================================
-     MODERN LIGHT — Glass Aurora light interpretation
+     MODERN LIGHT — Emerald Prestige (default)
+     Ivory paper, deep emerald ink, gilded gold
      ============================================ */
   [data-theme="modern-light"] {
-    --background: 220 40% 98%;
-    --foreground: 240 30% 14%;
+    --background: 44 33% 96%;          /* warm ivory #f5f0e0-ish */
+    --foreground: 158 60% 10%;         /* near-black emerald */
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 30% 14%;
+    --card: 44 40% 99%;
+    --card-foreground: 158 60% 10%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 30% 14%;
+    --popover: 44 40% 99%;
+    --popover-foreground: 158 60% 10%;
 
-    --primary: 255 70% 62%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 160 78% 16%;            /* #064e3b emerald */
+    --primary-foreground: 44 50% 96%;
 
-    --secondary: 142 60% 45%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 45 53% 54%;           /* #c9a84c gold */
+    --secondary-foreground: 158 60% 10%;
 
-    --muted: 220 25% 94%;
-    --muted-foreground: 230 15% 40%;
+    --muted: 44 25% 92%;
+    --muted-foreground: 158 20% 32%;
 
-    --accent: 142 60% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 53% 54%;              /* gold accent */
+    --accent-foreground: 158 60% 10%;
 
-    --success: 142 65% 42%;
+    --success: 160 60% 32%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 85% 50%;
     --warning-foreground: 0 0% 10%;
 
-    --destructive: 0 75% 55%;
+    --destructive: 4 70% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 88%;
-    --input: 220 25% 94%;
-    --ring: 255 70% 62%;
+    --border: 44 25% 86%;
+    --input: 44 30% 94%;
+    --ring: 45 53% 54%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(255 70% 62%) 0%, hsl(142 60% 50%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(220 80% 60%) 0%, hsl(255 70% 62%) 100%);
-    --gradient-success: linear-gradient(135deg, hsl(142 60% 45%) 0%, hsl(170 65% 48%) 100%);
-    --gradient-warning: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(25 90% 55%) 100%);
-    --gradient-danger: linear-gradient(135deg, hsl(0 75% 55%) 0%, hsl(330 72% 58%) 100%);
-    --gradient-glass: linear-gradient(135deg, rgba(167,139,250,0.18) 0%, rgba(74,222,128,0.10) 100%);
+    --radius: 0.5rem;
 
-    --glass-bg: rgba(255, 255, 255, 0.65);
-    --glass-border: rgba(167, 139, 250, 0.25);
-    --glass-shadow: 0 8px 32px rgba(120, 120, 180, 0.18);
+    --gradient-primary: linear-gradient(135deg, hsl(160 78% 16%) 0%, hsl(165 60% 26%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(45 53% 54%) 0%, hsl(42 70% 70%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(45 70% 45%) 0%, hsl(42 90% 75%) 50%, hsl(45 70% 45%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(160 60% 32%) 0%, hsl(150 55% 40%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38 85% 50%) 0%, hsl(45 53% 54%) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(4 70% 48%) 0%, hsl(15 65% 52%) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255,250,235,0.85) 0%, rgba(245,235,210,0.55) 100%);
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 30% 14%;
-    --sidebar-primary: 255 70% 62%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 94%;
-    --sidebar-accent-foreground: 240 30% 14%;
-    --sidebar-border: 220 20% 88%;
-    --sidebar-ring: 255 70% 62%;
+    --glass-bg: rgba(255, 251, 240, 0.75);
+    --glass-border: rgba(201, 168, 76, 0.28);
+    --glass-shadow: 0 20px 50px -25px rgba(6, 78, 59, 0.25), 0 2px 0 0 rgba(201, 168, 76, 0.15);
+
+    --sidebar-background: 160 35% 12%;
+    --sidebar-foreground: 44 50% 92%;
+    --sidebar-primary: 45 70% 60%;
+    --sidebar-primary-foreground: 160 60% 10%;
+    --sidebar-accent: 160 30% 18%;
+    --sidebar-accent-foreground: 44 50% 92%;
+    --sidebar-border: 160 25% 20%;
+    --sidebar-ring: 45 70% 60%;
+
+    --font-display: 'Estedad', 'Vazirmatn', sans-serif;
+  }
+
+  /* ============================================
+     MODERN DARK — Emerald Prestige night
+     Deep forest, gilded gold, parchment text
+     ============================================ */
+  [data-theme="modern-dark"] {
+    --background: 160 45% 6%;          /* near-black forest */
+    --foreground: 44 40% 92%;          /* parchment */
+
+    --card: 160 38% 10%;
+    --card-foreground: 44 40% 92%;
+
+    --popover: 160 38% 10%;
+    --popover-foreground: 44 40% 92%;
+
+    --primary: 45 70% 60%;             /* gold becomes primary in dark */
+    --primary-foreground: 160 60% 8%;
+
+    --secondary: 160 50% 30%;          /* emerald support */
+    --secondary-foreground: 44 50% 95%;
+
+    --muted: 160 25% 16%;
+    --muted-foreground: 44 20% 70%;
+
+    --accent: 45 70% 60%;
+    --accent-foreground: 160 60% 8%;
+
+    --success: 150 55% 50%;
+    --success-foreground: 160 60% 8%;
+
+    --warning: 42 90% 60%;
+    --warning-foreground: 160 60% 8%;
+
+    --destructive: 4 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 25% 20%;
+    --input: 160 30% 14%;
+    --ring: 45 70% 60%;
+
+    --radius: 0.5rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(45 70% 60%) 0%, hsl(42 90% 75%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(160 78% 16%) 0%, hsl(160 50% 30%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(42 65% 45%) 0%, hsl(45 95% 78%) 50%, hsl(42 65% 45%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(150 55% 45%) 0%, hsl(160 60% 50%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(42 90% 60%) 0%, hsl(35 85% 55%) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(4 70% 55%) 0%, hsl(15 65% 58%) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(201,168,76,0.10) 0%, rgba(6,78,59,0.08) 100%);
+
+    --glass-bg: rgba(15, 40, 30, 0.55);
+    --glass-border: rgba(201, 168, 76, 0.25);
+    --glass-shadow: 0 25px 60px -20px rgba(0, 0, 0, 0.6), 0 1px 0 0 rgba(201, 168, 76, 0.2) inset;
+
+    --sidebar-background: 160 50% 4%;
+    --sidebar-foreground: 44 40% 92%;
+    --sidebar-primary: 45 70% 60%;
+    --sidebar-primary-foreground: 160 60% 8%;
+    --sidebar-accent: 160 35% 12%;
+    --sidebar-accent-foreground: 44 40% 92%;
+    --sidebar-border: 160 30% 14%;
+    --sidebar-ring: 45 70% 60%;
+
+    --font-display: 'Estedad', 'Vazirmatn', sans-serif;
   }
 
   /* Seasonal Themes */
@@ -192,21 +209,18 @@
     --ring: 330 80% 60%;
     --gradient-primary: linear-gradient(135deg, hsl(330 80% 60%) 0%, hsl(350 75% 55%) 100%);
   }
-
   [data-season="summer"] {
     --primary: 145 70% 45%;
     --accent: 165 65% 50%;
     --ring: 145 70% 45%;
     --gradient-primary: linear-gradient(135deg, hsl(145 70% 45%) 0%, hsl(165 65% 50%) 100%);
   }
-
   [data-season="autumn"] {
     --primary: 25 85% 55%;
     --accent: 35 80% 50%;
     --ring: 25 85% 55%;
     --gradient-primary: linear-gradient(135deg, hsl(25 85% 55%) 0%, hsl(35 80% 50%) 100%);
   }
-
   [data-season="winter"] {
     --primary: 200 85% 60%;
     --accent: 210 80% 55%;
@@ -216,17 +230,25 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
-  html {
-    direction: rtl;
-  }
+  html { direction: rtl; }
 
   body {
     @apply bg-background text-foreground font-vazir antialiased;
     font-feature-settings: "ss01", "ss02", "cv01";
+  }
+
+  /* Editorial display headings in modern themes */
+  [data-theme="modern-light"] h1,
+  [data-theme="modern-light"] h2,
+  [data-theme="modern-light"] .display-font,
+  [data-theme="modern-dark"] h1,
+  [data-theme="modern-dark"] h2,
+  [data-theme="modern-dark"] .display-font {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    font-weight: 700;
   }
 }
 
@@ -246,25 +268,55 @@
     -webkit-backdrop-filter: blur(12px);
     transition: all 0.3s ease;
   }
-
-  .glass-button:hover {
-    filter: brightness(1.1);
-  }
-
+  .glass-button:hover { filter: brightness(1.08); }
 
   .gradient-text {
     @apply bg-clip-text text-transparent;
     background-image: var(--gradient-primary);
   }
 
-  .gradient-border {
-    position: relative;
+  /* Gilded gold text — luxury headlines */
+  .gold-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-gold);
   }
 
-  .gradient-border::before {
+  /* Luxury card: warm paper feel + thin gold rule */
+  .luxury-card {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow:
+      0 1px 0 0 hsl(var(--accent) / 0.18) inset,
+      0 30px 60px -35px hsl(var(--primary) / 0.35);
+    position: relative;
+    overflow: hidden;
+  }
+  .luxury-card::before {
     content: '';
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; left: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--accent) / 0.6), transparent);
+  }
+
+  /* Hairline editorial rule */
+  .editorial-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--accent) / 0.5), transparent);
+    border: 0;
+  }
+
+  /* Broken-grid offset wrappers — gentle rotations & translates */
+  .broken-tilt-l { transform: rotate(-0.6deg) translateY(2px); }
+  .broken-tilt-r { transform: rotate(0.7deg) translateY(-3px); }
+  .broken-offset { transform: translateX(-8px); }
+  .broken-offset-r { transform: translateX(8px); }
+
+  .gradient-border { position: relative; }
+  .gradient-border::before {
+    content: '';
+    position: absolute; inset: 0;
     padding: 1px;
     border-radius: inherit;
     background: var(--gradient-primary);
@@ -274,10 +326,7 @@
     mask-composite: exclude;
   }
 
-  .floating-glow {
-    @apply relative;
-  }
-
+  .floating-glow { @apply relative; }
   .floating-glow::after {
     content: '';
     @apply absolute -inset-4 opacity-30 blur-2xl rounded-full;
@@ -285,49 +334,25 @@
     z-index: -1;
   }
 
-  .status-excellent {
-    @apply bg-success/20 text-success border-success/30;
-  }
-
-  .status-good {
-    @apply bg-warning/20 text-warning border-warning/30;
-  }
-
-  .status-needs-work {
-    @apply bg-destructive/20 text-destructive border-destructive/30;
-  }
+  .status-excellent { @apply bg-success/20 text-success border-success/30; }
+  .status-good { @apply bg-warning/20 text-warning border-warning/30; }
+  .status-needs-work { @apply bg-destructive/20 text-destructive border-destructive/30; }
 }
 
 @layer utilities {
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .animate-pulse-slow {
-    animation: pulse 3s ease-in-out infinite;
-  }
-
-  .animate-shimmer {
-    animation: shimmer 2s linear infinite;
-    background-size: 200% 100%;
-  }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+  .animate-pulse-slow { animation: pulse 3s ease-in-out infinite; }
+  .animate-shimmer { animation: shimmer 2s linear infinite; background-size: 200% 100%; }
 
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
   }
-
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
 
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 }
