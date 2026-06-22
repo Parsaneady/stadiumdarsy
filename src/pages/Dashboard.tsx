@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { getTodayQuote } from '@/lib/quotes';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/AppLayout';
+import { AnnouncementBanners } from '@/components/AnnouncementBanners';
 
 // Lazy load charts
 const LazyCharts = lazy(() => import('@/components/DashboardCharts'));
@@ -209,6 +210,9 @@ const Dashboard = () => {
           </div>
         </div>
       </GlassCard>
+
+      {/* Announcement Banners */}
+      <AnnouncementBanners />
 
       {/* Upcoming Events */}
       {upcomingEvents.length > 0 && (

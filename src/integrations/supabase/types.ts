@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcement_banners: {
+        Row: {
+          created_at: string
+          id: string
+          link_url: string | null
+          sort_order: number
+          storage_path: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_url?: string | null
+          sort_order?: number
+          storage_path: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_url?: string | null
+          sort_order?: number
+          storage_path?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           created_at: string
