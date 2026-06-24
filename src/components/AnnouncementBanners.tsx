@@ -43,6 +43,21 @@ export const AnnouncementBanners = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const autoplay = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) { setIsAdmin(false); return; }
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin' as any)
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdmin();
+  }, [user]);
 
   const fetchBanners = useCallback(async () => {
     if (!user) return;
@@ -50,7 +65,6 @@ export const AnnouncementBanners = () => {
     const { data, error } = await supabase
       .from('announcement_banners')
       .select('*')
-      .eq('user_id', user.id)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
 
@@ -130,6 +144,9 @@ export const AnnouncementBanners = () => {
     fetchBanners();
   };
 
+  // Hide the whole card for non-admin users when there are no banners
+  if (!loading && banners.length === 0 && !isAdmin) return null;
+
   return (
     <GlassCard delay={0.18}>
       <div className="flex items-center justify-between mb-4">
@@ -137,6 +154,7 @@ export const AnnouncementBanners = () => {
           <Megaphone className="w-5 h-5 text-primary" />
           اطلاع رسانی
         </h3>
+        {isAdmin && (
         <Dialog open={manageOpen} onOpenChange={setManageOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="glass-button">
@@ -201,6 +219,7 @@ export const AnnouncementBanners = () => {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {loading ? (
