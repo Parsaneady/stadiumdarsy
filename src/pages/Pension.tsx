@@ -756,6 +756,26 @@ const Pension = () => {
     }
   };
 
+  // Promote / demote a member to/from admin (primary leader only)
+  const handleToggleAdmin = async (memberId: string, currentRole: string) => {
+    if (!pension || !user || !isPrimaryLeader) return;
+    if (currentRole === 'leader') return;
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+    try {
+      const { error } = await supabase
+        .from('pension_members')
+        .update({ role: newRole })
+        .eq('id', memberId)
+        .eq('pension_id', pension.id);
+      if (error) throw error;
+      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      toast.success(newRole === 'admin' ? 'به معاون ارتقا یافت' : 'از معاونت برکنار شد');
+    } catch (e) {
+      console.error(e);
+      toast.error('خطا در تغییر نقش');
+    }
+  };
+
   const handleCreateAnnouncement = async () => {
     if (!announcementTitle.trim() || !announcementContent.trim() || !pension || !user) {
       toast.error('عنوان و محتوای اعلان را وارد کنید');
