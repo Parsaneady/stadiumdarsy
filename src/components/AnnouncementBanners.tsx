@@ -219,6 +219,7 @@ export const AnnouncementBanners = () => {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {loading ? (
