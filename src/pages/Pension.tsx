@@ -33,7 +33,9 @@ import {
   Target,
   ExternalLink,
   ArrowRight,
-  MessageCircle
+  MessageCircle,
+  ShieldCheck,
+  ShieldOff
 } from 'lucide-react';
 import { PensionChat } from '@/components/pension/PensionChat';
 import { format } from 'date-fns-jalali';
