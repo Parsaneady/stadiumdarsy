@@ -2292,8 +2292,21 @@ const Pension = () => {
                         <span>{member.weeklyStats?.totalTests || 0} تست</span>
                       </div>
                       
-                      {/* Kick member button (leader only, can't kick self) */}
-                      {isLeader && member.user_id !== user?.id && (
+                      {/* Promote / demote to admin (primary leader only) */}
+                      {isPrimaryLeader && member.role !== 'leader' && member.user_id !== user?.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 ${member.role === 'admin' ? 'text-muted-foreground hover:bg-muted/30' : 'text-primary hover:bg-primary/10'}`}
+                          title={member.role === 'admin' ? 'برکناری از معاونت' : 'ارتقا به معاون'}
+                          onClick={(e) => { e.stopPropagation(); handleToggleAdmin(member.id, member.role); }}
+                        >
+                          {member.role === 'admin' ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                        </Button>
+                      )}
+
+                      {/* Kick member button (leader or admin, can't kick self or leader) */}
+                      {isLeader && member.user_id !== user?.id && member.role !== 'leader' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button 
