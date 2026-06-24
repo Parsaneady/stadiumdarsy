@@ -43,6 +43,21 @@ export const AnnouncementBanners = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const autoplay = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) { setIsAdmin(false); return; }
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin' as any)
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdmin();
+  }, [user]);
 
   const fetchBanners = useCallback(async () => {
     if (!user) return;
@@ -50,7 +65,6 @@ export const AnnouncementBanners = () => {
     const { data, error } = await supabase
       .from('announcement_banners')
       .select('*')
-      .eq('user_id', user.id)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
 
