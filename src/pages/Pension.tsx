@@ -33,7 +33,9 @@ import {
   Target,
   ExternalLink,
   ArrowRight,
-  MessageCircle
+  MessageCircle,
+  ShieldCheck,
+  ShieldOff
 } from 'lucide-react';
 import { PensionChat } from '@/components/pension/PensionChat';
 import { format } from 'date-fns-jalali';
@@ -311,6 +313,7 @@ const Pension = () => {
   const [pension, setPension] = useState<Pension | null>(null);
   const [members, setMembers] = useState<PensionMember[]>([]);
   const [isLeader, setIsLeader] = useState(false);
+  const [isPrimaryLeader, setIsPrimaryLeader] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pensionName, setPensionName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -442,7 +445,8 @@ const Pension = () => {
         .maybeSingle();
 
       if (membership) {
-        setIsLeader(membership.role === 'leader');
+        setIsLeader(membership.role === 'leader' || membership.role === 'admin');
+        setIsPrimaryLeader(membership.role === 'leader');
         
         // Fetch pension details
         const { data: pensionData } = await supabase
@@ -676,7 +680,7 @@ const Pension = () => {
   const handleLeavePension = async () => {
     if (!pension || !user) return;
     
-    if (isLeader) {
+    if (isPrimaryLeader) {
       toast.error('سرگروه نمی‌تواند پانسیون را ترک کند');
       return;
     }
@@ -697,7 +701,7 @@ const Pension = () => {
   };
 
   const handleDeletePension = async () => {
-    if (!pension || !user || !isLeader) return;
+    if (!pension || !user || !isPrimaryLeader) return;
 
     try {
       // First delete all members
@@ -749,6 +753,26 @@ const Pension = () => {
     } catch (error) {
       console.error('Error kicking member:', error);
       toast.error('خطا در اخراج عضو');
+    }
+  };
+
+  // Promote / demote a member to/from admin (primary leader only)
+  const handleToggleAdmin = async (memberId: string, currentRole: string) => {
+    if (!pension || !user || !isPrimaryLeader) return;
+    if (currentRole === 'leader') return;
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+    try {
+      const { error } = await supabase
+        .from('pension_members')
+        .update({ role: newRole })
+        .eq('id', memberId)
+        .eq('pension_id', pension.id);
+      if (error) throw error;
+      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      toast.success(newRole === 'admin' ? 'به معاون ارتقا یافت' : 'از معاونت برکنار شد');
+    } catch (e) {
+      console.error(e);
+      toast.error('خطا در تغییر نقش');
     }
   };
 
@@ -2240,6 +2264,12 @@ const Pension = () => {
                           {member.role === 'leader' && (
                             <Crown className="w-4 h-4 text-yellow-500" />
                           )}
+                          {member.role === 'admin' && (
+                            <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                              <ShieldCheck className="w-3 h-3" />
+                              معاون
+                            </span>
+                          )}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {member.profile?.username ? `@${member.profile.username}` : ''}
@@ -2262,8 +2292,21 @@ const Pension = () => {
                         <span>{member.weeklyStats?.totalTests || 0} تست</span>
                       </div>
                       
-                      {/* Kick member button (leader only, can't kick self) */}
-                      {isLeader && member.user_id !== user?.id && (
+                      {/* Promote / demote to admin (primary leader only) */}
+                      {isPrimaryLeader && member.role !== 'leader' && member.user_id !== user?.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 ${member.role === 'admin' ? 'text-muted-foreground hover:bg-muted/30' : 'text-primary hover:bg-primary/10'}`}
+                          title={member.role === 'admin' ? 'برکناری از معاونت' : 'ارتقا به معاون'}
+                          onClick={(e) => { e.stopPropagation(); handleToggleAdmin(member.id, member.role); }}
+                        >
+                          {member.role === 'admin' ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                        </Button>
+                      )}
+
+                      {/* Kick member button (leader or admin, can't kick self or leader) */}
+                      {isLeader && member.user_id !== user?.id && member.role !== 'leader' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button 
