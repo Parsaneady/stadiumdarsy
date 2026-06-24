@@ -2264,6 +2264,12 @@ const Pension = () => {
                           {member.role === 'leader' && (
                             <Crown className="w-4 h-4 text-yellow-500" />
                           )}
+                          {member.role === 'admin' && (
+                            <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                              <ShieldCheck className="w-3 h-3" />
+                              معاون
+                            </span>
+                          )}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {member.profile?.username ? `@${member.profile.username}` : ''}
