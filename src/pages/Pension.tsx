@@ -701,7 +701,7 @@ const Pension = () => {
   };
 
   const handleDeletePension = async () => {
-    if (!pension || !user || !isLeader) return;
+    if (!pension || !user || !isPrimaryLeader) return;
 
     try {
       // First delete all members
