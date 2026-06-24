@@ -313,6 +313,7 @@ const Pension = () => {
   const [pension, setPension] = useState<Pension | null>(null);
   const [members, setMembers] = useState<PensionMember[]>([]);
   const [isLeader, setIsLeader] = useState(false);
+  const [isPrimaryLeader, setIsPrimaryLeader] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pensionName, setPensionName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
