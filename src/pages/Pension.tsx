@@ -445,7 +445,8 @@ const Pension = () => {
         .maybeSingle();
 
       if (membership) {
-        setIsLeader(membership.role === 'leader');
+        setIsLeader(membership.role === 'leader' || membership.role === 'admin');
+        setIsPrimaryLeader(membership.role === 'leader');
         
         // Fetch pension details
         const { data: pensionData } = await supabase
