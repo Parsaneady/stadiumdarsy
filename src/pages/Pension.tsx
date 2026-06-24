@@ -680,7 +680,7 @@ const Pension = () => {
   const handleLeavePension = async () => {
     if (!pension || !user) return;
     
-    if (isLeader) {
+    if (isPrimaryLeader) {
       toast.error('سرگروه نمی‌تواند پانسیون را ترک کند');
       return;
     }
