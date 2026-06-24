@@ -840,6 +840,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_pension_admin_or_leader: {
+        Args: { _pension_id: string }
+        Returns: boolean
+      }
       is_pension_member: { Args: { _pension_id: string }; Returns: boolean }
       is_sargarooh: { Args: { _user_id: string }; Returns: boolean }
     }
