@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClipboardList, Sun, Play, Square, Timer, Clock, Coffee, Settings, Target, Moon } from 'lucide-react';
-import { getEffectiveDateString } from '@/lib/timeUtils';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { ClipboardList, Sun, Play, Square, Timer, Coffee, Settings, Target, Moon, ImageDown, Download } from 'lucide-react';
+import { getEffectiveDate, getEffectiveDateString } from '@/lib/timeUtils';
 import { useStudyStore, StudySession, DailyLog as DailyLogType, DailyLogSession } from '@/stores/studyStore';
 import { usePomodoroStore } from '@/stores/pomodoroStore';
 import { GlassCard } from '@/components/GlassCard';
@@ -18,6 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import DailyPerformanceCard from '@/components/study/DailyPerformanceCard';
+import { getTodayQuote } from '@/lib/quotes';
 import {
   Dialog,
   DialogContent,
@@ -53,7 +55,7 @@ const SUBJECT_COLORS: Record<string, string> = {
 };
 
 const DailyLog = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { weeklyPlan, initializeWeek, getTodayIndex, pomodoroSettings, setPomodoroSettings, updateSession, dailyLogs, setDailyLogs } = useStudyStore();
   const { 
     mode, timeLeft, isRunning, currentCycle, pomodoroSubject,
@@ -76,9 +78,13 @@ const DailyLog = () => {
   } | null>(null);
   const [freeTimeElapsed, setFreeTimeElapsed] = useState(0);
   const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
+  const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [todayExamCount, setTodayExamCount] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
   
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTickRef = useRef<number>(Date.now());
+  const performanceCardRef = useRef<HTMLDivElement | null>(null);
 
   // Initialize week if needed
   useEffect(() => {
@@ -156,6 +162,19 @@ const DailyLog = () => {
         });
         setStudyMarkers(markers);
       }
+
+      const effectiveDate = getEffectiveDate();
+      const periodStart = new Date(effectiveDate);
+      periodStart.setHours(3, 0, 0, 0);
+      const periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodEnd.getDate() + 1);
+      const { count: examCount } = await supabase
+        .from('exam_results')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', periodStart.toISOString())
+        .lt('created_at', periodEnd.toISOString());
+      setTodayExamCount(examCount || 0);
 
       // Check if currently studying
       const { data: statusData } = await supabase
@@ -537,6 +556,66 @@ const DailyLog = () => {
     ? Math.floor((Date.now() - currentStudySession.startTime.getTime()) / 60000)
     : 0;
 
+  const performanceStats = useMemo(() => {
+    const sessions = todayPlan?.sessions || [];
+    const totalHours = sessions.reduce((sum, session) => sum + (session.actualHours || 0), 0);
+    const totalTests = sessions.reduce((sum, session) => sum + (session.actualTests || 0), 0);
+    const targetHours = sessions.reduce((sum, session) => sum + (session.targetHours || 0), 0);
+    const targetTests = sessions.reduce((sum, session) => sum + (session.targetTests || 0), 0);
+    const completedSessions = sessions.filter((session) => {
+      const hoursProgress = session.targetHours > 0 ? session.actualHours / session.targetHours : 0;
+      const testsProgress = session.targetTests > 0 ? session.actualTests / session.targetTests : 0;
+      return (hoursProgress + testsProgress) / 2 >= 0.5;
+    }).length;
+    const hoursProgress = targetHours > 0 ? Math.min(100, (totalHours / targetHours) * 100) : 0;
+    const testsProgress = targetTests > 0 ? Math.min(100, (totalTests / targetTests) * 100) : 0;
+    const completionProgress = sessions.length > 0 ? (completedSessions / sessions.length) * 100 : 0;
+    return {
+      totalHours,
+      totalTests,
+      completedSessions,
+      totalSessions: sessions.length,
+      completionPercent: Math.round(completionProgress),
+      overallScore: Math.round(hoursProgress * 0.4 + testsProgress * 0.4 + completionProgress * 0.2),
+      subjects: sessions.map((session) => ({
+        name: session.subject,
+        tests: session.actualTests || 0,
+        completed: (() => {
+          const hourRatio = session.targetHours > 0 ? session.actualHours / session.targetHours : 0;
+          const testRatio = session.targetTests > 0 ? session.actualTests / session.targetTests : 0;
+          return (hourRatio + testRatio) / 2 >= 0.5;
+        })(),
+      })),
+    };
+  }, [todayPlan]);
+
+  const effectiveDateLabel = useMemo(() => getEffectiveDate().toLocaleDateString('fa-IR', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  }), []);
+  const todayQuote = useMemo(() => getTodayQuote(), []);
+
+  const downloadPerformanceImage = useCallback(async () => {
+    if (!performanceCardRef.current) return;
+    setIsExporting(true);
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(performanceCardRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: 'hsl(var(--background))',
+      });
+      const link = document.createElement('a');
+      link.download = `daily-performance-${getEffectiveDateString()}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast({ title: 'تصویر عملکرد آماده شد', description: 'فایل با کیفیت بالا دانلود شد.' });
+    } catch {
+      toast({ title: 'ساخت تصویر انجام نشد', description: 'لطفاً دوباره تلاش کنید.', variant: 'destructive' });
+    } finally {
+      setIsExporting(false);
+    }
+  }, []);
+
   // Function to update and save today's daily log - reads from fresh store state
   const updateTodayDailyLog = useCallback(async () => {
     if (!user) return;
@@ -631,7 +710,8 @@ const DailyLog = () => {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4 animate-fade-in">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
+          <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center">
             <ClipboardList className="w-6 h-6 text-white" />
           </div>
@@ -647,6 +727,11 @@ const DailyLog = () => {
               </div>
             )}
           </div>
+          </div>
+          <Button onClick={() => setPerformanceOpen(true)} className="bg-gradient-to-r from-primary to-accent">
+            <ImageDown className="w-4 h-4 ml-2" />
+            تصویر عملکرد امروز
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -990,6 +1075,37 @@ const DailyLog = () => {
               >
                 ذخیره تنظیمات
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={performanceOpen} onOpenChange={setPerformanceOpen}>
+          <DialogContent className="max-w-4xl overflow-hidden border-white/20 bg-card p-0">
+            <DialogHeader className="flex-row items-center justify-between border-b border-border p-4">
+              <DialogTitle>تصویر عملکرد امروز</DialogTitle>
+              <Button onClick={downloadPerformanceImage} disabled={isExporting} size="sm">
+                <Download className="w-4 h-4 ml-2" />
+                {isExporting ? 'در حال ساخت...' : 'دانلود PNG'}
+              </Button>
+            </DialogHeader>
+            <div className="max-h-[78vh] overflow-auto bg-muted/30 p-4">
+              <div className="mx-auto w-[720px] max-w-none origin-top scale-[0.72] sm:scale-90 lg:scale-100">
+                <DailyPerformanceCard
+                  ref={performanceCardRef}
+                  displayName={profile?.display_name || profile?.first_name || 'دانش‌آموز پرتلاش'}
+                  dayName={todayPlan?.dayName || 'امروز'}
+                  dateLabel={effectiveDateLabel}
+                  studyTime={formatHoursToHHMM(performanceStats.totalHours)}
+                  totalTests={performanceStats.totalTests}
+                  examCount={todayExamCount}
+                  completedSessions={performanceStats.completedSessions}
+                  totalSessions={performanceStats.totalSessions}
+                  completionPercent={performanceStats.completionPercent}
+                  overallScore={performanceStats.overallScore}
+                  quote={todayQuote.quote}
+                  subjects={performanceStats.subjects}
+                />
+              </div>
             </div>
           </DialogContent>
         </Dialog>
