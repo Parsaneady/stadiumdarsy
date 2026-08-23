@@ -43,6 +43,18 @@ interface StudyMarker {
   color?: string;
 }
 
+interface DailyExamPerformance {
+  id: string;
+  name: string;
+  total: number;
+  correct: number;
+  wrong: number;
+  blank: number;
+  percentage: number;
+  previousPercentage?: number;
+  occurredAt: string;
+}
+
 const SUBJECT_COLORS: Record<string, string> = {
   'ریاضی': '#F97316',
   'فیزیک': '#3B82F6', 
@@ -79,7 +91,7 @@ const DailyLog = () => {
   const [freeTimeElapsed, setFreeTimeElapsed] = useState(0);
   const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
   const [performanceOpen, setPerformanceOpen] = useState(false);
-  const [todayExamCount, setTodayExamCount] = useState(0);
+  const [todayExams, setTodayExams] = useState<DailyExamPerformance[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,13 +180,33 @@ const DailyLog = () => {
       periodStart.setHours(3, 0, 0, 0);
       const periodEnd = new Date(periodStart);
       periodEnd.setDate(periodEnd.getDate() + 1);
-      const { count: examCount } = await supabase
+      const historyStart = new Date(periodStart);
+      historyStart.setDate(historyStart.getDate() - 45);
+      const { data: examRows } = await supabase
         .from('exam_results')
-        .select('id', { count: 'exact', head: true })
+        .select('id, lesson_name, total_questions, correct_answers, wrong_answers, blank_answers, percentage, average_percentage, created_at')
         .eq('user_id', user.id)
-        .gte('created_at', periodStart.toISOString())
-        .lt('created_at', periodEnd.toISOString());
-      setTodayExamCount(examCount || 0);
+        .gte('created_at', historyStart.toISOString())
+        .order('created_at', { ascending: false });
+      const rows = examRows || [];
+      const todaysRows = rows.filter((row) => {
+        const createdAt = new Date(row.created_at);
+        return createdAt >= periodStart && createdAt < periodEnd;
+      });
+      setTodayExams(todaysRows.map((row) => {
+        const previous = rows.find((candidate) => candidate.lesson_name === row.lesson_name && candidate.id !== row.id && new Date(candidate.created_at) < new Date(row.created_at));
+        return {
+          id: row.id,
+          name: row.lesson_name || 'آزمون امروز',
+          total: row.total_questions,
+          correct: row.correct_answers,
+          wrong: row.wrong_answers,
+          blank: row.blank_answers,
+          percentage: Number(row.percentage ?? row.average_percentage ?? 0),
+          previousPercentage: previous ? Number(previous.percentage ?? previous.average_percentage ?? 0) : undefined,
+          occurredAt: row.created_at,
+        };
+      }));
 
       // Check if currently studying
       const { data: statusData } = await supabase
@@ -580,6 +612,8 @@ const DailyLog = () => {
       subjects: sessions.map((session) => ({
         name: session.subject,
         tests: session.actualTests || 0,
+        studyMinutes: Math.round((session.actualHours || 0) * 60),
+        mastery: Math.round(Math.min(100, ((session.targetHours > 0 ? session.actualHours / session.targetHours : 0) + (session.targetTests > 0 ? session.actualTests / session.targetTests : 0)) * 50)),
         completed: (() => {
           const hourRatio = session.targetHours > 0 ? session.actualHours / session.targetHours : 0;
           const testRatio = session.targetTests > 0 ? session.actualTests / session.targetTests : 0;
@@ -602,7 +636,9 @@ const DailyLog = () => {
       const dataUrl = await toPng(performanceCardRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-        backgroundColor: 'hsl(var(--background))',
+          backgroundColor: 'hsl(var(--background))',
+          width: 1080,
+          height: 1920,
       });
       const link = document.createElement('a');
       link.download = `daily-performance-${getEffectiveDateString()}.png`;
@@ -1080,7 +1116,7 @@ const DailyLog = () => {
         </Dialog>
 
         <Dialog open={performanceOpen} onOpenChange={setPerformanceOpen}>
-          <DialogContent className="max-w-4xl overflow-hidden border-white/20 bg-card p-0">
+          <DialogContent className="max-w-5xl overflow-hidden border-white/20 bg-card p-0">
             <DialogHeader className="flex-row items-center justify-between border-b border-border p-4">
               <DialogTitle>تصویر عملکرد امروز</DialogTitle>
               <Button onClick={downloadPerformanceImage} disabled={isExporting} size="sm">
@@ -1089,7 +1125,8 @@ const DailyLog = () => {
               </Button>
             </DialogHeader>
             <div className="max-h-[78vh] overflow-auto bg-muted/30 p-4">
-              <div className="mx-auto w-[720px] max-w-none origin-top scale-[0.72] sm:scale-90 lg:scale-100">
+              <div className="mx-auto h-[1067px] w-[600px] max-w-none overflow-hidden sm:h-[1280px] sm:w-[720px] lg:h-[1440px] lg:w-[810px]">
+                <div className="origin-top-right scale-[0.556] sm:scale-[0.667] lg:scale-75">
                 <DailyPerformanceCard
                   ref={performanceCardRef}
                   displayName={profile?.display_name || profile?.first_name || 'دانش‌آموز پرتلاش'}
@@ -1097,14 +1134,17 @@ const DailyLog = () => {
                   dateLabel={effectiveDateLabel}
                   studyTime={formatHoursToHHMM(performanceStats.totalHours)}
                   totalTests={performanceStats.totalTests}
-                  examCount={todayExamCount}
                   completedSessions={performanceStats.completedSessions}
                   totalSessions={performanceStats.totalSessions}
                   completionPercent={performanceStats.completionPercent}
                   overallScore={performanceStats.overallScore}
                   quote={todayQuote.quote}
                   subjects={performanceStats.subjects}
+                  activities={activities}
+                  wakeUpHour={wakeUpTime ?? undefined}
+                  exams={todayExams}
                 />
+                </div>
               </div>
             </div>
           </DialogContent>
