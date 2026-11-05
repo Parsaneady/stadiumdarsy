@@ -198,3 +198,70 @@
     display: none;
   }
 }
+
+/* ============ Arena (new Stadium design system) ============ */
+@layer base {
+  .arena {
+    --background: 226 45% 5%;
+    --foreground: 210 40% 96%;
+    --card: 225 38% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 225 38% 9%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 158 84% 45%;
+    --primary-foreground: 226 45% 6%;
+    --secondary: 189 94% 48%;
+    --secondary-foreground: 226 45% 6%;
+    --accent: 189 94% 48%;
+    --accent-foreground: 226 45% 6%;
+    --muted: 225 28% 15%;
+    --muted-foreground: 218 16% 66%;
+    --warning: 32 98% 58%;
+    --warning-foreground: 226 45% 6%;
+    --success: 158 84% 45%;
+    --destructive: 352 88% 60%;
+    --border: 222 30% 18%;
+    --input: 222 30% 16%;
+    --ring: 170 90% 46%;
+    --radius: 1.1rem;
+    --arena-glass: 225 40% 12% / 0.55;
+    --arena-glow: 0 0 40px -8px hsl(170 90% 46% / 0.45);
+    --gradient-arena: linear-gradient(120deg, hsl(158 84% 45%), hsl(189 94% 48%));
+    --gradient-warm: linear-gradient(120deg, hsl(32 98% 58%), hsl(352 88% 60%));
+    --arena-bg: radial-gradient(1200px 600px at 85% -10%, hsl(170 90% 40% / 0.16), transparent 60%),
+                radial-gradient(900px 500px at 0% 110%, hsl(200 90% 45% / 0.12), transparent 60%),
+                hsl(226 45% 5%);
+  }
+  .arena.arena-light {
+    --background: 210 40% 97%;
+    --foreground: 226 45% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 226 45% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 226 45% 9%;
+    --primary: 160 84% 34%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 192 90% 38%;
+    --accent: 192 90% 38%;
+    --muted: 214 32% 91%;
+    --muted-foreground: 220 14% 38%;
+    --border: 214 28% 86%;
+    --input: 214 28% 88%;
+    --arena-glass: 0 0% 100% / 0.7;
+    --arena-glow: 0 10px 30px -12px hsl(170 80% 30% / 0.35);
+    --arena-bg: radial-gradient(1200px 600px at 85% -10%, hsl(170 80% 60% / 0.18), transparent 60%),
+                radial-gradient(900px 500px at 0% 110%, hsl(200 90% 60% / 0.14), transparent 60%),
+                hsl(210 40% 97%);
+  }
+  .arena { background: var(--arena-bg); color: hsl(var(--foreground)); font-family: 'Vazirmatn', sans-serif; }
+}
+@layer components {
+  .arena-glass { background: hsl(var(--arena-glass)); backdrop-filter: blur(18px); border: 1px solid hsl(var(--border) / 0.8); }
+  .arena-glow { box-shadow: var(--arena-glow); }
+  .arena-gradient { background-image: var(--gradient-arena); }
+  .arena-warm { background-image: var(--gradient-warm); }
+  .arena-text-gradient { background-image: var(--gradient-arena); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .font-display { font-family: 'Lalezar', 'Vazirmatn', sans-serif; letter-spacing: 0; }
+  .arena-grain::after { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .05; z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+}

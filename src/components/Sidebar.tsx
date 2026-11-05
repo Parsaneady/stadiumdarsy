@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const mainNavItems = [
   { path: '/study-desk', icon: BookOpen, label: 'میز مطالعه', subtitle: 'برنامه، تایمر، آزمون' },
   { path: '/discipline-tree', icon: TreePine, label: 'درخت دیسیپلین', subtitle: 'فضای ذهنی و آرامش' },
-  { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
+  { path: '/classic', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
   { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
   { path: '/profile', icon: User, label: 'پروفایل' },
