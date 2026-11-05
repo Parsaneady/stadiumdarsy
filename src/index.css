@@ -200,7 +200,6 @@
 }
 
 /* ============ Arena (new Stadium design system) ============ */
-@import url('https://fonts.googleapis.com/css2?family=Lalezar&display=swap');
 @layer base {
   .arena {
     --background: 226 45% 5%;
