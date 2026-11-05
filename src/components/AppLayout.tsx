@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 // Study desk items - removed from sidebar, now on StudyDesk page
 
 const otherNavItems = [
-  { path: '/', icon: LayoutDashboard, label: 'داشبورد' },
+  { path: '/classic', icon: LayoutDashboard, label: 'داشبورد' },
   { path: '/discipline-tree', icon: TreePine, label: 'درخت دیسیپلین' },
   { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
   { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
