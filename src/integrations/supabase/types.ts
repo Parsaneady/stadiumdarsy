@@ -548,11 +548,16 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          daily_minutes: number | null
           display_name: string | null
           email: string | null
+          exam_date: string | null
+          field: string | null
           first_name: string | null
+          grade: number | null
           id: string
           last_name: string | null
+          onboarded: boolean
           total_study_minutes: number | null
           total_tests: number | null
           updated_at: string
@@ -562,11 +567,16 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          daily_minutes?: number | null
           display_name?: string | null
           email?: string | null
+          exam_date?: string | null
+          field?: string | null
           first_name?: string | null
+          grade?: number | null
           id?: string
           last_name?: string | null
+          onboarded?: boolean
           total_study_minutes?: number | null
           total_tests?: number | null
           updated_at?: string
@@ -576,11 +586,16 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          daily_minutes?: number | null
           display_name?: string | null
           email?: string | null
+          exam_date?: string | null
+          field?: string | null
           first_name?: string | null
+          grade?: number | null
           id?: string
           last_name?: string | null
+          onboarded?: boolean
           total_study_minutes?: number | null
           total_tests?: number | null
           updated_at?: string
