@@ -22,6 +22,10 @@ const Profile = lazy(() => import("./pages/Profile"));
 const StudyDesk = lazy(() => import("./pages/StudyDesk"));
 const TestBookPanel = lazy(() => import("./pages/TestBookPanel"));
 const DisciplineTree = lazy(() => import("./pages/DisciplineTree"));
+const ArenaLayout = lazy(() => import("./features/shell/ArenaLayout"));
+const StadiumPage = lazy(() => import("./features/dashboard/StadiumPage"));
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
+const ArenaSections = lazy(() => import("./features/shell/sections"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading fallback component
@@ -54,7 +58,17 @@ const App = () => (
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<Dashboard />} />
+                <Route element={<ArenaLayout />}>
+                  <Route path="/" element={<StadiumPage />} />
+                  <Route path="/library" element={<ArenaSections section="library" />} />
+                  <Route path="/topics" element={<ArenaSections section="topics" />} />
+                  <Route path="/planner" element={<ArenaSections section="planner" />} />
+                  <Route path="/practice" element={<ArenaSections section="practice" />} />
+                  <Route path="/analytics" element={<ArenaSections section="analytics" />} />
+                  <Route path="/exam-style" element={<ArenaSections section="exam-style" />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Route>
+                <Route path="/classic" element={<Dashboard />} />
                 <Route path="/weekly-plan" element={<WeeklyProgram />} />
                 <Route path="/daily-log" element={<DailyLog />} />
                 <Route path="/pomodoro" element={<Pomodoro />} />

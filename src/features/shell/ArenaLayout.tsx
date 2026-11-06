@@ -38,7 +38,7 @@ export default function ArenaLayout() {
         <div className="arena-glass rounded-3xl h-full flex flex-col p-4">
           <Link to="/" className="flex items-center gap-3 px-2 py-3 mb-4 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="w-11 h-11 rounded-2xl arena-gradient grid place-items-center arena-glow"><Trophy className="w-6 h-6 text-primary-foreground" aria-hidden /></span>
-            <span><span className="font-display text-2xl block leading-none">استادیوم درسی</span><span className="text-xs text-muted-foreground">مربی هوشمند مطالعه</span></span>
+            <span><span className="font-display text-xl whitespace-nowrap block leading-none">استادیوم درسی</span><span className="text-xs text-muted-foreground">مربی هوشمند مطالعه</span></span>
           </Link>
           <nav aria-label="منوی اصلی" className="flex-1 space-y-1">
             {NAV.map(({ path, label, icon: Icon }) => (
