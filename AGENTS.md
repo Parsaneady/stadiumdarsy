@@ -1,0 +1,1 @@
+- New app lives in `src/features/<area>` under `ArenaLayout`; its design tokens are scoped to the `.arena` class so legacy pages (src/pages, old routes like /classic, /pension) keep their original look.
