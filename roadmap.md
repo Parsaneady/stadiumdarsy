@@ -1,11 +1,9 @@
-# Estadium Darsi rebuild (one stage per message, user confirms between stages)
-- [x] 1. Design system + layout shell (old tools under "ابزارهای قبلی")
-- [ ] 2. Database + auth (new tables, RLS, demo physiology book seeded for everyone, deletable)
-- [x] 3a. Settings bug fixed: grade/field in settings, built-in curriculum (G12 tajrobi), no upload
-- [ ] 3b. Onboarding, exam date, other grades curriculum, curriculum in DB + admin
-- [ ] 4. Topic map (React Flow)
-- [ ] 5. Practice engine + generate-questions + exam blueprints
-- [ ] 6. Planner + build-plan + adapt-plan (Jalali)
-- [ ] 7. Coach chat (streaming drawer / bottom sheet)
-- [ ] 8. Analytics
-- [ ] 9. Polish + animation
+# Daily Log backbone — Grade 12 Experimental
+- [ ] 1. Today, bite schema, non-destructive legacy adapter, offline logging/timer, navigation and acceptance tests (in progress)
+- [ ] 2. PDF catalog and JSON import/export — waiting for user's JSON/PDF data and stage confirmation
+- [ ] 3. Deterministic planning engine and Jalali weekly grid — awaiting confirmation
+- [ ] 4. Exam stages, budget, answer sheet and analysis — awaiting confirmation
+- [ ] 5. Advisor interview, chat and actions — awaiting confirmation
+- [ ] 6. Five original illustrated characters — awaiting confirmation
+- [ ] 7. Final exams and descriptive workflow — awaiting confirmation
+- [ ] 8. Analytics, performance and accessibility polish — awaiting confirmation
