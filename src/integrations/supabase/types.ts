@@ -44,6 +44,213 @@ export type Database = {
         }
         Relationships: []
       }
+      bite_logs: {
+        Row: {
+          bite_id: string
+          blank: number
+          correct: number
+          created_at: string
+          date: string
+          deleted_at: string | null
+          distraction: string
+          distractions_note: string
+          energy: string
+          id: string
+          minutes: number
+          source: string
+          tests_done: number
+          updated_at: string
+          user_id: string
+          wrong: number
+        }
+        Insert: {
+          bite_id: string
+          blank?: number
+          correct?: number
+          created_at?: string
+          date: string
+          deleted_at?: string | null
+          distraction?: string
+          distractions_note?: string
+          energy?: string
+          id?: string
+          minutes?: number
+          source?: string
+          tests_done?: number
+          updated_at?: string
+          user_id: string
+          wrong?: number
+        }
+        Update: {
+          bite_id?: string
+          blank?: number
+          correct?: number
+          created_at?: string
+          date?: string
+          deleted_at?: string | null
+          distraction?: string
+          distractions_note?: string
+          energy?: string
+          id?: string
+          minutes?: number
+          source?: string
+          tests_done?: number
+          updated_at?: string
+          user_id?: string
+          wrong?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bite_logs_user_id_bite_id_fkey"
+            columns: ["user_id", "bite_id"]
+            isOneToOne: false
+            referencedRelation: "bites"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      bite_progress: {
+        Row: {
+          bite_id: string
+          last_done_at: string | null
+          minutes_done: number
+          next_review_at: string | null
+          status: string
+          tests_blank: number
+          tests_correct: number
+          tests_done: number
+          tests_wrong: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bite_id: string
+          last_done_at?: string | null
+          minutes_done?: number
+          next_review_at?: string | null
+          status?: string
+          tests_blank?: number
+          tests_correct?: number
+          tests_done?: number
+          tests_wrong?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bite_id?: string
+          last_done_at?: string | null
+          minutes_done?: number
+          next_review_at?: string | null
+          status?: string
+          tests_blank?: number
+          tests_correct?: number
+          tests_done?: number
+          tests_wrong?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bite_progress_user_id_bite_id_fkey"
+            columns: ["user_id", "bite_id"]
+            isOneToOne: true
+            referencedRelation: "bites"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      bites: {
+        Row: {
+          book: string
+          chapter: string
+          created_at: string
+          grade_origin: number
+          id: string
+          kind: string
+          legacy_ref: string | null
+          manually_completed: boolean
+          mode: string
+          needs_review: boolean
+          page_from: number | null
+          page_to: number | null
+          parent_bite_id: string | null
+          phase: string
+          planned_date: string | null
+          slot_time: string | null
+          subject: string
+          subject_type: string
+          target_minutes: number
+          target_tests: number
+          test_source: string
+          title: string
+          updated_at: string
+          user_id: string
+          weight: string
+        }
+        Insert: {
+          book?: string
+          chapter?: string
+          created_at?: string
+          grade_origin?: number
+          id?: string
+          kind?: string
+          legacy_ref?: string | null
+          manually_completed?: boolean
+          mode?: string
+          needs_review?: boolean
+          page_from?: number | null
+          page_to?: number | null
+          parent_bite_id?: string | null
+          phase?: string
+          planned_date?: string | null
+          slot_time?: string | null
+          subject: string
+          subject_type?: string
+          target_minutes?: number
+          target_tests?: number
+          test_source?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          weight?: string
+        }
+        Update: {
+          book?: string
+          chapter?: string
+          created_at?: string
+          grade_origin?: number
+          id?: string
+          kind?: string
+          legacy_ref?: string | null
+          manually_completed?: boolean
+          mode?: string
+          needs_review?: boolean
+          page_from?: number | null
+          page_to?: number | null
+          parent_bite_id?: string | null
+          phase?: string
+          planned_date?: string | null
+          slot_time?: string | null
+          subject?: string
+          subject_type?: string
+          target_minutes?: number
+          target_tests?: number
+          test_source?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weight?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bites_parent_bite_id_fkey"
+            columns: ["parent_bite_id"]
+            isOneToOne: false
+            referencedRelation: "bites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           created_at: string
@@ -141,6 +348,7 @@ export type Database = {
       }
       daily_logs: {
         Row: {
+          bite_summary: Json
           completed_sessions: number
           created_at: string
           date: string
@@ -155,6 +363,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bite_summary?: Json
           completed_sessions?: number
           created_at?: string
           date: string
@@ -169,6 +378,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bite_summary?: Json
           completed_sessions?: number
           created_at?: string
           date?: string
@@ -608,6 +818,7 @@ export type Database = {
         Row: {
           activity_date: string
           activity_type: string
+          bite_id: string | null
           color: string | null
           created_at: string
           end_time: string | null
@@ -621,6 +832,7 @@ export type Database = {
         Insert: {
           activity_date?: string
           activity_type: string
+          bite_id?: string | null
           color?: string | null
           created_at?: string
           end_time?: string | null
@@ -634,6 +846,7 @@ export type Database = {
         Update: {
           activity_date?: string
           activity_type?: string
+          bite_id?: string | null
           color?: string | null
           created_at?: string
           end_time?: string | null
@@ -644,7 +857,15 @@ export type Database = {
           subject?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "study_activities_bite_id_fkey"
+            columns: ["bite_id"]
+            isOneToOne: false
+            referencedRelation: "bites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       test_books: {
         Row: {
@@ -706,6 +927,7 @@ export type Database = {
       user_settings: {
         Row: {
           created_at: string
+          daily_backbone: Json
           id: string
           last_study_date: string | null
           last_weekly_reset: string | null
@@ -719,6 +941,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          daily_backbone?: Json
           id?: string
           last_study_date?: string | null
           last_weekly_reset?: string | null
@@ -732,6 +955,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          daily_backbone?: Json
           id?: string
           last_study_date?: string | null
           last_weekly_reset?: string | null
