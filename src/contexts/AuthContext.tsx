@@ -13,6 +13,9 @@ interface Profile {
   username: string | null;
   total_study_minutes: number;
   total_tests: number;
+  grade?: number | null;
+  field?: string | null;
+  onboarded?: boolean;
 }
 
 interface AuthContextType {

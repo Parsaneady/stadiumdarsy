@@ -1,7 +1,8 @@
 # Estadium Darsi rebuild (one stage per message, user confirms between stages)
 - [x] 1. Design system + layout shell (old tools under "ابزارهای قبلی")
 - [ ] 2. Database + auth (new tables, RLS, demo physiology book seeded for everyone, deletable)
-- [ ] 3. Library + upload + split-lesson
+- [x] 3a. Settings bug fixed: grade/field in settings, built-in curriculum (G12 tajrobi), no upload
+- [ ] 3b. Onboarding, exam date, other grades curriculum, curriculum in DB + admin
 - [ ] 4. Topic map (React Flow)
 - [ ] 5. Practice engine + generate-questions + exam blueprints
 - [ ] 6. Planner + build-plan + adapt-plan (Jalali)
