@@ -2,7 +2,7 @@ import { Library, Network, CalendarDays, Target, BarChart3, ScrollText } from 'l
 import SectionPage from './SectionPage';
 
 const S = {
-  library: { eyebrow: 'رختکن دانش', title: 'کتابخانه', subtitle: 'کتاب‌ها و درس‌هایت را اینجا بارگذاری کن تا به مباحث کوچک تقسیم شوند.', icon: Library, emptyTitle: 'کتابخانه خالی است', emptyText: 'بارگذاری PDF و متن در مرحله‌ی بعد فعال می‌شود. فعلاً تنظیمات پروفایلت را کامل کن.', to: '/settings', cta: 'تنظیمات' },
+  library: { eyebrow: 'رختکن دانش', title: 'کتابخانه', subtitle: 'کتاب‌ها و درس‌هایت را اینجا بارگذاری کن تا به مباحث کوچک تقسیم شوند.', icon: Library, emptyTitle: 'کتابخانه خالی است', emptyText: 'بارگذاری PDF و متن در مرحله‌ی بعد فعال می‌شود. پایه و رشته‌ات را انتخاب کن.', to: '/settings', cta: 'تنظیمات' },
   topics: { eyebrow: 'زمین بازی', title: 'نقشه مباحث', subtitle: 'درس‌ها، مباحث و زیرمباحث روی یک نقشه‌ی تعاملی با رنگ تسلط.', icon: Network, emptyTitle: 'نقشه هنوز خالی است', emptyText: 'با اضافه شدن اولین کتاب، مباحث روی نقشه ظاهر می‌شوند.', to: '/library', cta: 'رفتن به کتابخانه' },
   planner: { eyebrow: 'تقویم مسابقات', title: 'برنامه‌ریز', subtitle: 'برنامه‌ی روزانه و هفتگی با تقویم شمسی و تکرار فاصله‌دار.', icon: CalendarDays, emptyTitle: 'برنامه‌ای ساخته نشده', emptyText: 'بعد از تقسیم درس‌ها به مباحث، هوش مصنوعی برنامه را می‌سازد.', to: '/library', cta: 'شروع از کتابخانه' },
   practice: { eyebrow: 'تمرین', title: 'تمرین و آزمون', subtitle: 'آزمون مبحثی، ترکیبی، آزمون زمان‌دار و مرور غلط‌ها.', icon: Target, emptyTitle: 'هنوز سؤالی نیست', emptyText: 'سؤال‌ها از روی مباحث کتاب‌هایت ساخته می‌شوند.', to: '/library', cta: 'افزودن کتاب' },

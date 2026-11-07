@@ -25,6 +25,7 @@ const DisciplineTree = lazy(() => import("./pages/DisciplineTree"));
 const ArenaLayout = lazy(() => import("./features/shell/ArenaLayout"));
 const StadiumPage = lazy(() => import("./features/dashboard/StadiumPage"));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage"));
+const LibraryPage = lazy(() => import("./features/library/LibraryPage"));
 const ArenaSections = lazy(() => import("./features/shell/sections"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -60,7 +61,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route element={<ArenaLayout />}>
                   <Route path="/" element={<StadiumPage />} />
-                  <Route path="/library" element={<ArenaSections section="library" />} />
+                  <Route path="/library" element={<LibraryPage />} />
                   <Route path="/topics" element={<ArenaSections section="topics" />} />
                   <Route path="/planner" element={<ArenaSections section="planner" />} />
                   <Route path="/practice" element={<ArenaSections section="practice" />} />
