@@ -76,5 +76,6 @@ export const getEffectiveDate = (): Date => {
 
 // Get effective date string (YYYY-MM-DD) considering 3 AM boundary
 export const getEffectiveDateString = (): string => {
-  return getEffectiveDate().toISOString().split('T')[0];
+  const d = getEffectiveDate();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };

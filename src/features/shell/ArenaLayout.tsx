@@ -1,13 +1,13 @@
 import { Suspense, useEffect } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Moon, Sun, LogOut, Archive, Trophy } from 'lucide-react';
+import { Moon, Sun, LogOut, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { NAV, LEGACY_NAV } from './nav';
+import { NAV } from './nav';
 import { useUI } from './uiStore';
 import { ErrorBoundary } from './ErrorBoundary';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const PageSkeleton = () => (
@@ -52,7 +52,7 @@ export default function ArenaLayout() {
               </NavLink>
             ))}
           </nav>
-          <LegacyMenu />
+          <p className="text-xs text-muted-foreground px-3 py-2">پانسیون · به‌زودی بازطراحی می‌شود</p>
         </div>
       </aside>
 
@@ -62,7 +62,7 @@ export default function ArenaLayout() {
             <div className="flex items-center gap-2 lg:hidden"><span className="w-8 h-8 rounded-xl arena-gradient grid place-items-center"><Trophy className="w-4 h-4 text-primary-foreground" aria-hidden /></span><span className="font-display text-xl">استادیوم درسی</span></div>
             <p className="hidden lg:block text-sm text-muted-foreground">سلام <span className="text-foreground font-semibold">{name}</span>، آماده‌ی بازی امروزی؟</p>
             <div className="flex items-center gap-1">
-              <div className="lg:hidden"><LegacyMenu compact /></div>
+              
               <IconBtn label={theme === 'dark' ? 'حالت روشن' : 'حالت تیره'} onClick={toggleTheme}>{theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}</IconBtn>
               <IconBtn label="خروج از حساب" onClick={() => signOut()}><LogOut className="w-5 h-5 rtl:-scale-x-100" /></IconBtn>
             </div>
@@ -82,10 +82,10 @@ export default function ArenaLayout() {
 
       {/* Mobile bottom tab bar */}
       <nav aria-label="منوی پایین" className="lg:hidden fixed bottom-0 inset-x-0 z-30 p-3">
-        <div className="arena-glass rounded-3xl grid grid-cols-5 p-1.5">
+        <div className="arena-glass rounded-3xl flex overflow-x-auto p-1.5">
           {NAV.filter((n) => n.mobile).map(({ path, short, icon: Icon }) => (
             <NavLink key={path} to={path} end={path === '/'}
-              className={({ isActive }) => cn('relative flex flex-col items-center gap-0.5 py-2 min-h-[52px] rounded-2xl text-[11px] font-medium', isActive ? 'text-primary-foreground' : 'text-muted-foreground')}>
+              className={({ isActive }) => cn('relative flex flex-col items-center gap-0.5 py-2 min-h-[52px] min-w-[72px] flex-1 rounded-lg text-[11px] font-medium', isActive ? 'text-primary-foreground' : 'text-muted-foreground')}>
               {({ isActive }) => (<>
                 {isActive && <motion.span layoutId="tab-pill" className="absolute inset-0 rounded-2xl arena-gradient" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
                 <Icon className="w-5 h-5 relative" aria-hidden /><span className="relative">{short}</span>
@@ -100,29 +100,9 @@ export default function ArenaLayout() {
 
 function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
-    <motion.button whileTap={{ scale: 0.88 }} whileHover={{ scale: 1.06 }} onClick={onClick} aria-label={label} title={label}
+    <Button variant="ghost" size="icon" onClick={onClick} aria-label={label} title={label}
       className="w-11 h-11 grid place-items-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       {children}
-    </motion.button>
-  );
-}
-
-function LegacyMenu({ compact }: { compact?: boolean }) {
-  return (
-    <DropdownMenu dir="rtl">
-      <DropdownMenuTrigger asChild>
-        {compact ? (
-          <button aria-label="ابزارهای قبلی" className="w-11 h-11 grid place-items-center rounded-xl text-muted-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Archive className="w-5 h-5" /></button>
-        ) : (
-          <button className="flex items-center gap-3 px-3 py-3 rounded-2xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-dashed border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Archive className="w-5 h-5" aria-hidden />ابزارهای قبلی
-          </button>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>ابزارهای قبلی</DropdownMenuLabel>
-        {LEGACY_NAV.map((l) => <DropdownMenuItem key={l.path} asChild><Link to={l.path}>{l.label}</Link></DropdownMenuItem>)}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    </Button>
   );
 }

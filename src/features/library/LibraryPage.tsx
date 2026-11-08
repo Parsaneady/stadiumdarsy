@@ -10,8 +10,8 @@ export default function LibraryPage() {
   const { profile } = useAuth();
   const p = profile as any;
   const [open, setOpen] = useState<string | null>(null);
-  const grade: number | undefined = p?.grade ?? undefined;
-  const field: string | undefined = p?.field ?? undefined;
+  const grade: number | undefined = 12;
+  const field: string | undefined = 'tajrobi';
   const cur = getCurriculum(grade, field);
   const label = grade ? `پایه ${gradeLabel(grade)}${needsField(grade) && field ? ' · ' + fieldLabel(field) : ''}` : '';
 
