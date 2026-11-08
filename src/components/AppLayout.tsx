@@ -26,11 +26,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 // Study desk items - removed from sidebar, now on StudyDesk page
 
 const otherNavItems = [
-  { path: '/classic', icon: LayoutDashboard, label: 'داشبورد' },
-  { path: '/discipline-tree', icon: TreePine, label: 'درخت دیسیپلین' },
-  { path: '/analytics', icon: BarChart3, label: 'تحلیل‌ها' },
-  { path: '/history', icon: History, label: 'تاریخچه عملکرد' },
-  { path: '/profile', icon: User, label: 'پروفایل' },
+  { path: '/', icon: ClipboardList, label: 'امروز' },
+  { path: '/study-desk', icon: BookOpen, label: 'میز مطالعه' },
+  { path: '/exam', icon: FileText, label: 'آزمون‌ها' },
+  { path: '/advisor', icon: User, label: 'مشاور' },
+  { path: '/analytics', icon: BarChart3, label: 'تحلیل' },
+  { path: '/pension', icon: Users, label: 'پانسیون' },
+  { path: '/settings', icon: User, label: 'تنظیمات' },
 ];
 
 interface AppLayoutProps {

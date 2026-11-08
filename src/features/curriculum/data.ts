@@ -1,14 +1,12 @@
 /** Built-in official curriculum. Add grades/fields by data only; the Library reads this generically. */
-export type FieldId = 'tajrobi' | 'riazi' | 'ensani';
+export type FieldId = 'tajrobi';
 export interface Lesson { title: string; topics: string[]; needsReview?: boolean }
 export interface Book { id: string; title: string; subject: string; color: string; lessons: Lesson[] }
 export interface Curriculum { grade: number; field: FieldId | null; status: 'complete' | 'partial'; books: Book[] }
 
-export const GRADES = [7, 8, 9, 10, 11, 12] as const;
+export const GRADES = [12] as const;
 export const FIELDS: { id: FieldId; title: string }[] = [
   { id: 'tajrobi', title: 'علوم تجربی' },
-  { id: 'riazi', title: 'ریاضی فیزیک' },
-  { id: 'ensani', title: 'علوم انسانی' },
 ];
 export const needsField = (g?: number | null) => !!g && g >= 10;
 
