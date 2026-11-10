@@ -1,1 +1,4 @@
 - New app lives in `src/features/<area>` under `ArenaLayout`; its design tokens are scoped to the `.arena` class so legacy pages (src/pages, old routes like /classic, /pension) keep their original look.
+- The daily feature uses a per-user persisted event ledger with stable IDs and deletion tombstones; totals are derived, never incremented during retries, to prevent double counting.
+- Adapt legacy plan and daily snapshots by stable provenance IDs without rewriting originals; migrated snapshots and their sources must not both contribute to totals.
+- Keep deterministic daily rules in `src/features/daily/model.ts` and tests beside them; timestamp-based timer elapsed time survives navigation and reloads.

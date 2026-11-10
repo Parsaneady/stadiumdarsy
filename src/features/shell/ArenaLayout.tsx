@@ -81,7 +81,7 @@ export default function ArenaLayout() {
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav aria-label="منوی پایین" className="lg:hidden fixed bottom-0 inset-x-0 z-30 p-3">
+      <nav aria-label="منوی پایین" className="lg:hidden fixed bottom-0 inset-x-0 z-30 p-3 transform-none">
         <div className="arena-glass rounded-3xl flex overflow-x-auto p-1.5">
           {NAV.filter((n) => n.mobile).map(({ path, short, icon: Icon }) => (
             <NavLink key={path} to={path} end={path === '/'}
