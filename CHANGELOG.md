@@ -22,8 +22,15 @@
 - A fully cached offline cold start after closing the browser (current offline edits work in the loaded app).
 - Full reconciliation with separate legacy timer activities; imported snapshots preserve aggregate values but cannot recover missing answer breakdowns.
 - Subject-specific visual colors, celebratory confetti, richer weekly heatmap and Jalali input picker refinements.
-- Advisor messages are local deterministic encouragement; streaming advisor is Stage 5.
+- Advisor interview, action proposals and five characters remain later-stage work; real streaming conversation is now implemented below.
 
 ## Needs review / user input
 - The three sample bites have no guessed page numbers and are marked needs_review.
 - Real catalog JSON/PDF budgets are deliberately deferred to Stage 2.
+
+## AI advisor — 2026-11-12
+- Replaced canned encouragement with authenticated streaming Persian coaching grounded in the user's recent planned items, active logs and separately labeled legacy summaries.
+- One continuous conversation is stored per account; full prior conversation is sent with each request. Ownership RLS allows only the user to read it; server code saves user messages and completed replies with stable request deduplication.
+- Added stop, typing status, Markdown rendering and visible failure messages without automatic inference replays.
+- Verified two real turns, contextual follow-up, saved readback after reload, mobile fit and no browser runtime errors. All 13 daily/Tehran-day tests passed; preview build OK. Repository lint still reports existing errors in unrelated legacy files.
+- Uploaded Maz data and redesign brief received; catalog import and removal of old UI are not part of this advisor repair.

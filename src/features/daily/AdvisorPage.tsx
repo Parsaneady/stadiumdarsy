@@ -19,6 +19,7 @@ const messageSchema = z.string().trim().min(1).max(4000);
 
 export default function AdvisorPage() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [text, setText] = useState('');
   const [status, setStatus] = useState<'ready'|'submitted'|'streaming'>('ready');
@@ -29,15 +30,15 @@ export default function AdvisorPage() {
   useEffect(() => {
     let mounted = true;
     setMessages([]); setLoading(true); setError('');
-    if (!user) { setLoading(false); return; }
-    supabase.from('advisor_messages').select('id,role,content').eq('user_id', user.id).order('created_at', { ascending: true }).then(result => {
+    if (!userId) { setLoading(false); return; }
+    supabase.from('advisor_messages').select('id,role,content').eq('user_id', userId).order('created_at', { ascending: true }).then(result => {
       if (!mounted) return;
       if (result.error) setError('سابقهٔ گفتگو بارگیری نشد؛ برای جلوگیری از گم‌شدن گفتگو صفحه را دوباره باز کن.');
       else setMessages((result.data ?? []).map(m => ({ id: m.id, role: m.role === 'assistant' ? 'assistant' : 'user', parts: [{ type: 'text', text: m.content }] })));
       setLoading(false); input.current?.focus();
     });
     return () => { mounted = false; active.current?.abort(); };
-  }, [user?.id]);
+  }, [userId]);
 
   async function send(value: string) {
     const parsed = messageSchema.safeParse(value);
