@@ -2,3 +2,4 @@
 - The daily feature uses a per-user persisted event ledger with stable IDs and deletion tombstones; totals are derived, never incremented during retries, to prevent double counting.
 - Adapt legacy plan and daily snapshots by stable provenance IDs without rewriting originals; migrated snapshots and their sources must not both contribute to totals.
 - Keep deterministic daily rules in `src/features/daily/model.ts` and tests beside them; timestamp-based timer elapsed time survives navigation and reloads.
+- The advisor uses one account-owned conversation; model availability is checked only in authenticated server functions to avoid exposing gateway credentials.
