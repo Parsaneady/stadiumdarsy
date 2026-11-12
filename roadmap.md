@@ -3,7 +3,7 @@
 - [ ] 2. PDF catalog and JSON import/export — waiting for user's JSON/PDF data and stage confirmation
 - [ ] 3. Deterministic planning engine and Jalali weekly grid — awaiting confirmation
 - [ ] 4. Exam stages, budget, answer sheet and analysis — awaiting confirmation
-- [ ] 5. Advisor interview, chat and actions — awaiting confirmation
+- [ ] 5. Working AI advisor requested now: replace canned response with real personalized answers; conversation shape and history preference awaiting user answer. Interview and actions remain a later stage.
 - [ ] 6. Five original illustrated characters — awaiting confirmation
 - [ ] 7. Final exams and descriptive workflow — awaiting confirmation
 - [ ] 8. Analytics, performance and accessibility polish — awaiting confirmation
